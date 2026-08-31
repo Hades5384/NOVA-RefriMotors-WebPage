@@ -1,15 +1,443 @@
-// CONFIGURACION
-const TASA_BCV = 771.35; 
+// ==========================================
+// 1. CONFIGURACIÓN DEL SISTEMA
+// ==========================================
+const TASA_BCV = 795; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
 const TASA_INTERNA = 950; 
 
-// Mostrar tasa BCV dinámicamente en el encabezado
+// Mostrar tasa BCV en el encabezado
 document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`; 
 
-// BASE DE DATOS DE PRODUCTOS COMPLETADA
+// ==========================================
+// 2. BASE DE DATOS DE PRODUCTOS
+// ==========================================
 const products = [
+    // ==========================================
+    // SECCIÓN: QUÍMICOS Y LIMPIADORES
+    // ==========================================
+    {
+        id: "QMC018", 
+        name: "Limpiador Alcalino Albrite 880ML", 
+        category: "Químicos", 
+        model: "880 ML",
+        desc: `<b>Limpiador Alcalino Albrite 880ML</b><br><br>Limpiador desincrustante alcalino de alta eficiencia para serpentines y paneles de aluminio.`,
+        costoCompra: 1.65384615, 
+        images: ["productos/QMC018.webp"],
+        specs: { "Tipo": "Limpiador Alcalino", "Presentación": "880 ML", "Uso": "Mantenimiento" }
+    },
+    {
+        id: "QMC008", 
+        name: "Ácido Evar 22 Limpiador 1 Litro", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Ácido Evar 22 Limpiador 1 Litro</b><br><br>Fórmula ácida concentrada para la limpieza profunda y remoción de óxido en sistemas de refrigeración.`,
+        costoCompra: 4.63846154, 
+        images: ["productos/QMC008.webp"],
+        specs: { "Marca": "Evar 22", "Tipo": "Ácido Limpiador", "Presentación": "1 Litro" }
+    },
+    {
+        id: "QMC023", 
+        name: "Ácido Evar 22 Limpiador Mediano 480ML", 
+        category: "Químicos", 
+        model: "480 ML",
+        desc: `<b>Ácido Evar 22 Limpiador Mediano 480ML</b><br><br>Limpiador ácido concentrado en presentación mediana, ideal para mantenimientos rápidos de equipos de refrigeración.`,
+        costoCompra: 2.45384615, 
+        images: ["productos/QMC023.webp"],
+        specs: { "Marca": "Evar 22", "Tipo": "Ácido Limpiador", "Presentación": "480 ML" }
+    },
+    {
+        id: "QMC021", 
+        name: "Limpiador Alcalino de Aluminio Alcalin 1L", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Limpiador Alcalino de Aluminio Alcalin 1L</b><br><br>Solución alcalina formulada para abrillantar y limpiar paneles de aluminio sin dañar el metal.`,
+        costoCompra: 1.38461538, 
+        images: ["productos/QMC021.webp"],
+        specs: { "Marca": "RQ5", "Tipo": "Limpiador Alcalino", "Presentación": "1 Litro" }
+    },
+    {
+        id: "QMC002", 
+        name: "Limpiador Ácido de Aluminio Hidroflush 1L", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Limpiador Ácido de Aluminio Hidroflush 1L</b><br><br>Limpiador ácido de acción rápida para eliminar incrustaciones severas en sistemas de aire acondicionado.`,
+        costoCompra: 1.86923077, 
+        images: ["productos/QMC002.webp"],
+        specs: { "Marca": "RQ5", "Tipo": "Ácido Limpiador", "Presentación": "1 Litro" }
+    },
+    {
+        id: "QMC027", 
+        name: "Desplazador de Humedad Metil 1 Litro", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Desplazador de Humedad Metil 1 Litro</b><br><br>Líquido químico diseñado para eliminar los rastros de humedad dentro del sistema de refrigeración y prevenir congelamientos.`,
+        costoCompra: 1.86923077, 
+        images: ["productos/QMC027.webp"],
+        specs: { "Marca": "RQ5", "Función": "Desplazador de Humedad", "Presentación": "1 Litro" }
+    },
+    {
+        id: "QMC025", 
+        name: "Dieléctrico Desengrasante RQ5 1 Litro", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Dieléctrico Desengrasante RQ5 1 Litro</b><br><br>Solvente dieléctrico de alta pureza para la limpieza segura de tableros, tarjetas y componentes eléctricos.`,
+        costoCompra: 2.37692308, 
+        images: ["productos/QMC025.webp"],
+        specs: { "Marca": "RQ5", "Tipo": "Solvente Dieléctrico", "Presentación": "1 Litro" }
+    },
+    {
+        id: "QMC026", 
+        name: "Dieléctrico Desengrasante RQ5 1/2 Litro", 
+        category: "Químicos", 
+        model: "1/2 Litro",
+        desc: `<b>Dieléctrico Desengrasante RQ5 1/2 Litro</b><br><br>Solvente dieléctrico desengrasante en presentación práctica de medio litro para limpiezas de precisión.`,
+        costoCompra: 1.43846154, 
+        images: ["productos/QMC026.webp"],
+        specs: { "Marca": "RQ5", "Tipo": "Solvente Dieléctrico", "Presentación": "1/2 Litro" }
+    },
+    {
+        id: "QMC022", 
+        name: "Dieléctrico Desengrasante Lata RBV 5KG", 
+        category: "Químicos", 
+        model: "5 Kilos",
+        desc: `<b>Dieléctrico Desengrasante Lata RBV 5KG</b><br><br>Solvente dieléctrico en presentación industrial de 5 kilos, ideal para limpiezas a gran escala y talleres de mantenimiento.`,
+        costoCompra: 21.06153846, 
+        images: ["productos/QMC022.webp"],
+        specs: { "Tipo": "Solvente Dieléctrico", "Presentación": "Lata 5 KG", "Uso": "Industrial" }
+    },
+    {
+        id: "QMC005-RBV", 
+        name: "Limpiador Dieléctrico RVB de Lata de 1/2kg", 
+        category: "Químicos", 
+        model: "1/2 Litro",
+        desc: `<b>Limpiador Dielectrico RVB de Lata de 1/2kg</b><br><br>Solvente para la limpieza de componentes eléctricos sin riesgo de cortocircuitos. Presentación de 500ml.`,
+        costoCompra: 1.65384615, 
+        images: ["productos/QMC005-RBV.webp"],
+        specs: { "Marca": "RBV Compresors Oil", "Presentación": "Lata de 1/2L", "Uso": "Solvente Dieléctrico" }
+    },
+    {
+        id: "QMC006-RBV", 
+        name: "Limpiador Dielectrico RBV de Lata de 1kg", 
+        category: "Químicos", 
+        model: "1 Kilo",
+        desc: `<b>Limpiador Dielectrico RBV de 1kg<br>Fórmula dieléctrica de máxima pureza y rápida evaporación. Presentación en lata de 1 Kilo para uso profesional.`,
+        costoCompra: 4.63846154, 
+        images: ["productos/QMC006-RBV.webp"],
+        specs: { "Marca": "RBV Compresors Oil", "Presentación": "Lata 1 Kilo", "Uso": "Dieléctrico Premium" }
+    },
+    {
+        id: "QMC019", 
+        name: "Limpiador Químico Multi Ultra Clean 1L", 
+        category: "Químicos", 
+        model: "1 Litro",
+        desc: `<b>Limpiador Químico Multiuso Ultra Clean 1L</b><br><br>Limpiador multipropósito formulado para aflojar y remover suciedad pesada en componentes de refrigeración.`,
+        costoCompra: 1.32307692, 
+        images: ["productos/QMC019.webp"],
+        specs: { "Tipo": "Limpiador Multiuso", "Presentación": "1 Litro", "Aplicación": "General" }
+    },
+    {
+        id: "QMC007", 
+        name: "Alcohol Metílico (Medio) 0.5 Litros", 
+        category: "Químicos", 
+        model: "0.5 Litros",
+        desc: `<b>Alcohol Metílico 0.5 Litros</b><br><br>Alcohol metílico de alta pureza diseñado para absorber la humedad residual en tuberías y prevenir congelamiento.`,
+        costoCompra: 1.32307692, 
+        images: ["productos/QMC007.webp"],
+        specs: { "Función": "Absorbedor de Humedad", "Presentación": "0.5 Litros", "Uso": "Interno" }
+    },
+    {
+        id: "QMC024", 
+        name: "Limpiador Panel Clean 66 Galón 3.75L", 
+        category: "Químicos", 
+        model: "1 Galón (3.75L)",
+        desc: `<b>Limpiador Panel Clean 66 Galón 3.750LTS</b><br><br>Limpiador profundo de aluminio para serpentines en presentación industrial de 1 Galón. Alto rendimiento.`,
+        costoCompra: 5.30000000, 
+        images: ["productos/QMC024.webp"],
+        specs: { "Marca": "Productos 66", "Presentación": "1 Galón (3.75L)", "Uso": "Limpiador de Aluminio" }
+    },
+    {
+        id: "QMC011", 
+        name: "Ácido Limpiador Evar 22 Galón 3.78L", 
+        category: "Químicos", 
+        model: "1 Galón (3.78L)",
+        desc: `<b>Ácido Evar 22 Limpiador Galón 3.78 LTS</b><br><br>Ácido limpiador concentrado en tamaño industrial de 1 galón. Máxima potencia para limpiezas mayores.`,
+        costoCompra: 16.36153846, 
+        images: ["productos/QMC011.webp"],
+        specs: { "Marca": "Evar 22", "Tipo": "Ácido Limpiador", "Presentación": "1 Galón (3.78L)" }
+    },
+    // ==========================================
+    // SECCIÓN: GASES REFRIGERANTES Y SOLDADURA
+    // ==========================================
+    {
+        id: "GAS002", 
+        name: "Recarga de Gas Refrigerante R134a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R134a",
+        desc: `<b>Recarga de Gas R134a para Neveras / Autos</b><br><br>Servicio de recarga de gas refrigerante R134a kileado para neveras y automóviles. El precio indicado es por Kilo.`,
+        costoCompra: 16.66923077, 
+        images: ["productos/GAS002.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS003", 
+        name: "Recarga de Gas Refrigerante R410a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R410A",
+        desc: `<b>Recarga de Gas R410A para Aires Acondicionados</b><br><br>Gas refrigerante R410A de alta eficiencia para aires acondicionados. El precio indicado es por Kilo.`,
+        costoCompra: 11.13076923, 
+        images: ["productos/GAS003.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R410A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS006", 
+        name: "Lata de Gas Propano de 400gr Maxwell MAPP PRO", 
+        category: "Herramientas", 
+        model: "MAPP 400G",
+        desc: `<b>Lata de Gas Propano de 400gr Maxwell MAPP Pro</b><br><br>Lata de gas propano Maxwell MAPP Pro ideal para trabajos de soldadura fuerte en tuberías de refrigeración. Presentación por unidad.`,
+        costoCompra: 6.62307692, 
+        images: ["productos/GAS006.webp"],
+        specs: { "Tipo": "Gas de Soldadura", "Gas": "Propano MAPP", "Presentación": "Lata de 400G" }
+    },
+    {
+        id: "GAS007", 
+        name: "Recarga de Gas Refrigerante R404a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R404a",
+        desc: `<b>Recarga de Gas R404a para Cava-Cuarto</b><br><br>Gas refrigerante R404a diseñado para sistemas de refrigeración comercial y cavas cuarto. El precio indicado es por Kilo.`,
+        costoCompra: 14.57692308, 
+        images: ["productos/GAS007.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R404a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS008", 
+        name: "Lata de Gas Refrigerante R600A de 160gr", 
+        category: "Refrigeración", 
+        model: "R600A 160G",
+        desc: `<b>Lata de Gas Refrigerante R600a de 160gr</b><br><br>Gas refrigerante ecológico R600a en presentación de lata desechable de 160 gramos por unidad.`,
+        costoCompra: 3.32307692, 
+        images: ["productos/GAS008.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R600A", "Presentación": "Lata de 160G" }
+    },
+    {
+        id: "GAS013", 
+        name: "Lata de Gas Refrigerante R134a de 340gr", 
+        category: "Refrigeración", 
+        model: "R134A 340G",
+        desc: `<b>Lata de Gas Refrigerante R134a 340gr</b><br><br>Gas refrigerante R134A en lata de 340 gramos con válvula de rosca fina.`,
+        costoCompra: 7.99230769, 
+        images: ["productos/GAS013.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134A", "Presentación": "Lata de 340G (Rosca Fina)" }
+    },
+    {
+        id: "GAS018", 
+        name: "Recarga de Gas Refrigerante R32 (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R32",
+        desc: `<b>Recarga de Gas Refrigerante R32 para Aires Acondicionados</b><br><br>Gas refrigerante R32 de nueva generación para aires acondicionados modernos. El precio indicado es por Kilo.`,
+        costoCompra: 16.73076923, 
+        images: ["productos/GAS018.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R32", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS019", 
+        name: "Recarga de Gas Refrigerante R422D (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R422D",
+        desc: `<b>Recarga de Gas Refrigerante R422D para Aires Acondicionados</b><br><br>Gas refrigerante R422D especial para equipos de aire acondicionado. El precio indicado es por Kilo.`,
+        costoCompra: 11.33846154, 
+        images: ["productos/GAS019.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R422D", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS022", 
+        name: "Recarga de Gas Refrigerante R134a DuPont Original (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R134A DuPont",
+        desc: `<b>Recarga de Gas Refrigerante R134a DuPont Original</b><br><br>Servicio de recarga de gas refrigerante premium R134A marca DuPont / Chemours. El precio indicado es por Kilo.`,
+        costoCompra: 22.00000000, 
+        images: ["productos/GAS022.webp"],
+        specs: { "Marca": "DuPont", "Gas": "R134A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS023", 
+        name: "Lata de Gas Propano Bernzomatic Botella de 400gr", 
+        category: "Herramientas", 
+        model: "Bernzomatic 400G",
+        desc: `<b>Lata de Gas Propano Bernzomatic Botella 400gr</b><br><br>Cilindro de propano original marca Bernzomatic para sopletes y soldadura. Presentación por unidad de 400 gramos.`,
+        costoCompra: 7.50000000, 
+        images: ["productos/GAS023.webp"],
+        specs: { "Marca": "Bernzomatic", "Tipo": "Gas Propano", "Presentación": "Lata de 400G" }
+    },
+    {
+        id: "GAS024", 
+        name: "Recarga de Gas Refrigerante R290a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R290a",
+        desc: `<b>Recarga de Gas Refrigerante R290a</b><br><br>Gas refrigerante ecológico de alta pureza R290a. El precio indicado es por Kilo.`,
+        costoCompra: 9.94615385, 
+        images: ["productos/GAS024.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS025", 
+        name: "Recarga de Gas Refrigerante R507A (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R507A",
+        desc: `<b>Recarga de Gas Refrigerante R507A</b><br><br>Mezcla de gas refrigerante R507A para bajas y medias temperaturas. El precio indicado es por Kilo.`,
+        costoCompra: 11.93846154, 
+        images: ["productos/GAS025.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R507A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS029", 
+        name: "Lata de Gas Refrigerante R600a de 340gr Cowplandt", 
+        category: "Refrigeración", 
+        model: "R600A 340G",
+        desc: `<b>Lata de Gas Refrigerante R600a de 340gr Cowplandt</b><br><br>Gas refrigerante ecológico R600a marca Cowplandt. Presentación de lata de 340 gramos.`,
+        costoCompra: 4.63076923, 
+        images: ["productos/GAS029.webp"],
+        specs: { "Marca": "Cowplandt", "Gas": "R600A", "Presentación": "Lata de 340G" }
+    },
+    {
+        id: "GAS031", 
+        name: "Recarga de Gas Refrigerante R417a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R417A",
+        desc: `<b>Recarga de Gas Refrigerante R417A</b><br><br>Sustituto ecológico para R22 en equipos de aire acondicionado. El precio indicado es por Kilo.`,
+        costoCompra: 11.13076923, 
+        images: ["productos/GAS031.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R417A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS032", 
+        name: "Lata de Gas Refrigerante R290 de 300gr", 
+        category: "Refrigeración", 
+        model: "R290 300G",
+        desc: `<b>Lata de Gas Refrigerante R290 de 300gr</b><br><br>Gas refrigerante ecológico R290 de alta pureza. Presentación en lata de 300 gramos por unidad.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/GAS032.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290", "Presentación": "Lata de 300G" }
+    },
+    {
+        id: "GAS034", 
+        name: "Lata de Gas Refrigerante R134a de 750gr Cowplandt", 
+        category: "Refrigeración", 
+        model: "R134A 750G",
+        desc: `<b>Lata de Gas Refrigerante R134a de 750gr Cowplandt</b><br><br>Cilindro desechable de gas refrigerante R134A marca Cowplandt. Presentación de 750 gramos.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS034.webp"],
+        specs: { "Marca": "Cowplandt", "Gas": "R134A", "Presentación": "Lata de 750G" }
+    },
+    {
+        id: "PUN-MEDIDA", 
+        name: "Evaporador de Placa para Nevera con Capilar", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Evaporador de Placa para Nevera con Capilar</b><br><br>Evaporador de aluminio tipo placa de alta eficiencia térmica. Incluye tubo capilar soldado. Excelente para reemplazos de sistemas congeladores. Por favor, seleccione la medida que necesita.`,
+        costoCompra: 14.59230769, // Costo base para la visualización inicial (equivale a Bs 20.904,94)
+        images: ["productos/PUN104-105-106-107-108.webp"],
+        specs: { "Tipo": "Placa", "Incluye": "Capilar", "Material": "Aluminio" },
+        // VARIANTES DE MEDIDAS
+        variants: [
+            { id: "PUN104", name: "Medida: 80x40cm", costoCompra: 14.59230769 },
+            { id: "PUN107", name: "Medida: 84x45cm", costoCompra: 19.89230769 },
+            { id: "PUN108", name: "Medida: 94x45cm", costoCompra: 23.20769231 },
+            { id: "PUN105", name: "Medida: 105x45cm", costoCompra: 26.52307692 },
+            { id: "PUN106", name: "Medida: 150x50cm", costoCompra: 29.84615385 }
+        ]
+    },
+    {
+        id: "NEV100", 
+        name: "Nevera Hotpoint de 2 Puertas Importada", 
+        category: "Neveras / Cavas", 
+        model: "Hotpoint",
+        desc: `<b>Nevera Kenmore 2 Puertas Importada</b><br><br>Refrigerador de alta capacidad, diseño clásico de 2 puertas. Componentes de calidad garantizada para máxima durabilidad.`,
+        costoCompra: 437.66923077, 
+        images: ["productos/NEV100.webp"],
+        specs: { "Marca": "HotPonit", "Tipo": "2 Puertas", "Categoría": "Importada" }
+    },
+    {
+        id: "NEV104", 
+        name: "Nevera GE de 2 Puertas Importada", 
+        category: "Neveras / Cavas", 
+        model: "General Electric",
+        desc: `<b>Nevera GE de 2 Puertas Importada</b><br><br>Nevera refrigeradora de la marca General Electric. Diseño compacto y eficiente, ideal para espacios modernos.`,
+        costoCompra: 497.34615385, 
+        images: ["productos/NEV104.webp"],
+        specs: { "Marca": "General Electric", "Categoría": "Importada" }
+    },
+    {
+        id: "NEV107", 
+        name: "Nevera GE Side by Side Vertical de 2 Puertas", 
+        category: "Neveras / Cavas", 
+        model: "General Electric",
+        desc: `<b>Nevera Hotpoint GE 20.5 Pies Cúbicos Blanca</b><br><br>Nevera General Electric Hotpoint de gran capacidad (20.5 pies cúbicos), diseño de 2 puertas. Sistema de enfriamiento superior.`,
+        costoCompra: 464.19230769, 
+        images: ["productos/NEV107.webp"],
+        specs: { "Marca": "General Electric", "Capacidad": "760 Litros", "Color": "Blanca" }
+    },
+    {
+        id: "RES008", 
+        name: "Resistencia de Nevera Samsung DA47-00038B", 
+        category: "Neveras / Cavas", 
+        model: "DA47-00038B",
+        desc: `<b>Resistencia Nevera Samsung DA47-00038B</b><br><br>Resistencia de descongelación original para neveras Samsung. Componente esencial para el sistema No Frost.`,
+        costoCompra: 32.92307692, 
+        images: ["productos/RES008.webp"],
+        specs: { "Marca": "Samsung", "Repuesto": "Resistencia de Deshielo", "Modelo": "DA47-00038B" }
+    },
+    {
+        id: "RES047", 
+        name: "Resistencia de Nevera Samsung DA81-01691B", 
+        category: "Neveras / Cavas", 
+        model: "DA81-01691B",
+        desc: `<b>Resistencia H. Nevera Samsung DA81-01691B</b><br><br>Resistencia calefactora tipo H para sistemas de refrigeración Samsung. Reemplazo directo y garantizado.`,
+        costoCompra: 21.93846154, 
+        images: ["productos/RES047.webp"],
+        specs: { "Marca": "Samsung", "Tipo": "Forma en H", "Modelo": "DA81-01691B" }
+    },
+    {
+        id: "RES044", 
+        name: "Resistencia de Nevera Samsung DA81-01691A", 
+        category: "Neveras / Cavas", 
+        model: "DA81-01691A",
+        desc: `<b>Resistencia H. Nevera Samsung DA81-01691A</b><br><br>Resistencia calefactora tipo H para sistemas de refrigeración Samsung. Reemplazo directo y garantizado.`,
+        costoCompra: 10.96923077, 
+        images: ["productos/RES044.webp"],
+        specs: { "Marca": "Samsung", "Tipo": "Forma en H", "Modelo": "DA81-01691A" }
+    },
+    {
+        id: "RES045", 
+        name: "Resistencia Nevera Samsung G001A081SMB", 
+        category: "Neveras / Cavas", 
+        model: "G001A081SMB",
+        desc: `<b>Resistencia H. Nevera Samsung G001A081SMB</b><br><br>Resistencia calefactora tipo H para sistemas de refrigeración Samsung. Reemplazo directo y garantizado.`,
+        costoCompra: 13.72307692, 
+        images: ["productos/RES045.webp"],
+        specs: { "Marca": "Samsung", "Tipo": "Forma en H", "Modelo": "G001A081SMB" }
+    },
+    {
+        id: "CNV300", 
+        name: "Condensador Tipo Parrilla de 3 Vueltas Para Cava 1/3", 
+        category: "Refrigeración", 
+        model: "1/3 HP",
+        desc: `<b>Condensador Tipo Parrilla de 3 Vueltas Para Cava 1/3</b><br><br>Parrilla condensadora estática de alta transferencia de calor diseñada para unidades de 1/3 HP. Ideal para cavas y exhibidores.`,
+        costoCompra: 10.25384615, 
+        images: ["productos/CNV300.webp"],
+        specs: { "Tipo": "Parrilla Estática", "Capacidad": "1/3 HP", "Uso": "Cavas" }
+    },
+    {
+        id: "CNV301", 
+        name: "Condensador Tipo Parrilla de 2 Vueltas Para Cava 1/5", 
+        category: "Refrigeración", 
+        model: "1/3 HP",
+        desc: `<b>Condensador Tipo Parrilla de 2 Vueltas Para Cava 1/5</b><br><br>Parrilla condensadora estática de alta transferencia de calor diseñada para unidades de 1/5 HP. Ideal para cavas y exhibidores.`,
+        costoCompra: 10.25384615, 
+        images: ["productos/CNV300.webp"],
+        specs: { "Tipo": "Parrilla Estática", "Capacidad": "1/5 HP", "Uso": "Cavas" }
+    },
     {
         id: "TIM500", name: "Reloj de Descongelación Mecánico Paragon 220V", category: "Neveras / Cavas", model: "8145-00",
         desc: `<b>Reloj de Descongelación Mecánico Paragon 8145-00 (Serie 8000)</b><br><br>Temporizador electromecánico para refrigeración comercial e industrial.`,
@@ -131,7 +559,7 @@ const products = [
         specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Tipo": "Ventana" }
     },
     {
-        id: "AIR009-DANBY", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Danby", category: "Aires Acondicionados", model: "DAC080EB7WDB",
+        id: "AIR012", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Danby", category: "Aires Acondicionados", model: "DAC080EB7WDB",
         desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Danby</b><br><br>Equipo de climatización compacto Danby de alta eficiencia para habitaciones y espacios pequeños/medianos.`,
         costoCompra: 106, images: ["productos/AIR009-DANBY.webp"],
         specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Danby" }
@@ -287,61 +715,61 @@ const products = [
         specs: { "Marca": "Productos 66", "Presentación": "Lata 1 Kilo", "Uso": "Dieléctrico Premium" }
     },
     {
-        id: "CAP320", name: "Capacitor Maxwell Gold 20 MFD", category: "Capacitores", model: "20 MFD",
+        id: "CAP320", name: "Capacitor Maxwell Gold de 20 MFD", category: "Capacitores", model: "20 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 20 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 5.838462, images: ["productos/20UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "20 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP325", name: "Capacitor Maxwell Gold 25 MFD", category: "Capacitores", model: "25 MFD",
+        id: "CAP325", name: "Capacitor Maxwell Gold de 25 MFD", category: "Capacitores", model: "25 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 25 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 6.507692, images: ["productos/25UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "25 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP330", name: "Capacitor Maxwell Gold 30 MFD", category: "Capacitores", model: "30 MFD",
+        id: "CAP330", name: "Capacitor Maxwell Gold de 30 MFD", category: "Capacitores", model: "30 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 30 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 7.076923, images: ["productos/30UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "30 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP335", name: "Capacitor Maxwell Gold 35 MFD", category: "Capacitores", model: "35 MFD",
+        id: "CAP335", name: "Capacitor Maxwell Gold de 35 MFD", category: "Capacitores", model: "35 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 35 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 7.592308, images: ["productos/35UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "35 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP340", name: "Capacitor Maxwell Gold 40 MFD", category: "Capacitores", model: "40 MFD",
+        id: "CAP340", name: "Capacitor Maxwell Gold de 40 MFD", category: "Capacitores", model: "40 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 40 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 7.923077, images: ["productos/40UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "40 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP345", name: "Capacitor Maxwell Gold 45 MFD", category: "Capacitores", model: "45 MFD",
+        id: "CAP345", name: "Capacitor Maxwell Gold de 45 MFD", category: "Capacitores", model: "45 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 45 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 8.923077, images: ["productos/45UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "45 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP350", name: "Capacitor Maxwell Gold 50 MFD", category: "Capacitores", model: "50 MFD",
+        id: "CAP350", name: "Capacitor Maxwell Gold de 50 MFD", category: "Capacitores", model: "50 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 50 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 9.607692, images: ["productos/50UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "50 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP360", name: "Capacitor Maxwell Gold 60 MFD", category: "Capacitores", model: "60 MFD",
-        desc: `<b>Capacitor Maxwell Línea Gold de 60 MFD</b><br><br>Capacitor de marcha metílico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
+        id: "CAP360", name: "Capacitor Maxwell Gold de 60 MFD", category: "Capacitores", model: "60 MFD",
+        desc: `<b>Capacitor Maxwell Línea Gold de 60 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 10.953846, images: ["productos/60UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "60 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP370", name: "Capacitor Maxwell Gold 70 MFD", category: "Capacitores", model: "70 MFD",
+        id: "CAP370", name: "Capacitor Maxwell Gold de 70 MFD", category: "Capacitores", model: "70 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 70 MFD</b><br><br>Capacitor de marcha metálico premium. Rango de voltaje dual 370/440V. Alta durabilidad con 5 años de garantía.`,
         costoCompra: 12.823077, images: ["productos/70UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "70 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
     },
     {
-        id: "CAP371", name: "Capacitor Maxwell Gold 75 MFD", category: "Capacitores", model: "75 MFD",
+        id: "CAP371", name: "Capacitor Maxwell Gold de 75 MFD", category: "Capacitores", model: "75 MFD",
         desc: `<b>Capacitor Maxwell Línea Gold de 75 MFD</b><br><br>Capacitor de marcha metálico premium para equipos de alta demanda. Rango dual 370/440V con 5 años de garantía.`,
         costoCompra: 13.261538, images: ["productos/75UF-GOLD.webp"],
         specs: { "Marca": "Maxwell", "Capacitancia": "75 MFD", "Voltaje": "370/440V", "Garantía": "5 Años" }
@@ -353,7 +781,7 @@ const products = [
         specs: { "Marca": "INGCO", "Potencia": "1600W", "Tipo": "Alta Presión" }
     },
     {
-        id: "ASP105", name: "Aspiradora Seco y Húmedo 1000W 10L INGCO", category: "Herramientas", model: "10 Litros",
+        id: "ASP105", name: "Aspiradora de Seco y Húmedo 1000W 10L INGCO", category: "Herramientas", model: "10 Litros",
         desc: `<b>Aspiradora 1000W Seco/Húmedo 10L INGCO</b><br><br>Aspiradora de grado industrial capaz de aspirar tanto polvo como líquidos con tanque de 10 litros.`,
         costoCompra: 41.899999, images: ["productos/ASP105.webp"],
         specs: { "Marca": "INGCO", "Potencia": "1000W", "Capacidad": "10 Litros" }
@@ -371,16 +799,16 @@ const products = [
         specs: { "Marca": "INGCO", "Caballaje": "1/2 HP", "Voltaje": "110V", "Bobina": "Cobre" }
     },
     {
-        id: "ESR100", name: "Esmeriladora Angular 4 1/2 750W INGCO", category: "Herramientas", model: "4 1/2 Pulgadas",
+        id: "ESR100", name: "Esmeriladora Angular 4-1/2 750W INGCO", category: "Herramientas", model: "4 1/2 Pulgadas",
         desc: `<b>Esmeriladora Angular 4 1/2 750W INGCO</b><br><br>Esmeril de alto rendimiento ideal para corte y desbaste de metales y mampostería.`,
         costoCompra: 26.523077, images: ["productos/ESR100.webp"],
-        specs: { "Marca": "INGCO", "Potencia": "750W", "Disco": "4 1/2 Pulgadas" }
+        specs: { "Marca": "INGCO", "Potencia": "750W", "Disco": "4-1/2 Pulgadas" }
     },
     {
         id: "VAM110", name: "Kit Multímetro, Pinza y Detector INGCO", category: "Herramientas", model: "Profesional",
         desc: `<b>Kit Multímetro, Pinza y Detector de Voltaje INGCO</b><br><br>El combo eléctrico definitivo para técnicos de refrigeración y electricistas.`,
         costoCompra: 56.353846, images: ["productos/VAM110.webp"],
-        specs: { "Marca": "INGCO", "Incluye": "Multímetro, Pinza Amperimétrica, Detector" }
+        specs: { "Marca": "INGCO", "Incluye": "Multímetro, Pinza Amperimétrica, Detector con sus pilas" }
     },
     {
         id: "PST101", name: "Control de Presión Automático 110V INGCO", category: "Herramientas", model: "Automático",
@@ -389,14 +817,14 @@ const products = [
         specs: { "Marca": "INGCO", "Voltaje": "110V", "Uso": "Bombas de agua" }
     },
     {
-        id: "PST104", name: "Regulador Presscontrol Electrónico 110V", category: "Herramientas", model: "Electrónico",
+        id: "PST104", name: "Regulador Presscontrol Electrónico 110V INGCO", category: "Herramientas", model: "Electrónico",
         desc: `<b>Regulador Presscontrol Electrónico 110V</b><br><br>Módulo electrónico de control de flujo y presión para sistemas de bombeo hidroneumáticos.`,
         costoCompra: 25.423077, images: ["productos/PST104.webp"],
         specs: { "Marca": "INGCO", "Voltaje": "110V", "Tipo": "Electrónico" }
     },
     {
-        id: "CAJ001", name: "Caja de Herramientas 17\" INGCO", category: "Herramientas", model: "17 Pulgadas",
-        desc: `<b>Caja de Herramientas 17\" INGCO</b><br><br>Organizador portátil de plástico de alta resistencia con compartimientos superiores.`,
+        id: "CAJ001", name: "Caja de Herramientas de 17\" INGCO", category: "Herramientas", model: "17 Pulgadas",
+        desc: `<b>Caja de Herramientas de 17\" INGCO</b><br><br>Organizador portátil de plástico de alta resistencia con compartimientos superiores.`,
         costoCompra: 9.600000, images: ["productos/CAJ001.webp"],
         specs: { "Marca": "INGCO", "Tamaño": "17 Pulgadas", "Material": "Polímero de Alto Impacto" }
     },
@@ -413,37 +841,37 @@ const products = [
         specs: { "Marca": "INGCO", "Uso": "Hidrojet", "Tipo": "Pulverizadora" }
     },
     {
-        id: "HID106", name: "Manguera para Hidrojet 5mts INGCO", category: "Herramientas", model: "5 Metros",
-        desc: `<b>Manguera para Hidrojet 5mts INGCO</b><br><br>Manguera de alta presión reforzada, longitud de 5 metros.`,
+        id: "HID106", name: "Manguera para Hidrojet de 5mts INGCO", category: "Herramientas", model: "5 Metros",
+        desc: `<b>Manguera para Hidrojet de 5mts INGCO</b><br><br>Manguera de alta presión reforzada, longitud de 5 metros.`,
         costoCompra: 9.976923, images: ["productos/HID106.webp"],
         specs: { "Marca": "INGCO", "Longitud": "5 Metros", "Uso": "Hidrojet" }
     },
     {
-        id: "DES112", name: "Juego de Destornilladores Precisión 37PZ", category: "Herramientas", model: "37 Piezas",
-        desc: `<b>Juego de Destornilladores Precisión 37PZ INGCO</b><br><br>Set completo de micropuntas magnéticas para trabajos delicados de electrónica y tarjetas de control.`,
+        id: "DES112", name: "Juego de Destornilladores Precisión con 37Pcs INGCO", category: "Herramientas", model: "37 Piezas",
+        desc: `<b>Juego de Destornilladores Precisión con 37Pcs INGCO</b><br><br>Set completo de micropuntas magnéticas para trabajos delicados de electrónica y tarjetas de control.`,
         costoCompra: 7.092307, images: ["productos/DES112.webp"],
         specs: { "Marca": "INGCO", "Piezas": "37", "Tipo": "Precisión" }
     },
     {
-        id: "DES114", name: "Juego de Destornilladores Impacto 6PZ", category: "Herramientas", model: "6 Piezas",
-        desc: `<b>Juego de Destornilladores de Impacto 6PZ INGCO</b><br><br>Destornilladores robustos para trabajo pesado, diseñados para resistir golpes en la empuñadura.`,
+        id: "DES114", name: "Juego de Destornilladores Impacto con 6Pcs INGCO", category: "Herramientas", model: "6 Piezas",
+        desc: `<b>Juego de Destornilladores Impacto con 6Pcs INGCO</b><br><br>Destornilladores robustos para trabajo pesado, diseñados para resistir golpes en la empuñadura.`,
         costoCompra: 6.038461, images: ["productos/DES114.webp"],
         specs: { "Marca": "INGCO", "Piezas": "6", "Tipo": "Impacto" }
     },
     {
-        id: "DES113", name: "Juego de Destornillador Tuerca Plegable 6PZ", category: "Herramientas", model: "6 Piezas",
-        desc: `<b>Juego de Destornillador Tuerca Plegable 6PZ INGCO</b><br><br>Llaves de copa tipo destornillador en formato plegable tipo navaja suiza.`,
+        id: "DES113", name: "Juego de Destornillador Tuerca Plegable 6Pcs INGCO", category: "Herramientas", model: "6 Piezas",
+        desc: `<b>Juego de Destornillador Tuerca Plegable 6Pcs INGCO</b><br><br>Llaves de copa tipo destornillador en formato plegable tipo navaja suiza.`,
         costoCompra: 7.092307, images: ["productos/DES113.webp"],
         specs: { "Marca": "INGCO", "Piezas": "6", "Tipo": "Tuerca Plegable" }
     },
     {
-        id: "RAC701", name: "Llave Ajustable 10\" (Francesa) INGCO", category: "Herramientas", model: "10 Pulgadas",
+        id: "RAC701", name: "Llave Ajustable 10\" INGCO", category: "Herramientas", model: "10 Pulgadas",
         desc: `<b>Llave Ajustable 10\" 24CM Francesa INGCO</b><br><br>Llave inglesa de acero forjado con mango ergonómico antideslizante.`,
         costoCompra: 4.638461, images: ["productos/RAC701.webp"],
         specs: { "Marca": "INGCO", "Tamaño": "10 Pulgadas (24cm)", "Tipo": "Ajustable" }
     },
     {
-        id: "RAC802", name: "Juego Llave Torx de Bolsillo T9 a T40", category: "Herramientas", model: "Plegable",
+        id: "RAC802", name: "Juego Llave Torx de Bolsillo T9 a T40 INGCO", category: "Herramientas", model: "Plegable",
         desc: `<b>Juego Llave Torx de Bolsillo T9 a T40 INGCO</b><br><br>Set de llaves Torx en formato navaja compacta para llevar a cualquier lado.`,
         costoCompra: 5.338461, images: ["productos/RAC802.webp"],
         specs: { "Marca": "INGCO", "Tipo": "Torx", "Medidas": "T9 a T40" }
@@ -461,38 +889,38 @@ const products = [
         specs: { "Marca": "INGCO", "Tamaño": "6 Pulgadas", "Función": "Corta Cable" }
     },
     {
-        id: "MCW001", name: "Mecha Copa de Widia 65mm", category: "Herramientas", model: "65mm",
+        id: "MCW001", name: "Mecha Copa de Widia 65mm INGCO", category: "Herramientas", model: "65mm",
         desc: `<b>Mecha Copa de Widia 65mm Vástago 110mm INGCO</b><br><br>Ideal para perforar paredes y concreto al instalar tuberías de aire acondicionado.`,
         costoCompra: 9.623077, images: ["productos/MCW001.webp"],
         specs: { "Marca": "INGCO", "Diámetro": "65mm", "Tipo": "Widia" }
     },
     {
-        id: "MCW002", name: "Mecha Copa de Widia 80mm", category: "Herramientas", model: "80mm",
+        id: "MCW002", name: "Mecha Copa de Widia 80mm INGCO", category: "Herramientas", model: "80mm",
         desc: `<b>Mecha Copa de Widia 80mm Vástago 3-1/8 INGCO</b><br><br>Broca copa perforadora para mampostería de diámetro ancho.`,
         costoCompra: 11.753846, images: ["productos/MCW002.webp"],
         specs: { "Marca": "INGCO", "Diámetro": "80mm", "Tipo": "Widia" }
     },
     {
-        id: "CAU009", name: "Set de Puntas de Cautín 5PZ INGCO", category: "Herramientas", model: "5 Piezas",
-        desc: `<b>Set de Puntas de Cautín 5PZ 90W/120W INGCO</b><br><br>Puntas de repuesto de alta conductividad térmica para soldadura electrónica.`,
+        id: "CAU009", name: "Set de Puntas de Cautín 5Pcs INGCO", category: "Herramientas", model: "5 Piezas",
+        desc: `<b>Set de Puntas de Cautín 5Pcs 90W/120W INGCO</b><br><br>Puntas de repuesto de alta conductividad térmica para soldadura electrónica.`,
         costoCompra: 5.307692, images: ["productos/CAU009.webp"],
         specs: { "Marca": "INGCO", "Piezas": "5", "Potencia soportada": "90W / 120W" }
     },
     {
-        id: "WAL103", name: "Bolso Porta Herramientas L250W", category: "Herramientas", model: "Cinturón",
-        desc: `<b>Bolso Porta Herramienta INGCO L250W</b><br><br>Práctico organizador de cinturón para llevar las herramientas más importantes siempre a la mano.`,
+        id: "WAL103", name: "Bolso Porta Herramientas INGCO", category: "Herramientas", model: "Cinturón",
+        desc: `<b>Bolso Porta Herramienta INGCO</b><br><br>Práctico organizador de cinturón para llevar las herramientas más importantes siempre a la mano.`,
         costoCompra: 2.976923, images: ["productos/WAL103.webp"],
         specs: { "Marca": "INGCO", "Tipo": "Cinturón / Bolso", "Material": "Lona Reforzada" }
     },
     {
-        id: "BRO202", name: "Juego de Brocas Hierro HSS 8PZ", category: "Herramientas", model: "8 Piezas",
-        desc: `<b>Juego de Brocas Hierro HSS 8PZ INGCO</b><br><br>Set de brocas de acero de alta velocidad (HSS) para perforar metal de forma precisa.`,
+        id: "BRO202", name: "Juego de Brocas Hierro HSS 8Pcs INGCO", category: "Herramientas", model: "8 Piezas",
+        desc: `<b>Juego de Brocas Hierro HSS 8Pcs INGCO</b><br><br>Set de brocas de acero de alta velocidad (HSS) para perforar metal de forma precisa.`,
         costoCompra: 1.638461, images: ["productos/BRO202.webp"],
         specs: { "Marca": "INGCO", "Material": "HSS (High Speed Steel)", "Piezas": "8" }
     },
     {
-        id: "TRR007", name: "Bolsa de Tirrap Negro 100PZ", category: "Herramientas", model: "2.5mm x 10cm",
-        desc: `<b>Bolsa de Tirrap Negro 2.5MMx10CM 100PZ INGCO</b><br><br>Sujetadores plásticos de alta resistencia para organizar cables y aislamientos.`,
+        id: "TRR007", name: "Bolsa de Tirrap Negro de 100Pcs INGCO", category: "Herramientas", model: "2.5mm x 10cm",
+        desc: `<b>Bolsa de Tirrap Negro 2.5MMx10CM 100Pcs INGCO</b><br><br>Sujetadores plásticos de alta resistencia para organizar cables y aislamientos.`,
         costoCompra: 0.661538, images: ["productos/TRR007.webp"],
         specs: { "Marca": "INGCO", "Cantidad": "100 Piezas", "Dimensiones": "2.5mm x 10cm" }
     },
@@ -509,19 +937,19 @@ const products = [
         specs: { "Marca": "Steinmann", "Capacidad": "3/16 a 7/8 Pulgadas", "Uso": "Refrigeración" }
     },
     {
-        id: "MVA362", name: "Motor Vent Succión 10\" Axial 220V Steinmann", category: "Motores", model: "10 Pulgadas",
+        id: "MVA362", name: "Motor Ventilador Succión 10\" Axial 220V Steinmann", category: "Motores", model: "10 Pulgadas",
         desc: `<b>Motor Ventilador de Succión 10" Axial 220V Steinmann</b><br><br>Motor axial de alta eficiencia para condensadores y evaporadores comerciales.`,
         costoCompra: 43.100000, images: ["productos/MVA362.webp"],
         specs: { "Marca": "Steinmann", "Tipo": "Axial Succión", "Tamaño": "10 Pulgadas", "Voltaje": "220V" }
     },
     {
-        id: "MVA363", name: "Motor Vent Succión 12\" Axial 220V Steinmann", category: "Motores", model: "12 Pulgadas",
+        id: "MVA363", name: "Motor Ventilador Succión 12\" Axial 220V Steinmann", category: "Motores", model: "12 Pulgadas",
         desc: `<b>Motor Ventilador de Succión 12" Axial 220V Steinmann</b><br><br>Motor extractor axial para refrigeración industrial, diseño robusto y aspas balanceadas.`,
         costoCompra: 49.738461, images: ["productos/MVA363.webp"],
         specs: { "Marca": "Steinmann", "Tipo": "Axial Succión", "Tamaño": "12 Pulgadas", "Voltaje": "220V" }
     },
     {
-        id: "MVA364", name: "Motor Vent Succión 18\" Axial 220V Steinmann", category: "Motores", model: "18 Pulgadas",
+        id: "MVA364", name: "Motor Ventilador Succión 18\" Axial 220V Steinmann", category: "Motores", model: "18 Pulgadas",
         desc: `<b>Motor Ventilador de Succión 18" Axial 220V Steinmann</b><br><br>Motor de succión de gran caudal para cavas cuarto y condensadores de alto tonelaje.`,
         costoCompra: 76.261538, images: ["productos/MVA364.webp"],
         specs: { "Marca": "Steinmann", "Tipo": "Axial Succión", "Tamaño": "18 Pulgadas", "Voltaje": "220V" }
@@ -554,10 +982,10 @@ const products = [
         id: "KIT105", name: "Kit Vacío Veloz Lite 2 Mangueras 1/2 Steinmann", category: "Herramientas", model: "Lite 1/2",
         desc: `<b>Kit Vacío Veloz Lite 2 Mangueras 1/2 Steinmann</b><br><br>Herramienta especializada para realizar vacíos profundos en tiempo récord con adaptadores de alto flujo.`,
         costoCompra: 69.623076, images: ["productos/KIT105.webp", "productos/ADAPTADOR-KIT105.webp"],
-        specs: { "Marca": "Steinmann", "Conexiones": "1/2", "Incluye": "2 Mangueras y Adaptador" }
+        specs: { "Marca": "Steinmann", "Conexiones": "1/2", "Incluye": "2 Mangueras y 2 Adaptadores" }
     },
     {
-        id: "ANT006", name: "Extensión Manguera para Picos de Soldar", category: "Herramientas", model: "Extensión",
+        id: "ANT006", name: "Extensión de Manguera para Picos de Soldar", category: "Herramientas", model: "Extensión",
         desc: `<b>Extensión Manguera para Picos de Soldar Steinmann</b><br><br>Manguera de extensión flexible y resistente al calor para equipos de soldadura de refrigeración.`,
         costoCompra: 29.830769, images: ["productos/ANT006.webp"],
         specs: { "Marca": "Steinmann", "Uso": "Soldadura Autógena", "Accesorio": "Extensión" }
@@ -593,99 +1021,100 @@ const products = [
         specs: { "Marca": "Steinmann", "Tipo": "Mochila / Bolso", "Uso": "Transporte de Herramientas" }
     },
     {
-        id: "FIL142", name: "Filtro Piedra 1/2 S-084 Rosca 3-5 Ton", category: "Refrigeración", model: "S-084",
+        id: "FIL142", name: "Filtro Secador de Rosca con Nucleo Solido 1/2 S-084 3-5 Ton", category: "Refrigeración", model: "S-084",
         desc: `<b>Filtro Secador 1/2 S-084 Rosca 3-5 Ton Steinmann</b><br><br>Filtro de bloque desecante para líneas de líquido en sistemas de 3 a 5 toneladas.`,
         costoCompra: 6.700000, images: ["productos/FIL042.webp", "productos/TABLA_FIL042-164-041.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/2 Rosca", "Capacidad": "3 a 5 Toneladas" }
     },
     {
-        id: "FIL144", name: "Filtro Piedra 1/2 S-164 Rosca 4-6 Ton", category: "Refrigeración", model: "S-164",
+        id: "FIL144", name: "Filtro Secador de Rosca con Nucleo Solido 1/2 S-164 4-6 Ton", category: "Refrigeración", model: "S-164",
         desc: `<b>Filtro Secador 1/2 S-164 Rosca 4-6 Ton Steinmann</b><br><br>Filtro desecante antiácido para protección de sistemas de aire acondicionado comercial.`,
         costoCompra: 8.200000, images: ["productos/FIL144.webp", "productos/TABLA_FIL144-145-165-143.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/2 Rosca", "Capacidad": "4 a 6 Toneladas" }
     },
     {
-        id: "FIL145", name: "Filtro Piedra 5/8 S-165 Rosca 5-8 Ton", category: "Refrigeración", model: "S-165",
+        id: "FIL145", name: "Filtro Secador de Rosca con Nucleo Solido 5/8 S-165 5-8 Ton", category: "Refrigeración", model: "S-165",
         desc: `<b>Filtro Secador 5/8 S-165 Rosca 5-8 Ton Steinmann</b><br><br>Filtro de línea de líquido para equipos de 5 a 8 toneladas con conexión 5/8 Flare.`,
         costoCompra: 8.376923, images: ["productos/FIL145.webp", "productos/TABLA_FIL144-145-165-143.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "5/8 Rosca", "Capacidad": "5 a 8 Toneladas" }
     },
     {
-        id: "FIL164", name: "Filtro Piedra 3/8 S-083 Rosca 2.5-4 Ton", category: "Refrigeración", model: "S-083",
+        id: "FIL164", name: "Filtro Secador de Rosca con Nuecleo Solido 3/8 S-083 Rosca 2.5-4 Ton", category: "Refrigeración", model: "S-083",
         desc: `<b>Filtro Secador 3/8 S-083 Rosca 2.5-4 Ton Steinmann</b><br><br>Filtro desecante de 8 pulgadas cúbicas para líneas de líquido 3/8.`,
         costoCompra: 6.600000, images: ["productos/FIL164.webp", "productos/TABLA_FIL042-164-041.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "3/8 Rosca", "Capacidad": "2.5 a 4 Toneladas" }
     },
     {
-        id: "FIL166", name: "Filtro Piedra 3/8 S-303 Rosca 3-6 Ton", category: "Refrigeración", model: "S-303",
+        id: "FIL166", name: "Filtro Secador de Rosca con Nucleo Solido 3/8 S-303 3-6 Ton", category: "Refrigeración", model: "S-303",
         desc: `<b>Filtro Secador 3/8 S-303 Rosca 3-6 Ton Steinmann</b><br><br>Filtro desecante de alto volumen (30 pulgadas cúbicas) para retención máxima de humedad y ácidos.`,
         costoCompra: 10.969230, images: ["productos/FIL166.webp", "productos/TABLA_FIL166-167-168.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "3/8 Rosca", "Volumen": "30 Cu. In.", "Capacidad": "3 a 6 Toneladas" }
     },
     {
-        id: "FIL168", name: "Filtro Piedra 5/8 S-305 Rosca 8-10 Ton", category: "Refrigeración", model: "S-305",
+        id: "FIL168", name: "Filtro Secador de Rosca con Nucleo Solido 5/8 S-305 8-10 Ton", category: "Refrigeración", model: "S-305",
         desc: `<b>Filtro Secador 5/8 S-305 Rosca 8-10 Ton Steinmann</b><br><br>Filtro industrial para equipos de gran tonelaje, conexión 5/8 Flare.`,
         costoCompra: 11.238461, images: ["productos/FIL168.webp", "productos/TABLA_FIL166-167-168.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "5/8 Rosca", "Capacidad": "8 a 10 Toneladas" }
     },
     {
-        id: "FIL167", name: "Filtro Piedra 1/2 S-304 Rosca 6-8 Ton", category: "Refrigeración", model: "S-304",
+        id: "FIL167", name: "Filtro Secador de Rosca con Nucleo Solido 1/2 S-304 6-8 Ton", category: "Refrigeración", model: "S-304",
         desc: `<b>Filtro Secador 1/2 S-304 Rosca 6-8 Ton Steinmann</b><br><br>Filtro desecante de línea de líquido de alta capacidad para conexiones de 1/2.`,
         costoCompra: 10.969230, images: ["productos/FIL167.webp", "productos/TABLA_FIL166-167-168.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/2 Rosca", "Capacidad": "6 a 8 Toneladas" }
     },
     {
-        id: "FIL165", name: "Filtro Piedra 3/8 S-163 Rosca 3-4 Ton", category: "Refrigeración", model: "S-163",
+        id: "FIL165", name: "Filtro Secador de Rosca con Nucleo Solido 3/8 S-163 3-4 Ton", category: "Refrigeración", model: "S-163",
         desc: `<b>Filtro Secador 3/8 S-163 Rosca 3-4 Ton Steinmann</b><br><br>Filtro antiácido de 16 pulgadas cúbicas para sistemas de refrigeración de tamaño medio.`,
         costoCompra: 8.092307, images: ["productos/FIL165.webp", "productos/TABLA_FIL144-145-165-143.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "3/8 Rosca", "Volumen": "16 Cu. In." }
     },
     {
-        id: "FIL162", name: "Filtro Piedra 3/8 S-053 Rosca 2-3 Ton", category: "Refrigeración", model: "S-053",
+        id: "FIL162", name: "Filtro Secador de Rosca con Nucleo Solido 3/8 S-053 2-3 Ton", category: "Refrigeración", model: "S-053",
         desc: `<b>Filtro Secador 3/8 S-053 Rosca 2-3 Ton Steinmann</b><br><br>Filtro secador compacto para líneas de 3/8 en aires acondicionados estándar.`,
         costoCompra: 5.369230, images: ["productos/FIL162.webp", "productos/TABLA_FIL040-162.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "3/8 Rosca", "Capacidad": "2 a 3 Toneladas" }
     },
     {
-        id: "FIL163", name: "Filtro Piedra 3/8 S-033 Rosca 3/4-1 Ton", category: "Refrigeración", model: "S-033",
+        id: "FIL163", name: "Filtro Secador de Rosca con Nucleo Solido 3/8 S-033 3/4-1 Ton", category: "Refrigeración", model: "S-033",
         desc: `<b>Filtro Secador 3/8 S-033 Rosca 3/4-1 Ton Steinmann</b><br><br>Filtro pequeño para cavas y neveras comerciales con línea de 3/8.`,
         costoCompra: 5.069230, images: ["productos/FIL163.webp", "productos/TABLA_163.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "3/8 Rosca", "Capacidad": "3/4 a 1 Tonelada" }
     },
     {
-        id: "FIL143", name: "Filtro Piedra 1/4 S-162 Rosca 3-4 Ton", category: "Refrigeración", model: "S-162",
+        id: "FIL143", name: "Filtro Secador de Rosca con Nucleo Solido 1/4 S-162 3-4 Ton", category: "Refrigeración", model: "S-162",
         desc: `<b>Filtro Secador 1/4 S-162 Rosca 3-4 Ton Steinmann</b><br><br>Filtro desecante de 16 Cu. In. con rosca de 1/4.`,
         costoCompra: 7.900000, images: ["productos/FIL143.webp", "productos/TABLA_FIL144-145-165-143.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/4 Rosca", "Capacidad": "3 a 4 Toneladas" }
     },
     {
-        id: "FIL141", name: "Filtro Piedra 1/4 S-082 Rosca 2-3 Ton", category: "Refrigeración", model: "S-082",
+        id: "FIL141", name: "Filtro Secador de Rosca con Nucleo Solido 1/4 S-082 2-3 Ton", category: "Refrigeración", model: "S-082",
         desc: `<b>Filtro Secador 1/4 S-082 Rosca 2-3 Ton Steinmann</b><br><br>Filtro desecante de 8 Cu. In. con conexión flare de 1/4 para refrigeración.`,
         costoCompra: 5.900000, images: ["productos/FIL041.webp", "productos/TABLA_FIL042-164-041.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/4 Rosca", "Capacidad": "2 a 3 Toneladas" }
     },
     {
-        id: "FIL140", name: "Filtro Piedra 1/4 S-052 Rosca 1-2 Ton", category: "Refrigeración", model: "S-052",
+        id: "FIL140", name: "Filtro Secador de Rosca con Nucleo Solido 1/4 S-052 1-2 Ton", category: "Refrigeración", model: "S-052",
         desc: `<b>Filtro Secador 1/4 S-052 Rosca 1-2 Ton Steinmann</b><br><br>Filtro secador compacto para equipos de 1 a 2 toneladas.`,
         costoCompra: 5.238461, images: ["productos/FIL140.webp", "productos/TABLA_FIL040-162.webp"],
         specs: { "Marca": "Steinmann", "Conexión": "1/4 Rosca", "Capacidad": "1 a 2 Toneladas" }
     },
     {
-        id: "PGT100", name: "Pegamento Instantáneo Pegaloca 2G", category: "Químicos", model: "2 Gramos",
-        desc: `<b>Pegamento Instantáneo Pegaloca 2G</b><br><br>Adhesivo de cianoacrilato de secado ultra rápido para reparaciones múltiples.`,
+        id: "PGT100", name: "Pegamento Instantáneo 2G INCGO", category: "Químicos", model: "2 Gramos",
+        desc: `<b>Pegamento Instantáneo 2G INGCO</b><br><br>Adhesivo de cianoacrilato de secado ultra rápido para reparaciones múltiples.`,
         costoCompra: 0.523076, images: ["productos/PGT100.webp"],
-        specs: { "Marca": "Genérica", "Cantidad": "2 Gramos", "Tipo": "Instantáneo" }
+        specs: { "Marca": "INGCO", "Cantidad": "2 Gramos", "Tipo": "Instantáneo" }
     }
 ];
 
-// --- VARIABLES GLOBALES ---
+// ==========================================
+// 3. VARIABLES GLOBALES Y PAGINACIÓN
+// ==========================================
 let currentCategory = 'Todos';
 let currentLetterFilter = '';
 let cart = [];
 let currentPage = 1;
 const itemsPerPage = 20;
 
-// --- FUNCIONES DE FILTRADO Y PAGINACIÓN ---
 function renderAlphabet() {
     const sidebar = document.getElementById('alphabetSidebar');
     sidebar.innerHTML = '<div class="alpha-btn" onclick="setLetterFilter(\'\')" title="Borrar filtro">↺</div>';
@@ -711,7 +1140,6 @@ function resetPaginationAndFilter() {
     filterProducts();
 }
 
-// --- FUNCIÓN DE CÁLCULO DE PRECIOS ---
 function calcularPrecios(costoCompra) {
     let precioNovaClientesUSD = costoCompra * PORCENTAJE_UTILIDAD * PORCENTAJE_IVA;
     let precioPublicoBs = precioNovaClientesUSD * TASA_INTERNA;
@@ -750,6 +1178,7 @@ function setupPagination(filteredArray) {
     const container = document.getElementById('pagination-container');
     container.innerHTML = '';
     if (totalPages <= 1) return;
+    
     container.innerHTML += `<button class="page-btn page-arrow" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Ant</button>`;
     for (let i = 1; i <= totalPages; i++) {
         container.innerHTML += `<button class="page-btn ${currentPage === i ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
@@ -763,7 +1192,9 @@ function changePage(pageNumber) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- RENDERIZADO DE PRODUCTOS ---
+// ==========================================
+// 4. RENDERIZADO DE LA GRILLA DE PRODUCTOS
+// ==========================================
 function renderProducts(productList) {
     const container = document.getElementById('products-container');
     if (productList.length === 0) {
@@ -773,9 +1204,12 @@ function renderProducts(productList) {
     let htmlContent = '';
     productList.forEach(prod => {
         const precios = calcularPrecios(prod.costoCompra);
-        // Carga diferida (Lazy) agregada a la imagen para mejor rendimiento
         const imgTag = `<img src="${prod.images[0]}" alt="${prod.name}" loading="lazy" onclick="openQuickView('${prod.id}')" onerror="this.src='https://static.vecteezy.com/system/resources/previews/004/141/669/non_2x/no-photo-or-blank-image-icon-loading-images-or-missing-image-mark-image-not-available-or-image-coming-soon-sign-simple-nature-silhouette-in-frame-isolated-illustration-vector.jpg'">`;
         
+        // Si el producto tiene variantes (ej: la placa PUN), el botón dice "Ver Opciones"
+        const btnText = prod.variants ? 'Ver Opciones' : 'Agregar al Pedido';
+        const btnAction = prod.variants ? `openQuickView('${prod.id}')` : `addToCart('${prod.id}')`;
+
         htmlContent += `
             <div class="product-card">
                 ${imgTag}
@@ -785,63 +1219,125 @@ function renderProducts(productList) {
                     <div class="price-public-usd">Precio: $${precios.publicoUSD.toFixed(2)}</div>
                     <div class="price-public-bs">Ref: Bs. ${precios.publicoBs.toFixed(2)}</div>
                 </div>
-                <button class="add-btn" onclick="addToCart('${prod.id}')">Agregar al Pedido</button>
+                <button class="add-btn" onclick="${btnAction}">${btnText}</button>
             </div>
         `;
     });
     container.innerHTML = htmlContent;
 }
 
-// --- VISTA RÁPIDA (QUICK VIEW) Y GALERÍA ---
+// ==========================================
+// 5. LÓGICA DE VISTA RÁPIDA (QUICK VIEW) Y VARIANTES
+// ==========================================
+let currentViewedProduct = null;
+let currentVariantIndex = 0;
+
 function openQuickView(productId) {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-    document.getElementById('qvCategory').innerText = product.category;
-    document.getElementById('qvTitle').innerText = product.name;
-    document.getElementById('qvCode').innerText = `CÓDIGO: ${product.id}`;
+    currentViewedProduct = products.find(p => p.id === productId);
+    if (!currentViewedProduct) return;
+    
+    currentVariantIndex = 0; // Reiniciamos el índice de la variante
+    
+    document.getElementById('qvCategory').innerText = currentViewedProduct.category;
+    document.getElementById('qvTitle').innerText = currentViewedProduct.name;
     
     const descEl = document.getElementById('qvDesc');
     const btnEl = document.getElementById('qvReadMoreBtn');
-    descEl.innerHTML = product.desc;
+    descEl.innerHTML = currentViewedProduct.desc;
     descEl.classList.remove('expanded');
     btnEl.innerText = 'Leer más';
     
-    if (product.desc.length > 130) {
+    if (currentViewedProduct.desc.length > 130) {
         btnEl.style.display = 'inline-block';
     } else {
         btnEl.style.display = 'none';
         descEl.classList.add('expanded');
     }
     
-    const precios = calcularPrecios(product.costoCompra);
-    document.getElementById('qvPrice').innerText = `Precio: $${precios.publicoUSD.toFixed(2)}`;
-    document.getElementById('qvPriceVes').innerText = `Ref: Bs. ${precios.publicoBs.toFixed(2)}`;
-    document.getElementById('qvPriceNova').innerText = `$${precios.novaClientesUSD.toFixed(2)}`;
+    // --- MANEJO DE VARIANTES (MEDIDAS) ---
+    const variantContainer = document.getElementById('qvVariantContainer');
+    const variantSelect = document.getElementById('qvVariantSelect');
     
+    if (currentViewedProduct.variants) {
+        variantContainer.style.display = 'block';
+        variantSelect.innerHTML = '';
+        currentViewedProduct.variants.forEach((v, index) => {
+            variantSelect.innerHTML += `<option value="${index}">${v.name}</option>`;
+        });
+        
+        // Al cambiar de medida en el select, actualizamos precios y código
+        variantSelect.onchange = function() {
+            currentVariantIndex = parseInt(this.value);
+            updateQuickViewPrices();
+        };
+    } else {
+        variantContainer.style.display = 'none';
+    }
+    
+    // Actualizamos precios (con o sin variante)
+    updateQuickViewPrices();
+    
+    // Especificaciones
     const specsTable = document.getElementById('qvSpecsTable');
     specsTable.innerHTML = '';
-    for (const [key, value] of Object.entries(product.specs)) {
+    for (const [key, value] of Object.entries(currentViewedProduct.specs)) {
         specsTable.innerHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
     }
     
+    // Imagen Principal
     const mainImg = document.getElementById('qvMainImg');
-    mainImg.src = product.images[0];
+    mainImg.src = currentViewedProduct.images[0];
     mainImg.onerror = function () { this.src = 'https://static.vecteezy.com/system/resources/previews/004/141/669/non_2x/no-photo-or-blank-image-icon-loading-images-or-missing-image-mark-image-not-available-or-image-coming-soon-sign-simple-nature-silhouette-in-frame-isolated-illustration-vector.jpg'; };
     
+    // Miniaturas
     const thumbContainer = document.getElementById('qvThumbnails');
     thumbContainer.innerHTML = '';
-    product.images.forEach((imgUrl) => {
+    currentViewedProduct.images.forEach((imgUrl) => {
         thumbContainer.innerHTML += `<img src="${imgUrl}" class="qv-thumb" onclick="changeMainImage(this.src)" onerror="this.style.display='none'">`;
     });
     
+    // Botón Agregar al Pedido desde el Modal
     const addBtn = document.getElementById('qvAddBtn');
     addBtn.onclick = function () {
-        addToCart(product.id);
+        if (currentViewedProduct.variants) {
+            // Si tiene variantes, agregamos el hijo específico seleccionado
+            const variant = currentViewedProduct.variants[currentVariantIndex];
+            const item = {
+                id: variant.id,
+                name: currentViewedProduct.name + " (" + variant.name + ")",
+                costoCompra: variant.costoCompra,
+                images: currentViewedProduct.images
+            };
+            addItemToCart(item);
+        } else {
+            // Producto normal
+            addItemToCart(currentViewedProduct);
+        }
         closeQuickView();
     };
+    
     document.getElementById('quickViewModal').classList.add('active');
 }
 
+function updateQuickViewPrices() {
+    let costo = currentViewedProduct.costoCompra;
+    let codigo = currentViewedProduct.id;
+    
+    // Si tiene variantes, obtenemos el costo y el código de la variante seleccionada
+    if (currentViewedProduct.variants) {
+        costo = currentViewedProduct.variants[currentVariantIndex].costoCompra;
+        codigo = currentViewedProduct.variants[currentVariantIndex].id;
+    }
+    
+    document.getElementById('qvCode').innerText = `CÓDIGO: ${codigo}`;
+    
+    const precios = calcularPrecios(costo);
+    document.getElementById('qvPrice').innerText = `Precio: $${precios.publicoUSD.toFixed(2)}`;
+    document.getElementById('qvPriceVes').innerText = `Ref: Bs. ${precios.publicoBs.toFixed(2)}`;
+    document.getElementById('qvPriceNova').innerText = `$${precios.novaClientesUSD.toFixed(2)}`;
+}
+
+// Utilidades del Modal
 function openZoom() {
     const currentImgSrc = document.getElementById('qvMainImg').src;
     document.getElementById('zoomImg').src = currentImgSrc;
@@ -875,12 +1371,20 @@ function closeQuickView(event) {
     }
 }
 
-// --- CARRITO DE COMPRAS Y WHATSAPP ---
+// ==========================================
+// 6. CARRITO DE COMPRAS Y WHATSAPP
+// ==========================================
 function addToCart(productId) {
     const product = products.find(p => p.id === productId);
-    const existingItem = cart.find(item => item.id === productId);
+    if (product && !product.variants) {
+        addItemToCart(product);
+    }
+}
+
+function addItemToCart(item) {
+    const existingItem = cart.find(i => i.id === item.id);
     if (existingItem) { existingItem.quantity += 1; }
-    else { cart.push({ ...product, quantity: 1 }); }
+    else { cart.push({ ...item, quantity: 1 }); }
     updateCartUI();
     document.getElementById('cartModal').classList.add('active');
 }
@@ -1008,6 +1512,8 @@ async function sendWhatsApp() {
     window.open(whatsappURL, '_blank'); 
 }
 
-// --- ARRANQUE DE LA APLICACIÓN ---
+// ==========================================
+// ARRANQUE DEL SISTEMA
+// ==========================================
 renderAlphabet();
 filterProducts();

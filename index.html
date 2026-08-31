@@ -14,7 +14,7 @@
 <body>
     <!-- BARRA DE ANUNCIO SUPERIOR -->
     <div class="top-announcement-bar">
-        <span>¡<b>Promoción!</b> Por tu primera compra grande obtén el delivery gratis.</span>
+        <span>🎉 <b>¡Promoción!</b> Por tu primera compra grande obtén el delivery gratis.</span>
         <a href="https://wa.me/584246192394" target="_blank">¡Consulta al WhatsApp!</a>
     </div>
 
@@ -25,6 +25,7 @@
                 <img src="nova-logo-color.png" alt="Logo Nova RefriMotors" style="transition: transform 0.3s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             </a>
         </div>
+        
         <div class="search-container">
             <div class="search-bar">
                 <input type="text" id="searchInput" placeholder="Buscar repuestos, código o modelo..." onkeyup="resetPaginationAndFilter()">
@@ -37,7 +38,7 @@
         <button class="cart-btn" onclick="toggleCart()">🛒 Mi Pedido (<span id="cart-count">0</span>)</button>
     </header>
 
-    <!-- MENÚ DE CATEGORÍAS -->
+    <!-- CATEGORÍAS -->
     <nav class="category-menu" id="categoryMenu">
         <button class="cat-btn active" onclick="setCategory('Todos', this)">Todos</button>
         <button class="cat-btn" onclick="setCategory('Aires Acondicionados', this)">Aires Acondicionados</button>
@@ -61,23 +62,36 @@
     <!-- PAGINACIÓN -->
     <div class="pagination" id="pagination-container"></div>
 
-    <!-- MODAL DE VISTA RÁPIDA (QUICK VIEW) -->
+    <!-- ==========================================
+         MODAL DE VISTA RÁPIDA (QUICK VIEW)
+    =========================================== -->
     <div class="quick-view-overlay" id="quickViewModal" onclick="closeQuickView(event)">
         <div class="quick-view-box" onclick="event.stopPropagation()">
             <span class="close-qv" onclick="closeQuickView(event)">✖</span>
+            
             <div class="qv-gallery">
                 <img id="qvMainImg" class="qv-main-img" src="" alt="Producto" onclick="openZoom()" title="Haz clic para ampliar">
                 <div class="qv-thumbnails" id="qvThumbnails"></div>
             </div>
+            
             <div class="qv-info">
                 <div class="qv-category" id="qvCategory">Categoría</div>
                 <h2 class="qv-title" id="qvTitle">Nombre</h2>
                 <div class="qv-code" id="qvCode">CÓDIGO: XXXX</div>
+                
+                <!-- SELECTOR DE VARIANTES (MEDIDAS) OCULTO POR DEFECTO -->
+                <div id="qvVariantContainer" style="display: none; margin-bottom: 20px; padding-top: 10px; border-top: 1px solid var(--border-light);">
+                    <label for="qvVariantSelect" style="font-size: 11px; font-weight: 800; color: var(--text-light); margin-bottom: 8px; display: block; text-transform: uppercase;">Selecciona una medida:</label>
+                    <select id="qvVariantSelect" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-light); border-radius: 8px; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; background: #f8f9fa; cursor: pointer; transition: 0.3s;"></select>
+                </div>
+
                 <div class="qv-desc-container">
                     <p class="qv-desc" id="qvDesc">Descripción...</p>
                     <button class="read-more-btn" id="qvReadMoreBtn" onclick="toggleDescription()">Leer más</button>
                 </div>
+                
                 <table class="qv-specs" id="qvSpecsTable"></table>
+                
                 <div class="qv-price-box">
                     <div class="price-public-usd" id="qvPrice">Precio: $0.00</div>
                     <div class="price-public-bs" id="qvPriceVes">Ref: Bs. 0.00</div>
@@ -96,7 +110,9 @@
         <img class="zoom-img" id="zoomImg" src="" alt="Imagen Expandida" onclick="event.stopPropagation()">
     </div>
 
-    <!-- MODAL DEL CARRITO DE COMPRAS -->
+    <!-- ==========================================
+         MODAL DEL CARRITO DE COMPRAS
+    =========================================== -->
     <div class="cart-modal" id="cartModal">
         <div class="cart-header">
             <h2>Carrito de Compras</h2>
@@ -121,7 +137,7 @@
         </div>
     </div>
 
-    <!-- PIE DE PÁGINA -->
+    <!-- PIE DE PÁGINA PROFESIONAL -->
     <footer class="site-footer">
         <div class="footer-content">
             <div class="footer-col">
