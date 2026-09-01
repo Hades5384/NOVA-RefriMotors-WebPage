@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 795; 
+const TASA_BCV = 798.32; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -14,6 +14,159 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // 2. BASE DE DATOS DE PRODUCTOS
 // ==========================================
 const products = [
+    // ==========================================
+    // SECCIÓN: ACEITES Y LUBRICANTES
+    // ==========================================
+    {
+        id: "ACT030", 
+        name: "Aceite Sintético POE 68H 1L R410/R134", 
+        category: "Químicos", 
+        model: "POE 68H",
+        desc: `<b>Aceite Sintético POE 68H 1 Litro</b><br><br>Aceite lubricante sintético de alta calidad para compresores de refrigeración. Especialmente formulado para trabajar con gases refrigerantes R410 y R134.`,
+        costoCompra: 9.93846154, 
+        images: ["productos/ACT030.webp"],
+        specs: { "Tipo": "Sintético POE", "Viscosidad": "68H", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT032", 
+        name: "Aceite Sintético POE 32H 1L R410/R134", 
+        category: "Químicos", 
+        model: "POE 32H",
+        desc: `<b>Aceite Sintético POE 32H 1 Litro</b><br><br>Aceite lubricante sintético de alto rendimiento formulado para compresores que operan con gases refrigerantes R410 y R134.`,
+        costoCompra: 8.61538462, 
+        images: ["productos/ACT032.webp"],
+        specs: { "Tipo": "Sintético POE", "Viscosidad": "32H", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT011", 
+        name: "Aceite 68 Mineral 1L 4GS Landsfoss", 
+        category: "Químicos", 
+        model: "4GS 68 Mineral",
+        desc: `<b>Aceite 68 Mineral 1 Litro 4GS Landsfoss</b><br><br>Aceite mineral 4GS de grado premium marca Landsfoss. Ideal para sistemas de aire acondicionado y refrigeración comercial.`,
+        costoCompra: 4.36153846, 
+        images: ["productos/ACT011.webp"],
+        specs: { "Marca": "Landsfoss", "Tipo": "Mineral", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT403", 
+        name: "Aceite Sintético POE 68H Lata Emkarate", 
+        category: "Químicos", 
+        model: "POE 68H",
+        desc: `<b>Aceite Sintético POE 68H Emkarate (Lata)</b><br><br>Aceite sintético original Emkarate RL 68H en presentación de lata de 1 Litro. Máxima protección y lubricación para compresores.`,
+        costoCompra: 10.60769231, 
+        images: ["productos/ACT403.webp"],
+        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "Lata 1 Litro" }
+    },
+    {
+        id: "ACT036", 
+        name: "Aceite Sintético Emkarate RL32 1L", 
+        category: "Químicos", 
+        model: "RL32H",
+        desc: `<b>Aceite Sintético Emkarate RL32 1 Litro</b><br><br>Lubricante sintético premium Emkarate RL32. Formulado específicamente para un rendimiento óptimo en sistemas de refrigeración modernos.`,
+        costoCompra: 35.75384615, 
+        images: ["productos/ACT036.webp"],
+        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT043", 
+        name: "Aceite Para Bomba de Vacío 1L Maslex", 
+        category: "Químicos", 
+        model: "Bomba de Vacío 1L",
+        desc: `<b>Aceite Para Bomba de Vacío 1 Litro Maslex</b><br><br>Aceite especializado de alta pureza para bombas de vacío. Garantiza la máxima eficiencia y prolonga la vida útil de su equipo.`,
+        costoCompra: 6.43846154, 
+        images: ["productos/ACT043.webp"],
+        specs: { "Marca": "Maslex", "Tipo": "Aceite para Bomba", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT040", 
+        name: "Aceite Para Bomba de Vacío 8 Oz Landsfoss", 
+        category: "Químicos", 
+        model: "Bomba de Vacío 8Oz",
+        desc: `<b>Aceite Para Bomba de Vacío 8 Onzas Landsfoss</b><br><br>Aceite premium para mantenimiento y óptimo funcionamiento de bombas de vacío. Presentación práctica de 8 onzas.`,
+        costoCompra: 2.64615385, 
+        images: ["productos/ACT040.webp"],
+        specs: { "Marca": "Landsfoss", "Tipo": "Aceite para Bomba", "Presentación": "8 Onzas" }
+    },
+    {
+        id: "ACT045", 
+        name: "Aceite POE 32 1L 100% Puro Maslex", 
+        category: "Químicos", 
+        model: "POE-32",
+        desc: `<b>Aceite POE 32 1 Litro 100% Puro Maslex</b><br><br>Aceite sintético POE-32 de máxima pureza. Excelente estabilidad térmica para sistemas de refrigeración y aires acondicionados.`,
+        costoCompra: 25.20769231, 
+        images: ["productos/ACT045.webp"],
+        specs: { "Marca": "Maslex", "Tipo": "Sintético POE", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT044", 
+        name: "Aceite POE 68 1L 100% Puro Maslex", 
+        category: "Químicos", 
+        model: "POE-68",
+        desc: `<b>Aceite POE 68 1 Litro 100% Puro Maslex</b><br><br>Aceite sintético POE-68 100% puro. Proporciona una lubricación superior y mayor vida útil para los compresores.`,
+        costoCompra: 26.52307692, 
+        images: ["productos/ACT044.webp"],
+        specs: { "Marca": "Maslex", "Tipo": "Sintético POE", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT025", 
+        name: "Aceite Éster Sintético Para Sistemas R134", 
+        category: "Químicos", 
+        model: "Éster Sintético",
+        desc: `<b>Aceite Éster Sintético Para Sistemas R134</b><br><br>Lubricante éster sintético universal formulado para sistemas de aire acondicionado y refrigeración que utilizan gas R134.`,
+        costoCompra: 5.40000000, 
+        images: ["productos/ACT025.webp"],
+        specs: { "Tipo": "Éster Sintético", "Compatibilidad": "R134", "Presentación": "1 Litro" }
+    },
+    {
+        id: "ACT035", 
+        name: "Aceite 32 Mineral Capell-Oil TX-ISO-32", 
+        category: "Químicos", 
+        model: "TX-ISO-32",
+        desc: `<b>Aceite 32 Mineral Capell-Oil TX-ISO-32</b><br><br>Aceite lubricante mineral grado ISO 32 marca Capell-Oil. Formulado para compresores de refrigeración.`,
+        costoCompra: 8.61538462, 
+        images: ["productos/ACT035.webp"],
+        specs: { "Marca": "Capell-Oil", "Tipo": "Mineral", "Grado": "ISO 32" }
+    },
+    {
+        id: "ACT016", 
+        name: "Aceite Compresor Nevera R134 8 Oz", 
+        category: "Químicos", 
+        model: "R134 8 Oz",
+        desc: `<b>Aceite Compresor Nevera R134 8 Onzas</b><br><br>Aceite lubricante de alta calidad envasado específicamente para compresores de neveras que emplean gas R134.`,
+        costoCompra: 2.50000000, 
+        images: ["productos/ACT016.webp"],
+        specs: { "Uso": "Compresores de Nevera", "Compatibilidad": "R134", "Presentación": "8 Onzas" }
+    },
+    {
+        id: "ACT005", 
+        name: "Aceite PAG 46 c/UV R134 Johnsen's Org.", 
+        category: "Químicos", 
+        model: "PAG 46 UV",
+        desc: `<b>Aceite PAG 46 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 46 formulado con tinte UV para una rápida detección de fugas en sistemas automotrices R134a.`,
+        costoCompra: 5.83076923, 
+        images: ["productos/ACT005.webp"],
+        specs: { "Marca": "Johnsen's", "Tipo": "PAG 46 con UV", "Uso": "Automotriz" }
+    },
+    {
+        id: "ACT004", 
+        name: "Aceite PAG 100 c/UV R134 Johnsen's Org.", 
+        category: "Químicos", 
+        model: "PAG 100 UV",
+        desc: `<b>Aceite PAG 100 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 100 de alta viscosidad con tinte UV rastreador para sistemas de aire acondicionado automotriz R134a.`,
+        costoCompra: 5.83846154, 
+        images: ["productos/ACT004.webp"],
+        specs: { "Marca": "Johnsen's", "Tipo": "PAG 100 con UV", "Uso": "Automotriz" }
+    },
+    {
+        id: "ACT003", 
+        name: "Aceite PAG 150 c/UV R134 Johnsen's Org.", 
+        category: "Químicos", 
+        model: "PAG 150 UV",
+        desc: `<b>Aceite PAG 150 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 150 de máxima viscosidad, con detector de fugas UV, diseñado para compresores automotrices pesados R134a.`,
+        costoCompra: 5.66153846, 
+        images: ["productos/ACT003.webp"],
+        specs: { "Marca": "Johnsen's", "Tipo": "PAG 150 con UV", "Uso": "Automotriz" }
+    },
     // ==========================================
     // SECCIÓN: QUÍMICOS Y LIMPIADORES
     // ==========================================
