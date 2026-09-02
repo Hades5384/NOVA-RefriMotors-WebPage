@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 798.32; 
+const TASA_BCV = 801.08; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -53,7 +53,7 @@ const products = [
         category: "Químicos", 
         model: "POE 68H",
         desc: `<b>Aceite Sintético POE 68H Emkarate (Lata)</b><br><br>Aceite sintético original Emkarate RL 68H en presentación de lata de 1 Litro. Máxima protección y lubricación para compresores.`,
-        costoCompra: 10.60769231, 
+        costoCompra: 35.75384615, 
         images: ["productos/ACT403.webp"],
         specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "Lata 1 Litro" }
     },
