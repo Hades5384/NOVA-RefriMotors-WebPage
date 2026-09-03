@@ -18,8 +18,18 @@ const products = [
     // SECCIÓN: ACEITES Y LUBRICANTES
     // ==========================================
     {
+        id: "ACT037", 
+        name: "Aceite Sintético RL 32H Emkarate de Lata", 
+        category: "Químicos", 
+        model: "RL32H",
+        desc: `<b>Aceite Sintético EmkarOil (RBV) POE 32H de 1Lts</b><br><br>Lubricante sintético premium EmkarOil (RBV) POE 32H. Formulado específicamente para un rendimiento óptimo en sistemas de refrigeración modernos.`,
+        costoCompra: 9.94694960, 
+        images: ["productos/ACT037.webp"],
+        specs: { "Marca": "RBV", "Tipo": "Sintético POE", "Presentación": "1 Litro" }
+    },
+    {
         id: "ACT030", 
-        name: "Aceite Sintético POE 68H 1L R410/R134", 
+        name: "Aceite Sintético POE 68H de 1Lts para R410/R134", 
         category: "Químicos", 
         model: "POE 68H",
         desc: `<b>Aceite Sintético POE 68H 1 Litro</b><br><br>Aceite lubricante sintético de alta calidad para compresores de refrigeración. Especialmente formulado para trabajar con gases refrigerantes R410 y R134.`,
@@ -29,7 +39,7 @@ const products = [
     },
     {
         id: "ACT032", 
-        name: "Aceite Sintético POE 32H 1L R410/R134", 
+        name: "Aceite Sintético POE 32H de 1Lts para R410/R134", 
         category: "Químicos", 
         model: "POE 32H",
         desc: `<b>Aceite Sintético POE 32H 1 Litro</b><br><br>Aceite lubricante sintético de alto rendimiento formulado para compresores que operan con gases refrigerantes R410 y R134.`,
@@ -39,7 +49,7 @@ const products = [
     },
     {
         id: "ACT011", 
-        name: "Aceite 68 Mineral 1L 4GS Landsfoss", 
+        name: "Aceite 68 Mineral de 1Lts 4GS Landsfoss", 
         category: "Químicos", 
         model: "4GS 68 Mineral",
         desc: `<b>Aceite 68 Mineral 1 Litro 4GS Landsfoss</b><br><br>Aceite mineral 4GS de grado premium marca Landsfoss. Ideal para sistemas de aire acondicionado y refrigeración comercial.`,
@@ -49,27 +59,27 @@ const products = [
     },
     {
         id: "ACT403", 
-        name: "Aceite Sintético POE 68H Lata Emkarate", 
+        name: "Aceite Sintético RL 68H Emkarate de Lata", 
         category: "Químicos", 
         model: "POE 68H",
-        desc: `<b>Aceite Sintético POE 68H Emkarate (Lata)</b><br><br>Aceite sintético original Emkarate RL 68H en presentación de lata de 1 Litro. Máxima protección y lubricación para compresores.`,
+        desc: `<b>Aceite Sintético Emkarate RL 68H de Lata (1Lts)</b><br><br>Aceite sintético original Emkarate RL 68H en presentación de lata de 1 Litro. Máxima protección y lubricación para compresores.`,
         costoCompra: 35.75384615, 
         images: ["productos/ACT403.webp"],
-        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "Lata 1 Litro" }
+        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "Lata de 1 Litro" }
     },
     {
         id: "ACT036", 
-        name: "Aceite Sintético Emkarate RL32 1L", 
+        name: "Aceite Sintético RL 32H Emkarate de Lata", 
         category: "Químicos", 
         model: "RL32H",
-        desc: `<b>Aceite Sintético Emkarate RL32 1 Litro</b><br><br>Lubricante sintético premium Emkarate RL32. Formulado específicamente para un rendimiento óptimo en sistemas de refrigeración modernos.`,
+        desc: `<b>Aceite Sintético Emkarate RL 32H de Lata (1Lts)</b><br><br>Lubricante sintético premium Emkarate RL32. Formulado específicamente para un rendimiento óptimo en sistemas de refrigeración modernos.`,
         costoCompra: 35.75384615, 
         images: ["productos/ACT036.webp"],
-        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "1 Litro" }
+        specs: { "Marca": "Emkarate", "Tipo": "Sintético POE", "Presentación": "Lata de 1 Litro" }
     },
     {
         id: "ACT043", 
-        name: "Aceite Para Bomba de Vacío 1L Maslex", 
+        name: "Aceite Para Bomba de Vacío de 1Lts Maslex", 
         category: "Químicos", 
         model: "Bomba de Vacío 1L",
         desc: `<b>Aceite Para Bomba de Vacío 1 Litro Maslex</b><br><br>Aceite especializado de alta pureza para bombas de vacío. Garantiza la máxima eficiencia y prolonga la vida útil de su equipo.`,
@@ -79,7 +89,7 @@ const products = [
     },
     {
         id: "ACT040", 
-        name: "Aceite Para Bomba de Vacío 8 Oz Landsfoss", 
+        name: "Aceite Para Bomba de Vacío de 8 Oz Landsfoss", 
         category: "Químicos", 
         model: "Bomba de Vacío 8Oz",
         desc: `<b>Aceite Para Bomba de Vacío 8 Onzas Landsfoss</b><br><br>Aceite premium para mantenimiento y óptimo funcionamiento de bombas de vacío. Presentación práctica de 8 onzas.`,
@@ -89,7 +99,7 @@ const products = [
     },
     {
         id: "ACT045", 
-        name: "Aceite POE 32 1L 100% Puro Maslex", 
+        name: "Aceite POE 32 de 1Lts 100% Puro Maslex", 
         category: "Químicos", 
         model: "POE-32",
         desc: `<b>Aceite POE 32 1 Litro 100% Puro Maslex</b><br><br>Aceite sintético POE-32 de máxima pureza. Excelente estabilidad térmica para sistemas de refrigeración y aires acondicionados.`,
@@ -99,7 +109,7 @@ const products = [
     },
     {
         id: "ACT044", 
-        name: "Aceite POE 68 1L 100% Puro Maslex", 
+        name: "Aceite POE 68 de 1Lts 100% Puro Maslex", 
         category: "Químicos", 
         model: "POE-68",
         desc: `<b>Aceite POE 68 1 Litro 100% Puro Maslex</b><br><br>Aceite sintético POE-68 100% puro. Proporciona una lubricación superior y mayor vida útil para los compresores.`,
@@ -110,7 +120,7 @@ const products = [
     {
         id: "ACT025", 
         name: "Aceite Éster Sintético Para Sistemas R134", 
-        category: "Químicos", 
+        category: "Automotriz", 
         model: "Éster Sintético",
         desc: `<b>Aceite Éster Sintético Para Sistemas R134</b><br><br>Lubricante éster sintético universal formulado para sistemas de aire acondicionado y refrigeración que utilizan gas R134.`,
         costoCompra: 5.40000000, 
@@ -129,7 +139,7 @@ const products = [
     },
     {
         id: "ACT016", 
-        name: "Aceite Compresor Nevera R134 8 Oz", 
+        name: "Aceite para Compresor de Nevera R134 de 8 Oz", 
         category: "Químicos", 
         model: "R134 8 Oz",
         desc: `<b>Aceite Compresor Nevera R134 8 Onzas</b><br><br>Aceite lubricante de alta calidad envasado específicamente para compresores de neveras que emplean gas R134.`,
@@ -140,7 +150,7 @@ const products = [
     {
         id: "ACT005", 
         name: "Aceite PAG 46 c/UV R134 Johnsen's Org.", 
-        category: "Químicos", 
+        category: "Automotriz", 
         model: "PAG 46 UV",
         desc: `<b>Aceite PAG 46 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 46 formulado con tinte UV para una rápida detección de fugas en sistemas automotrices R134a.`,
         costoCompra: 5.83076923, 
@@ -150,7 +160,7 @@ const products = [
     {
         id: "ACT004", 
         name: "Aceite PAG 100 c/UV R134 Johnsen's Org.", 
-        category: "Químicos", 
+        category: "Automotriz", 
         model: "PAG 100 UV",
         desc: `<b>Aceite PAG 100 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 100 de alta viscosidad con tinte UV rastreador para sistemas de aire acondicionado automotriz R134a.`,
         costoCompra: 5.83846154, 
@@ -160,7 +170,7 @@ const products = [
     {
         id: "ACT003", 
         name: "Aceite PAG 150 c/UV R134 Johnsen's Org.", 
-        category: "Químicos", 
+        category: "Automotriz", 
         model: "PAG 150 UV",
         desc: `<b>Aceite PAG 150 c/UV R134 Johnsen's Original</b><br><br>Aceite sintético PAG 150 de máxima viscosidad, con detector de fugas UV, diseñado para compresores automotrices pesados R134a.`,
         costoCompra: 5.66153846, 
@@ -182,7 +192,7 @@ const products = [
     },
     {
         id: "QMC008", 
-        name: "Ácido Evar 22 Limpiador 1 Litro", 
+        name: "Ácido Evar22 Limpiador de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Ácido Evar 22 Limpiador 1 Litro</b><br><br>Fórmula ácida concentrada para la limpieza profunda y remoción de óxido en sistemas de refrigeración.`,
@@ -192,7 +202,7 @@ const products = [
     },
     {
         id: "QMC023", 
-        name: "Ácido Evar 22 Limpiador Mediano 480ML", 
+        name: "Ácido Evar22 Limpiador Mediano de 480ML", 
         category: "Químicos", 
         model: "480 ML",
         desc: `<b>Ácido Evar 22 Limpiador Mediano 480ML</b><br><br>Limpiador ácido concentrado en presentación mediana, ideal para mantenimientos rápidos de equipos de refrigeración.`,
@@ -202,7 +212,7 @@ const products = [
     },
     {
         id: "QMC021", 
-        name: "Limpiador Alcalino de Aluminio Alcalin 1L", 
+        name: "Limpiador Alcalino de Aluminio Alcalin de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Limpiador Alcalino de Aluminio Alcalin 1L</b><br><br>Solución alcalina formulada para abrillantar y limpiar paneles de aluminio sin dañar el metal.`,
@@ -212,7 +222,7 @@ const products = [
     },
     {
         id: "QMC002", 
-        name: "Limpiador Ácido de Aluminio Hidroflush 1L", 
+        name: "Limpiador Ácido de Aluminio Hidroflush de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Limpiador Ácido de Aluminio Hidroflush 1L</b><br><br>Limpiador ácido de acción rápida para eliminar incrustaciones severas en sistemas de aire acondicionado.`,
@@ -222,7 +232,7 @@ const products = [
     },
     {
         id: "QMC027", 
-        name: "Desplazador de Humedad Metil 1 Litro", 
+        name: "Desplazador de Humedad Metil de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Desplazador de Humedad Metil 1 Litro</b><br><br>Líquido químico diseñado para eliminar los rastros de humedad dentro del sistema de refrigeración y prevenir congelamientos.`,
@@ -232,7 +242,7 @@ const products = [
     },
     {
         id: "QMC025", 
-        name: "Dieléctrico Desengrasante RQ5 1 Litro", 
+        name: "Dieléctrico Desengrasante RQ5 de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Dieléctrico Desengrasante RQ5 1 Litro</b><br><br>Solvente dieléctrico de alta pureza para la limpieza segura de tableros, tarjetas y componentes eléctricos.`,
@@ -242,7 +252,7 @@ const products = [
     },
     {
         id: "QMC026", 
-        name: "Dieléctrico Desengrasante RQ5 1/2 Litro", 
+        name: "Dieléctrico Desengrasante RQ5 de 500ML", 
         category: "Químicos", 
         model: "1/2 Litro",
         desc: `<b>Dieléctrico Desengrasante RQ5 1/2 Litro</b><br><br>Solvente dieléctrico desengrasante en presentación práctica de medio litro para limpiezas de precisión.`,
@@ -252,7 +262,7 @@ const products = [
     },
     {
         id: "QMC022", 
-        name: "Dieléctrico Desengrasante Lata RBV 5KG", 
+        name: "Dieléctrico Desengrasante de Lata RBV de 5KG", 
         category: "Químicos", 
         model: "5 Kilos",
         desc: `<b>Dieléctrico Desengrasante Lata RBV 5KG</b><br><br>Solvente dieléctrico en presentación industrial de 5 kilos, ideal para limpiezas a gran escala y talleres de mantenimiento.`,
@@ -262,7 +272,7 @@ const products = [
     },
     {
         id: "QMC005-RBV", 
-        name: "Limpiador Dieléctrico RVB de Lata de 1/2kg", 
+        name: "Limpiador Dieléctrico RVB de Lata de 500Gr", 
         category: "Químicos", 
         model: "1/2 Litro",
         desc: `<b>Limpiador Dielectrico RVB de Lata de 1/2kg</b><br><br>Solvente para la limpieza de componentes eléctricos sin riesgo de cortocircuitos. Presentación de 500ml.`,
@@ -282,7 +292,7 @@ const products = [
     },
     {
         id: "QMC019", 
-        name: "Limpiador Químico Multi Ultra Clean 1L", 
+        name: "Limpiador Químico AirClean Ultra de 1Lts", 
         category: "Químicos", 
         model: "1 Litro",
         desc: `<b>Limpiador Químico Multiuso Ultra Clean 1L</b><br><br>Limpiador multipropósito formulado para aflojar y remover suciedad pesada en componentes de refrigeración.`,
@@ -292,7 +302,7 @@ const products = [
     },
     {
         id: "QMC007", 
-        name: "Alcohol Metílico (Medio) 0.5 Litros", 
+        name: "Panel Cool 66 (Alcohol Metilico) de 500ml", 
         category: "Químicos", 
         model: "0.5 Litros",
         desc: `<b>Alcohol Metílico 0.5 Litros</b><br><br>Alcohol metílico de alta pureza diseñado para absorber la humedad residual en tuberías y prevenir congelamiento.`,
@@ -302,7 +312,7 @@ const products = [
     },
     {
         id: "QMC024", 
-        name: "Limpiador Panel Clean 66 Galón 3.75L", 
+        name: "Panel Clean 66 Limpiador de Galón de 3.75Lts", 
         category: "Químicos", 
         model: "1 Galón (3.75L)",
         desc: `<b>Limpiador Panel Clean 66 Galón 3.750LTS</b><br><br>Limpiador profundo de aluminio para serpentines en presentación industrial de 1 Galón. Alto rendimiento.`,
@@ -312,7 +322,7 @@ const products = [
     },
     {
         id: "QMC011", 
-        name: "Ácido Limpiador Evar 22 Galón 3.78L", 
+        name: "Ácido Limpiador Evar22 Galón 3.78Lts", 
         category: "Químicos", 
         model: "1 Galón (3.78L)",
         desc: `<b>Ácido Evar 22 Limpiador Galón 3.78 LTS</b><br><br>Ácido limpiador concentrado en tamaño industrial de 1 galón. Máxima potencia para limpiezas mayores.`,
