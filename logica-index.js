@@ -19,7 +19,7 @@ const products = [
     // ==========================================
     {
         id: "ACT037", 
-        name: "Aceite Sintético RL 32H Emkarate de Lata", 
+        name: "Aceite Sintético EmkarOil (RBV) POE 32H de 1Lts", 
         category: "Químicos", 
         model: "RL32H",
         desc: `<b>Aceite Sintético EmkarOil (RBV) POE 32H de 1Lts</b><br><br>Lubricante sintético premium EmkarOil (RBV) POE 32H. Formulado específicamente para un rendimiento óptimo en sistemas de refrigeración modernos.`,

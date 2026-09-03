@@ -227,50 +227,51 @@ body {
         padding: 12px 0 0 0; margin-top: 2px; border-top: 1px solid #e2e8f0; 
     }
     .brand-tab { padding: 8px 16px; font-size: 14px; }
-
+    
     .carousel-bg-card { 
         padding: 30px 0 40px 0; 
-        min-height: calc(100vh - 130px); 
-        display: flex; flex-direction: column; justify-content: center; 
+        /* ⬅️ ESTA ES LA LÍNEA MÁGICA QUE ARREGLA EL ESPACIO BLANCO */
+        min-height: calc(100vh - 115px); 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
     }
     
     .carousel-header-text { margin-bottom: 20px; }
     
-    /* --- AJUSTE INTELIGENTE DE LOGOS EN MÓVIL --- */
-    /* 1. Logos con Píldora Blanca (Exceline, Paragon) */
     .brand-logo-container { padding: 8px 25px; margin-bottom: 15px; min-height: 45px; }
     .brand-logo-container img { height: 30px; } 
-
-    /* 2. Logos SIN Píldora (Se adaptan a su proporción ideal) */
+    
     .oster-logo, .productos66-logo, .maxwell-logo, .ingco-logo, .steinmann-logo { 
-        padding: 0; min-height: auto; margin-bottom: 15px;
+        padding: 0; min-height: auto; margin-bottom: 15px; 
     }
     .oster-logo img, .productos66-logo img { height: 45px; }
     .ingco-logo img { height: 48px; }
     .steinmann-logo img { height: 50px; }
-    .maxwell-logo img { height: 65px; } /* Maxwell es más alargado, necesita más altura */
-    /* --------------------------------------------- */
-
-    .carousel-title { font-size: 28px; padding: 0 15px; margin-bottom: 8px; }
+    .maxwell-logo img { height: 65px; } 
+    
+    .carousel-title { font-size: 24px; padding: 0 15px; margin-bottom: 8px; }
     .carousel-subtitle { 
-        font-size: 15px; padding: 0 15px; margin-bottom: 0; line-height: 1.4; 
-        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        font-size: 14px; padding: 0 15px; margin-bottom: 0; line-height: 1.4; 
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; 
     }
     
-    .slider-btn { display: none; }
-    .carousel-wrapper { padding: 0; }
-    .carousel-track { gap: 15px; padding: 20px 5vw 10px 5vw; }
+    .slider-btn { display: none; } /* Ocultamos flechas para forzar el scroll táctil */
+    .carousel-wrapper { padding: 0; width: 100%; }
+    
+    /* Fix para evitar overflow horizontal en el track */
+    .carousel-track { gap: 15px; padding: 20px 15px 10px 15px; } 
     
     .carousel-slide { flex: 0 0 85%; border-radius: 20px; }
     .img-wrapper { padding: 25px 15px; }
-    .img-wrapper img { height: 180px; } 
+    .img-wrapper img { height: 180px; }
     
     .card-info { padding: 20px; }
     .card-category { font-size: 12px; margin-bottom: 8px; }
     .carousel-slide h3 { font-size: 18px; margin-bottom: 10px; }
     .carousel-slide p { 
         font-size: 14px; margin-bottom: 20px; line-height: 1.5; 
-        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; 
     }
     .buy-btn { padding: 14px 20px; font-size: 15px; }
 }

@@ -63,7 +63,12 @@ header {
 .cat-btn:hover { border-color: var(--nova-blue); color: var(--nova-blue); }
 .cat-btn.active { background: var(--nova-blue); color: var(--white); border-color: var(--nova-blue); }
 
-.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 25px; padding: 30px 50px 30px 5%; }
+.products-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* Esto crea las múltiples columnas automáticas */
+    gap: 25px; 
+    padding: 30px 50px 30px 5%; 
+}
 .product-card {
     background: var(--white); border: 1px solid var(--border-light); border-radius: 16px;
     padding: 20px; display: flex; flex-direction: column; transition: 0.3s; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
@@ -93,7 +98,31 @@ header {
 .alpha-btn { color: rgba(255,255,255,0.7); font-size: 12px; font-weight: bold; text-align: center; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.2s; }
 .alpha-btn:hover, .alpha-btn.active { color: var(--white); background: var(--nova-red); transform: scale(1.2); }
 
-.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 0 40px; }
+.pagination { 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    gap: 10px; 
+    padding: 10px 5% 40px 5%; 
+    overflow-x: auto; /* Activa el desplazamiento horizontal */
+    white-space: nowrap; /* Evita que los botones salten hacia abajo */
+    scrollbar-width: none; /* Oculta la barra de scroll en Firefox */
+}
+.pagination::-webkit-scrollbar { 
+    display: none; /* Oculta la barra de scroll en Chrome/Safari/Móviles */ 
+}
+.page-btn { 
+    background: transparent; 
+    border: none; 
+    color: var(--text-light); 
+    font-size: 16px; 
+    cursor: pointer; 
+    padding: 5px 10px; 
+    transition: 0.2s; 
+    font-weight: 600; 
+    flex-shrink: 0; /* Evita que los botones se encojan */
+}
+
 .page-btn { background: transparent; border: none; color: var(--text-light); font-size: 16px; cursor: pointer; padding: 5px 10px; transition: 0.2s; font-weight: 600; }
 .page-btn:hover { color: var(--nova-blue); }
 .page-btn.active { color: var(--nova-blue); text-decoration: underline; font-size: 18px; font-weight: 800; }
@@ -191,23 +220,50 @@ header {
 .footer-col ul li { margin-bottom: 8px; }
 .footer-bottom { max-width: 1200px; margin: 40px auto 0; padding-top: 25px; border-top: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; font-size: 13px; color: #718096; }
 
-/* DISEÑO RESPONSIVO MÓVIL */
+/* ==========================================
+   DISEÑO RESPONSIVO MÓVIL OPTIMIZADO
+=========================================== */
 @media (max-width: 768px) {
-    header { flex-wrap: wrap; padding: 15px; gap: 15px; }
+    .top-announcement-bar { flex-direction: column; gap: 5px; padding: 10px; font-size: 12px; }
+    header { flex-wrap: wrap; padding: 15px; gap: 12px; }
     .logo-container { order: 1; }
     .logo-container img { height: 35px; } 
-    .cart-btn { order: 2; padding: 8px 16px; font-size: 13px; }
+    .cart-btn { order: 2; padding: 8px 14px; font-size: 12px; }
     .search-container { order: 3; width: 100%; margin: 0; flex-direction: column; gap: 8px; }
     .search-bar { width: 100%; }
-    .bcv-widget { width: 100%; flex-direction: row; justify-content: center; align-items: center; gap: 6px; background: transparent; border: none; padding: 0; color: var(--text-light); font-size: 13px; font-weight: 500; }
+    
+    .bcv-widget { 
+        width: 100%; flex-direction: row; justify-content: center; 
+        align-items: center; gap: 6px; background: transparent; 
+        border: none; padding: 0; color: var(--text-light); font-size: 13px; font-weight: 500; 
+    }
     .bcv-widget span { color: var(--nova-blue); font-size: 14px; font-weight: 800; }
+    
+    /* 1. GRID EN 1 SOLA COLUMNA VERTICAL (SOLO PARA MÓVIL) */
+    .products-grid { 
+        grid-template-columns: 1fr; /* Fuerza 1 solo producto por fila */
+        padding: 20px 50px 30px 5%; /* Margen para la nueva barra alfabética */
+        gap: 20px; 
+    }
+    
+    /* 2. BARRA ALFABÉTICA MÁS ACCESIBLE PARA EL DEDO */
+    .alphabet-sidebar { 
+        padding: 8px 4px; 
+        gap: 2px; 
+        border-radius: 12px 0 0 12px; 
+        width: 38px; 
+        background: rgba(0, 69, 138, 0.95); 
+    }
+    .alpha-btn { font-size: 12px; padding: 4px 0; font-weight: 800; }
+    
+    /* 3. PAGINACIÓN EN MÓVIL */
+    .pagination { justify-content: flex-start; }
+
+    /* Modales y Footer */
     .cart-modal { width: 100%; }
-    .quick-view-box { grid-template-columns: 1fr; }
-    .qv-info { padding: 25px; }
-    .qv-title { font-size: 24px; }
-    .products-grid { padding: 20px 45px 30px 5%; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
-    .alphabet-sidebar { padding: 10px 2px; gap: 1px; border-radius: 8px 0 0 8px; }
-    .alpha-btn { font-size: 10px; padding: 2px; }
+    .quick-view-box { grid-template-columns: 1fr; width: 95%; max-height: 90vh; }
+    .qv-info { padding: 20px 15px; }
+    .qv-title { font-size: 22px; }
     .footer-content { grid-template-columns: 1fr; text-align: center; gap: 30px; }
     .footer-col img { margin: 0 auto 15px auto !important; display: block; }
     .footer-bottom { flex-direction: column; text-align: center; gap: 10px; }
