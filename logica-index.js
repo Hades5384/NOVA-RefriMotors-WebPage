@@ -587,7 +587,7 @@ const products = [
         category: "Refrigeración", 
         model: "1/3 HP",
         desc: `<b>Condensador Tipo Parrilla de 2 Vueltas Para Cava 1/5</b><br><br>Parrilla condensadora estática de alta transferencia de calor diseñada para unidades de 1/5 HP. Ideal para cavas y exhibidores.`,
-        costoCompra: 7.3692307692, 
+        costoCompra: 7.3692307692,
         images: ["productos/CNV300.webp"],
         specs: { "Tipo": "Parrilla Estática", "Capacidad": "1/5 HP", "Uso": "Cavas" }
     },
