@@ -14,9 +14,146 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // 2. BASE DE DATOS DE PRODUCTOS
 // ==========================================
 const products = [
-    // ==========================================
-    // SECCIÓN: ACEITES Y LUBRICANTES
-    // ==========================================
+
+    {
+        id: "TEE-VARIANTE", 
+        name: "Conexion en T de Cobre (Varias Medidas)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Tee de Cobre para Soldar</b><br><br>Conexión en T de cobre de alta calidad, indispensable para derivaciones en sistemas de tuberías de aire acondicionado y refrigeración. Seleccione la medida requerida.`,
+        costoCompra: 0.40000000, // Costo base (Tee 1/2)
+        images: ["productos/TEE102---TEE708.webp"],
+        specs: { "Material": "Cobre", "Tipo": "Conexión en T", "Uso": "Soldable" },
+        variants: [
+            { id: "TEE104", name: "Medida: 1/4", costoCompra: 0.33076923 },
+            { id: "TEE308", name: "Medida: 3/8", costoCompra: 0.33076923 },
+            { id: "TEE102", name: "Medida: 1/2", costoCompra: 0.40000000 },
+            { id: "TEE508", name: "Medida: 5/8", costoCompra: 0.66153846 },
+            { id: "TEE304", name: "Medida: 3/4", costoCompra: 1.65384615 },
+            { id: "TEE708", name: "Medida: 7/8", costoCompra: 1.65384615 },
+            { id: "TEE158", name: "Medida: 1-5/8", costoCompra: 4.75384615 }
+        ]
+    },
+    {
+        id: "COC-VARIANTE", 
+        name: "Codo de Cobre Soldable (Varias Medidas)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Codo de Cobre Soldable</b><br><br>Codo de cobre duradero para realizar giros y conexiones precisas en las líneas de refrigeración. Máxima resistencia a la presión. Seleccione la medida.`,
+        costoCompra: 0.48461538, // Costo base
+        images: ["productos/COC001---010.webp"],
+        specs: { "Material": "Cobre", "Tipo": "Codo", "Uso": "Soldable" },
+        variants: [
+            { id: "COC001", name: "Medida: 1/4\"", costoCompra: 0.55384615 },
+            { id: "COC002", name: "Medida: 3/8\"", costoCompra: 0.48461538 },
+            { id: "COC003", name: "Medida: 1/2\"", costoCompra: 0.48461538 },
+            { id: "COC004", name: "Medida: 5/8\"", costoCompra: 0.46923077 },
+            { id: "COC005", name: "Medida: 3/4\"", costoCompra: 0.66153846 },
+            { id: "COC006", name: "Medida: 7/8\"", costoCompra: 0.96153846 },
+            { id: "COC007", name: "Medida: 1-1/8\" (Grande)", costoCompra: 2.74615385 },
+            { id: "COC010", name: "Medida: 1-1/4\" (Grande)", costoCompra: 2.65384615 },
+            { id: "COC008", name: "Medida: 1-3/8\" (Grande)", costoCompra: 3.06923077 },
+            { id: "COC009", name: "Medida: 2-1/8\" (Grande)", costoCompra: 6.63076923 }
+        ]
+    },
+    {
+        id: "ADU-VARIANTE", 
+        name: "Adaptadores de Bronce (R22 a R410 y R410 a Rss22)", 
+        category: "Refrigeración", 
+        model: "Varios Tipos",
+        desc: `<b>Adaptador de Conexión R22 / R410</b><br><br>Adaptador metálico indispensable para las mangueras de los manómetros al trabajar con equipos de nueva generación R410A o R22 tradicional.`,
+        costoCompra: 1.32307692, 
+        images: ["productos/ADU300-350.webp"],
+        specs: { "Tipo": "Adaptador de Rosca", "Material": "Bronce" },
+        variants: [
+            { id: "ADU300", name: "Adaptador R22 a R410 (1/4 a 5/16)", costoCompra: 1.32307692 },
+            { id: "ADU350", name: "Adaptador R410 a R22 (5/16 a 1/4)", costoCompra: 1.32307692 }
+        ]
+    },
+    {
+        id: "TUR-VARIANTE", 
+        name: "Tuerca Reforzada de Bronce", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Tuerca Reforzada para Conexiones Flare</b><br><br>Tuerca de bronce macizo forjado y reforzado. Asegura un sellado impecable y duradero en conexiones abocinadas (flare).`,
+        costoCompra: 0.86153846, 
+        images: ["productos/TUR001---007.webp"],
+        specs: { "Material": "Bronce", "Tipo": "Reforzada", "Uso": "Sistemas Flare" },
+        variants: [
+            { id: "TUR001", name: "Medida: 1/4", costoCompra: 0.33076923 },
+            { id: "TUR007", name: "Medida: 5/16", costoCompra: 0.36153846 },
+            { id: "TUR002", name: "Medida: 3/8", costoCompra: 0.56923077 },
+            { id: "TUR003", name: "Medida: 1/2", costoCompra: 0.86153846 },
+            { id: "TUR004", name: "Medida: 5/8", costoCompra: 1.05384615 },
+            { id: "TUR006", name: "Medida: 3/4", costoCompra: 1.05384615 },
+            { id: "TUR005", name: "Medida: 7/8", costoCompra: 1.63076923 }
+        ]
+    },
+    {
+        id: "REL001", 
+        name: "Relay Marrón Americold PTC 4 Pines", 
+        category: "Protectores", 
+        model: "PTC 4 Pines",
+        desc: `<b>Relay Marrón Americold PTC 4 Pines</b><br><br>Relé de arranque PTC original Americold. Dispositivo eléctrico de alta calidad y precisión para arrancar compresores de refrigeración.`,
+        costoCompra: 0.43846154, 
+        images: ["productos/REL001.webp"],
+        specs: { "Marca": "Americold", "Tipo": "PTC", "Pines": "4 Pines" }
+    },
+    {
+        id: "MCP003", 
+        name: "Medidor de Tubo Capilar Maxwell", 
+        category: "Herramientas", 
+        model: "Regla Medidora",
+        desc: `<b>Medidor Capilar Maxwell</b><br><br>Plantilla de medición de precisión para tubos capilares. Incluye aguja limpiadora. Una herramienta obligatoria para garantizar la expansión correcta del gas.`,
+        costoCompra: 9.66153846, 
+        images: ["productos/MCP003.webp"],
+        specs: { "Marca": "Maxwell", "Herramienta": "Medidor de Capilar", "Incluye": "Aguja Limpiadora" }
+    },
+    {
+        id: "ROL-VARIANTE", 
+        name: "Rolineras y Rodamientos (Varias Medidas)", 
+        category: "Motores", 
+        model: "Varias Medidas",
+        desc: `<b>Rodamientos y Rolineras para Motores</b><br><br>Rolineras de alta calidad con sello de goma (RS/2RS) o metálico (ZZ), garantizando un rodamiento suave, silencioso y resistente al polvo. Seleccione el modelo específico.`,
+        costoCompra: 0.86153846, // Costo base visual
+        images: ["productos/ROL001---502.webp"],
+        specs: { "Componente": "Rodamiento", "Aplicación": "Motores Eléctricos y Lavadoras" },
+        variants: [
+            // Series 6000
+            { id: "ROL006", name: "Modelo: 6000 2RS", costoCompra: 0.66153846 },
+            { id: "ROL012", name: "Modelo: 6001 2RS", costoCompra: 0.93076923 },
+            { id: "ROL205", name: "Modelo: 6002 2RS S/Naranja Industrial", costoCompra: 0.96923077 },
+            { id: "ROL206", name: "Modelo: 6003 RS Asia", costoCompra: 0.99230769 },
+            // Series 6200
+            { id: "ROL007", name: "Modelo: 6200 2RS", costoCompra: 0.79230769 },
+            { id: "ROL024", name: "Modelo: 6200 ZZ Metal", costoCompra: 0.66153846 },
+            { id: "ROL010", name: "Modelo: 62000 2RS Isyn", costoCompra: 0.72307692 },
+            { id: "ROL002", name: "Modelo: 6201 2RS", costoCompra: 0.86153846 },
+            { id: "ROL003", name: "Modelo: 6201 x 1/2", costoCompra: 0.80000000 },
+            { id: "ROL200", name: "Modelo: 6201 ZZ Metal", costoCompra: 0.71538462 },
+            { id: "ROL201", name: "Modelo: 6201 NSK", costoCompra: 0.99230769 },
+            { id: "ROL008", name: "Modelo: 6202 1/2", costoCompra: 0.66923077 },
+            { id: "ROL004", name: "Modelo: 6202 2RS S/Naranja Industrial", costoCompra: 1.02307692 },
+            { id: "ROL202", name: "Modelo: 6202 NSK Alta Calidad", costoCompra: 1.31538462 },
+            { id: "ROL204", name: "Modelo: 6202 5/8 RS Asia", costoCompra: 0.99230769 },
+            { id: "ROL005", name: "Modelo: 6203 2RS", costoCompra: 0.99230769 },
+            { id: "ROL203", name: "Modelo: 6203 5/8 2RS", costoCompra: 1.05384615 },
+            { id: "ROL014", name: "Modelo: 6204 2RS", costoCompra: 1.32307692 },
+            { id: "ROL013", name: "Modelo: 6205 2RS Alta Calidad", costoCompra: 1.32307692 },
+            { id: "ROL500", name: "Modelo: 6205 - 1\" 2RS Lavadora Mabe C3", costoCompra: 1.14058355 },
+            { id: "ROL501", name: "Modelo: 6205 Con Ratchet 134 (Frigidaire)", costoCompra: 5.96153846 },
+            { id: "ROL021", name: "Modelo: 626 2RS Maxwell", costoCompra: 0.53076923 },
+            { id: "ROL009", name: "Modelo: 627 2RS", costoCompra: 0.66153846 },
+            // Otras Medidas
+            { id: "ROL011", name: "Modelo: 6303 2RS", costoCompra: 1.16153846 },
+            { id: "ROL022", name: "Modelo: 607 2RS Asia", costoCompra: 0.54615385 },
+            { id: "ROL001", name: "Modelo: 608 2RS S/Naranja Industrial", costoCompra: 0.60769231 },
+            { id: "ROL020", name: "Modelo: 608 2RS S/Azul Alta Calidad", costoCompra: 0.33076923 },
+            { id: "ROL100", name: "Modelo: 608 ZZ Sello Metálico", costoCompra: 0.46153846 },
+            { id: "ROL023", name: "Modelo: 6900 2RS Asia", costoCompra: 0.56153846 },
+            { id: "ROL502", name: "Modelo: Axial Mabe/G.E Híbrida 7410469", costoCompra: 3.31538462 }
+        ]
+    },
     {
         id: "ACT037", 
         name: "Aceite Sintético EmkarOil (RBV) POE 32H de 1Lts", 
