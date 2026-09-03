@@ -1,11 +1,11 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 801.08; 
+const TASA_BCV = 804.81; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
-const TASA_INTERNA = 950; 
+const TASA_INTERNA = 1000; 
 
 // Mostrar tasa BCV en el encabezado
 document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`; 
@@ -587,7 +587,7 @@ const products = [
         category: "Refrigeración", 
         model: "1/3 HP",
         desc: `<b>Condensador Tipo Parrilla de 2 Vueltas Para Cava 1/5</b><br><br>Parrilla condensadora estática de alta transferencia de calor diseñada para unidades de 1/5 HP. Ideal para cavas y exhibidores.`,
-        costoCompra: 10.25384615, 
+        costoCompra: 7.3692307692, 
         images: ["productos/CNV300.webp"],
         specs: { "Tipo": "Parrilla Estática", "Capacidad": "1/5 HP", "Uso": "Cavas" }
     },
