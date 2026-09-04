@@ -246,15 +246,19 @@ header {
         gap: 20px; 
     }
     
-    /* 2. BARRA ALFABÉTICA MÁS ACCESIBLE PARA EL DEDO */
+/* 2. BARRA ALFABÉTICA COMPACTA Y ACCESIBLE */
     .alphabet-sidebar { 
-        padding: 8px 4px; 
-        gap: 2px; 
-        border-radius: 12px 0 0 12px; 
-        width: 38px; 
+        padding: 6px 2px; 
+        gap: 0px; /* Quitamos el espacio extra entre letras para reducir la altura total */
+        border-radius: 10px 0 0 10px; 
+        width: 32px; /* Un poco más delgada pero sigue siendo cómoda para el dedo */
         background: rgba(0, 69, 138, 0.95); 
     }
-    .alpha-btn { font-size: 12px; padding: 4px 0; font-weight: 800; }
+    .alpha-btn { 
+        font-size: 10px; /* Letra ligeramente más pequeña */
+        padding: 2.5px 0; /* Reducimos el relleno vertical para acortar la barra */
+        font-weight: 700; 
+    }
     
     /* 3. PAGINACIÓN EN MÓVIL */
     .pagination { justify-content: flex-start; }
