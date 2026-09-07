@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 804.81; 
+const TASA_BCV = 813.74; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -14,7 +14,299 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // 2. BASE DE DATOS DE PRODUCTOS
 // ==========================================
 const products = [
+    // ==========================================
+    // SECCIÓN: CAPACITORES (Agrupados por Variantes)
+    // ==========================================
+    
+    // 1. CAPACITORES CUADRADOS NEGROS
+    {
+        id: "CAP-NEGRO-VAR", 
+        name: "Capacitor Cuadrado Negro (Varias Medidas)", 
+        category: "Capacitores", 
+        model: "Varias Medidas",
+        desc: `<b>Capacitor Cuadrado Negro 450V</b><br><br>Capacitor de marcha de resina plástica negra. Ideal para motores de ventilador de consolas y equipos de aire acondicionado. Por favor, seleccione la capacitancia (MFD) que necesita.`,
+        costoCompra: 0.30000000, // Costo base (1 MFD)
+        images: ["productos/CAP NEGRO.webp"],
+        specs: { "Tipo": "Plástico Negro", "Voltaje": "450V / 250V", "Uso": "Motores Fan" },
+        variants: [
+            { id: "CAP001", name: "1 MFD 450V", costoCompra: 0.30000000 },
+            { id: "CAP002", name: "1.2 MFD 450V", costoCompra: 0.32307692 },
+            { id: "CAP003", name: "1.5 MFD 450V", costoCompra: 0.33846154 },
+            { id: "CAP004", name: "2 MFD 450V", costoCompra: 0.36923077 },
+            { id: "CAP005", name: "2.5 MFD 450V", costoCompra: 0.40769231 },
+            { id: "CAP006", name: "3 MFD 450V", costoCompra: 0.43846154 },
+            { id: "CAP007", name: "3.5 MFD 450V", costoCompra: 0.46923077 },
+            { id: "CAP008", name: "4 MFD 450V", costoCompra: 0.50000000 },
+            { id: "CAP009", name: "4.5 MFD 450V", costoCompra: 0.53846154 },
+            { id: "CAP010", name: "5 MFD 450V", costoCompra: 0.56923077 },
+            { id: "CAP011", name: "6 MFD 450V", costoCompra: 0.60000000 },
+            { id: "CAP012", name: "7.5 MFD 450V", costoCompra: 0.63846154 },
+            { id: "CAP013", name: "8 MFD 450V", costoCompra: 0.66923077 },
+            { id: "CAP014", name: "10 MFD 450V", costoCompra: 0.70000000 },
+            { id: "CAP066", name: "12 MFD 450V", costoCompra: 0.73846154 },
+            { id: "CAP015", name: "12.5 MFD 450V", costoCompra: 0.76923077 },
+            { id: "CAP057", name: "13 MFD 450V", costoCompra: 1.25384615 },
+            { id: "CAP016", name: "15 MFD 450V", costoCompra: 0.86923077 },
+            { id: "CAP068", name: "15 MFD 450V Original", costoCompra: 3.09230769 },
+            { id: "CAP161", name: "15 MFD 250V (Eq. Pequeños)", costoCompra: 1.19230769 }
+        ]
+    },
 
+    // 2. CAPACITORES DE MARCHA METÁLICOS (Sencillos y Dobles)
+    {
+        id: "CAP-METAL-VAR", 
+        name: "Capacitor Metálico de Marcha (Varias Medidas)", 
+        category: "Capacitores", 
+        model: "Varias Medidas",
+        desc: `<b>Capacitor de Marcha Metálico (Sencillo y Dual)</b><br><br>Capacitor cilíndrico de aluminio para el arranque y marcha continua de compresores y ventiladores de aire acondicionado. Resistente y duradero.`,
+        costoCompra: 1.05384615, // Costo base (4 MFD)
+        images: ["productos/CAP METALICO.webp"],
+        specs: { "Tipo": "Metálico Cilíndrico", "Voltaje": "370V / 440V", "Uso": "Compresores" },
+        variants: [
+            // Sencillos
+            { id: "CAP081", name: "4 MFD 370/440V", costoCompra: 1.05384615 },
+            { id: "CAP020", name: "5 MFD 370/440V", costoCompra: 1.12307692 },
+            { id: "CAP082", name: "6 MFD 370/440V", costoCompra: 1.13846154 },
+            { id: "CAP085", name: "8 MFD 370/440V", costoCompra: 1.10769231 },
+            { id: "CAP022", name: "10 MFD 370/440V", costoCompra: 1.01538462 },
+            { id: "CAP023", name: "12.5 MFD 370/440V", costoCompra: 0.99230769 },
+            { id: "CAP024", name: "15 MFD 370/450V", costoCompra: 1.16923077 },
+            { id: "CAP025", name: "20 MFD 370/450V", costoCompra: 1.71538462 },
+            { id: "CAP026", name: "25 MFD 370/450V", costoCompra: 1.75384615 },
+            { id: "CAP027", name: "30 MFD 370/450V", costoCompra: 1.60769231 },
+            { id: "CAP028", name: "35 MFD 370/450V", costoCompra: 1.70000000 },
+            { id: "CAP029", name: "40 MFD 370/450V", costoCompra: 1.89230769 },
+            { id: "CAP030", name: "45 MFD 370/450V", costoCompra: 2.26923077 },
+            { id: "CAP031", name: "50 MFD 370/450V", costoCompra: 2.37692308 },
+            { id: "CAP032", name: "55 MFD 370/450V", costoCompra: 2.49230769 },
+            { id: "CAP033", name: "60 MFD 370/450V", costoCompra: 2.83076923 },
+            { id: "CAP034", name: "65 MFD 370/450V", costoCompra: 3.23846154 },
+            { id: "CAP035", name: "70 MFD 370/450V", costoCompra: 3.67692308 },
+            { id: "CAP038", name: "75 MFD 370/450V", costoCompra: 4.09230769 },
+            { id: "CAP036", name: "80 MFD 370/450V", costoCompra: 4.65384615 },
+            { id: "CAP037", name: "85 MFD 370/450V", costoCompra: 5.69230769 },
+            { id: "CAP039", name: "100 MFD 370/450V", costoCompra: 5.96153846 },
+            // Dobles (Dual)
+            { id: "CAP042", name: "20+5 MFD 440V", costoCompra: 2.50000000 },
+            { id: "CAP040", name: "25+5 MFD 440V", costoCompra: 2.50000000 },
+            { id: "CAP069", name: "30+4 MFD 440V", costoCompra: 2.43846154 },
+            { id: "CAP043", name: "30+5 MFD 440V", costoCompra: 2.32307692 },
+            { id: "CAP058", name: "30+6 MFD 440V", costoCompra: 2.58461538 },
+            { id: "CAP083", name: "35+4 MFD 440V", costoCompra: 2.72307692 },
+            { id: "CAP046", name: "35+5 MFD 440V", costoCompra: 2.67692308 },
+            { id: "CAP041", name: "35+6 MFD 440V", costoCompra: 2.56923077 },
+            { id: "CAP044", name: "40+5 MFD 440V", costoCompra: 3.25384615 },
+            { id: "CAP062", name: "40+6 MFD 440V", costoCompra: 2.80000000 },
+            { id: "CAP064", name: "45+3 MFD 440V", costoCompra: 2.98461538 },
+            { id: "CAP045", name: "45+5 MFD 440V", costoCompra: 2.98461538 },
+            { id: "CAP065", name: "45+6 MFD 440V", costoCompra: 2.98461538 },
+            { id: "CAP047", name: "50+5 MFD 440V", costoCompra: 3.31538462 },
+            { id: "CAP059", name: "50+6 MFD 440V", costoCompra: 3.15384615 },
+            { id: "CAP060", name: "55+5 MFD 440V", costoCompra: 3.15384615 },
+            { id: "CAP067", name: "55+6 MFD 440V", costoCompra: 3.31538462 },
+            { id: "CAP084", name: "60+5 MFD 440V", costoCompra: 3.33846154 },
+            { id: "CAP061", name: "60+6 MFD 440V", costoCompra: 3.60000000 }
+        ]
+    },
+
+    // 3. CAPACITORES PARA BOMBA DE AGUA
+    {
+        id: "CAP-BOMBA-VAR", 
+        name: "Capacitor para Bomba de Agua (Varias Medidas)", 
+        category: "Capacitores", 
+        model: "Varias Medidas",
+        desc: `<b>Capacitor para Bomba de Agua</b><br><br>Capacitor cilíndrico recubierto, ideal para el arranque y funcionamiento de bombas de agua periféricas y centrífugas. Por favor seleccione la capacidad.`,
+        costoCompra: 0.90000000, // Costo base (20 MFD)
+        images: ["productos/CAP BOMBA DE AGUA.webp"],
+        specs: { "Tipo": "Cilíndrico Blanco", "Voltaje": "250V / 450V", "Uso": "Bombas de Agua" },
+        variants: [
+            { id: "CAP080", name: "12 MFD 250V (Plástico Orig. Nevera)", costoCompra: 1.92307692 },
+            { id: "CAP048", name: "12 MFD 250V", costoCompra: 1.25384615 },
+            { id: "CAP049", name: "14 MFD 250V", costoCompra: 1.25384615 },
+            { id: "CAP050", name: "16 MFD 250V", costoCompra: 1.13846154 },
+            { id: "CAP063", name: "18 MFD 250V", costoCompra: 1.73076923 },
+            { id: "CAP051", name: "20 MFD 250V", costoCompra: 0.90000000 },
+            { id: "CAP052", name: "22 MFD 250V", costoCompra: 1.32307692 },
+            { id: "CAP053", name: "25 MFD 250V", costoCompra: 1.43076923 },
+            { id: "CAP075", name: "30 MFD 250V", costoCompra: 1.55384615 },
+            { id: "CAP078", name: "31.5 MFD 250V", costoCompra: 2.35384615 },
+            { id: "CAP074", name: "35 MFD 250V", costoCompra: 1.72307692 },
+            { id: "CAP072", name: "40 MFD 250V", costoCompra: 2.03846154 },
+            { id: "CAP054", name: "45 MFD 250V", costoCompra: 2.64615385 },
+            { id: "CAP079", name: "50 MFD 250V", costoCompra: 2.90769231 },
+            { id: "CAP077", name: "55 MFD 250V", costoCompra: 2.91538462 },
+            { id: "CAP055", name: "60 MFD 250V", costoCompra: 3.07692308 },
+            { id: "CAP056", name: "65 MFD 250V", costoCompra: 2.09230769 },
+            { id: "CAP073", name: "80 MFD 450V", costoCompra: 5.86153846 },
+            { id: "CAP070", name: "100 MFD 250V", costoCompra: 5.98461538 },
+            { id: "CAP071", name: "120 MFD 250V", costoCompra: 7.10769231 },
+            { id: "CAP086", name: "150 MFD 250V", costoCompra: 9.13846154 }
+        ]
+    },
+
+    // 4. CAPACITORES DE ARRANQUE
+    {
+        id: "CAP-ARRANQUE-VAR", 
+        name: "Capacitor de Arranque (Varias Medidas)", 
+        category: "Capacitores", 
+        model: "Varias Medidas",
+        desc: `<b>Capacitor de Arranque (Start Capacitor)</b><br><br>Capacitor electrolítico diseñado para proporcionar el torque inicial necesario para arrancar compresores pesados. Alta fiabilidad comercial e industrial.`,
+        costoCompra: 1.54615385, // Costo base (88-106 uF)
+        images: ["productos/CAP ARRANQUE.webp"],
+        specs: { "Tipo": "Cilíndrico Plástico", "Función": "Arranque (Start)", "Uso": "Compresores" },
+        variants: [
+            // Rango 110/125V
+            { id: "CAP126", name: "88-106 µF 110/125V", costoCompra: 1.54615385 },
+            { id: "CAP148", name: "88-108 µF 110/125V", costoCompra: 1.96153846 },
+            { id: "CAP101", name: "108-130 µF 110/125V", costoCompra: 1.96153846 },
+            { id: "CAP103", name: "124-149 µF 110/125V", costoCompra: 1.45384615 },
+            { id: "CAP139", name: "128-154 µF 110/125V", costoCompra: 1.65384615 },
+            { id: "CAP149", name: "130-156 µF 110/125V", costoCompra: 1.74615385 },
+            { id: "CAP104", name: "145-175 µF 110/125V", costoCompra: 1.55384615 },
+            { id: "CAP106", name: "161-193 µF 110/125V", costoCompra: 2.37692308 },
+            { id: "CAP108", name: "189-227 µF 110/125V", costoCompra: 1.68461538 },
+            { id: "CAP152", name: "200-240 µF 110/125V", costoCompra: 1.86153846 },
+            { id: "CAP110", name: "216-259 µF 110/125V", costoCompra: 1.77692308 },
+            { id: "CAP112", name: "243-292 µF 110/125V", costoCompra: 2.63846154 },
+            { id: "CAP114", name: "270-324 µF 110/125V", costoCompra: 2.86153846 },
+            { id: "CAP153", name: "300-360 µF 110/125V", costoCompra: 2.31538462 },
+            { id: "CAP117", name: "324-389 µF 110/125V", costoCompra: 2.24615385 },
+            { id: "CAP118", name: "340-408 µF 110/125V", costoCompra: 2.71538462 },
+            { id: "CAP119", name: "378-454 µF 110/125V", costoCompra: 3.42307692 },
+            { id: "CAP155", name: "400-480 µF 110/125V", costoCompra: 2.95384615 },
+            { id: "CAP121", name: "430-516 µF 110/125V", costoCompra: 2.45384615 },
+            { id: "CAP122", name: "460-552 µF 110/125V", costoCompra: 2.62307692 },
+            { id: "CAP146", name: "485-533 µF 110/125V", costoCompra: 4.53076923 },
+            { id: "CAP123", name: "540-648 µF 110/125V", costoCompra: 3.30769231 },
+            { id: "CAP124", name: "590-708 µF 110/125V", costoCompra: 4.83846154 },
+            { id: "CAP125", name: "645-774 µF 110/125V", costoCompra: 5.08461538 },
+            { id: "CAP158", name: "650-780 µF 110/125V", costoCompra: 3.64615385 },
+            { id: "CAP154", name: "708-850 µF 110/125V", costoCompra: 3.80769231 },
+            { id: "CAP145", name: "720-864 µF 110/125V", costoCompra: 4.58461538 },
+            { id: "CAP160", name: "829-995 µF 110/125V", costoCompra: 3.77692308 },
+            
+            // Rango 220/250V
+            { id: "CAP127", name: "88-106 µF 220/250V", costoCompra: 2.43076923 },
+            { id: "CAP150", name: "88-108 µF 220/250V", costoCompra: 2.43076923 },
+            { id: "CAP102", name: "108-130 µF 220/250V", costoCompra: 1.63076923 },
+            { id: "CAP138", name: "124-149 µF 220/250V", costoCompra: 2.08461538 },
+            { id: "CAP151", name: "130-156 µF 220/250V", costoCompra: 2.64615385 },
+            { id: "CAP163", name: "145-174 µF 220/250V", costoCompra: 3.03846154 },
+            { id: "CAP105", name: "145-175 µF 220/250V", costoCompra: 3.09230769 },
+            { id: "CAP135", name: "161-193 µF 220/250V", costoCompra: 3.49230769 },
+            { id: "CAP107", name: "189-227 µF 220/250V", costoCompra: 3.53076923 },
+            { id: "CAP144", name: "216-259 µF 220/250V", costoCompra: 3.87692308 },
+            { id: "CAP147", name: "233-280 µF 220/250V", costoCompra: 3.73076923 },
+            { id: "CAP113", name: "243-292 µF 220/250V", costoCompra: 2.50769231 },
+            { id: "CAP116", name: "270-324 µF 220/250V", costoCompra: 4.24615385 },
+            { id: "CAP133", name: "324-389 µF 220/250V", costoCompra: 4.12307692 },
+            { id: "CAP134", name: "340-408 µF 220/250V", costoCompra: 2.95384615 },
+            { id: "CAP130", name: "378-464 µF 220/250V", costoCompra: 3.06153846 },
+            { id: "CAP162", name: "378-454 µF 220/250V", costoCompra: 4.10000000 },
+            { id: "CAP120", name: "400-480 µF 220/250V", costoCompra: 2.86923077 },
+            { id: "CAP131", name: "430-516 µF 220/250V", costoCompra: 3.22307692 },
+            { id: "CAP128", name: "460-552 µF 220/250V", costoCompra: 3.11538462 },
+            { id: "CAP132", name: "540-648 µF 220/250V", costoCompra: 3.75384615 },
+            { id: "CAP137", name: "570-608 µF 220/250V", costoCompra: 4.08461538 },
+            { id: "CAP136", name: "590-708 µF 220/250V", costoCompra: 4.50000000 },
+            { id: "CAP129", name: "708-850 µF 220/250V", costoCompra: 4.03076923 },
+
+            // Rango 330V
+            { id: "CAP157", name: "88-106 µF 330V", costoCompra: 1.30000000 },
+            { id: "CAP165", name: "108-130 µF 330V", costoCompra: 1.39230769 },
+            { id: "CAP156", name: "130-156 µF 330V", costoCompra: 3.02307692 },
+            { id: "CAP166", name: "130-156 µF 330V (Descarga)", costoCompra: 1.56153846 },
+            { id: "CAP167", name: "161-193 µF 330V", costoCompra: 1.72307692 },
+            { id: "CAP109", name: "189-227 µF 330V", costoCompra: 1.82307692 },
+            { id: "CAP159", name: "233-280 µF 330V", costoCompra: 4.04615385 },
+            { id: "CAP164", name: "250 µF 330V", costoCompra: 7.16153846 },
+            { id: "CAP115", name: "270-324 µF 330V", costoCompra: 5.34615385 }
+        ]
+    },
+    {
+        id: "ANC-VARIANTE", 
+        name: "Anillo de Cobre Soldable (Varias Medidas)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Anillo de Cobre Soldable</b><br><br>Cople o anillo de cobre de alta pureza diseñado para unir tuberías de refrigeración y aire acondicionado mediante soldadura. Seleccione la medida requerida.`,
+        costoCompra: 0.14615385, // Costo base (1/4")
+        images: ["productos/ANC001-008.webp"],
+        specs: { "Material": "Cobre", "Tipo": "Unión / Anillo", "Uso": "Soldable" },
+        variants: [
+            { id: "ANC001", name: "Medida: 1/4\"", costoCompra: 0.14615385 },
+            { id: "ANC002", name: "Medida: 3/8\"", costoCompra: 0.11538462 },
+            { id: "ANC003", name: "Medida: 1/2\"", costoCompra: 0.16153846 },
+            { id: "ANC004", name: "Medida: 5/8\"", costoCompra: 0.30000000 },
+            { id: "ANC005", name: "Medida: 3/4\"", costoCompra: 0.43076923 },
+            { id: "ANC006", name: "Medida: 7/8\"", costoCompra: 0.69230769 },
+            { id: "ANC007", name: "Medida: 1-1/8\"", costoCompra: 1.13846154 },
+            { id: "ANC008", name: "Medida: 1-3/8\"", costoCompra: 1.76923077 }
+        ]
+    },
+    {
+        id: "VRA-VARIANTE", 
+        name: "Válvula Restrictora (Varios Tamaños)", 
+        category: "Refrigeración", 
+        model: "Varios Modelos",
+        desc: `<b>Válvula Restrictora para Aire Acondicionado</b><br><br>Válvula restrictora (pistón) de precisión para controlar el flujo de refrigerante en sistemas de aire acondicionado. Modelos disponibles por capacidad (BTU o HP).`,
+        costoCompra: 1.74615385, // Costo base (12k BTU)
+        images: ["productos/VRA100-VRA602.webp"],
+        specs: { "Tipo": "Restrictora", "Aplicación": "Expansión de Gas", "Uso": "Aires Acondicionados" },
+        variants: [
+            { id: "VRA100", name: "Capacidad: 12.000 BTU", costoCompra: 1.74615385 },
+            { id: "VRA200", name: "Capacidad: 18.000 BTU", costoCompra: 1.56153846 },
+            { id: "VRA300", name: "Capacidad: 24.000 BTU", costoCompra: 1.95384615 },
+            { id: "VRA350", name: "Capacidad: 30.000 BTU", costoCompra: 1.66153846 },
+            { id: "VRA400", name: "Capacidad: 36.000 BTU", costoCompra: 1.65384615 },
+            { id: "VRA450", name: "Capacidad: 48.000 BTU", costoCompra: 1.98461538 },
+            { id: "VRA500", name: "Capacidad: 60.000 BTU", costoCompra: 1.98461538 },
+            { id: "VRA600", name: "Capacidad: 2 HP (R410A Degar)", costoCompra: 2.64615385 },
+            { id: "VRA601", name: "Capacidad: 3 HP (R410A Degar)", costoCompra: 2.64615385 },
+            { id: "VRA602", name: "Capacidad: 5 HP (R410A Degar)", costoCompra: 2.64615385 }
+        ]
+    },
+    {
+        id: "VRS-VARIANTE", 
+        name: "Válvula de Servicio para Split (Varias Medidas)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Válvula de Servicio para Aires Acondicionados Split</b><br><br>Válvula de servicio de latón de alta calidad para condensadoras de equipos Split. Permite retener y liberar el paso de gas refrigerante de forma segura. Seleccione la medida requerida.`,
+        costoCompra: 2.10769231, // Costo base (1/4)
+        images: ["productos/VRS12-VRA078.webp"],
+        specs: { "Tipo": "Válvula de Servicio", "Uso": "Equipos Split", "Material": "Latón Forjado" },
+        variants: [
+            { id: "VRS014", name: "Medida: 1/4\"", costoCompra: 2.10769231 },
+            { id: "VRS038", name: "Medida: 3/8\"", costoCompra: 3.30769231 },
+            { id: "VRS012", name: "Medida: 1/2\"", costoCompra: 4.99230769 },
+            { id: "VRS058", name: "Medida: 5/8\"", costoCompra: 6.62307692 },
+            { id: "VRS034", name: "Medida: 3/4\"", costoCompra: 7.95384615 },
+            { id: "VRS078", name: "Medida: 7/8\"", costoCompra: 18.56153846 }
+        ]
+    },
+    {
+        id: "VAL-PINCHAR-VARIANTE", 
+        name: "Válvula de Pinchar (Varios Tamaños)", 
+        category: "Herramientas", 
+        model: "Válvula Perforadora",
+        desc: `<b>Válvula de Pinchar / Perforadora para Tuberías</b><br><br>Válvula para perforar tuberías de refrigeración selladas sin necesidad de soldar, permitiendo la toma de presión o carga de gas rápida.`,
+        costoCompra: 1.75384615, 
+        images: ["productos/VAL002-003.webp"],
+        specs: { "Tipo": "De Pinchar (Perforadora)", "Uso": "Acceso a líneas selladas", "Material": "Aleación metálica" },
+        variants: [
+            { id: "VAL002", name: "Medidas: 1/4\", 3/8\", 5/16\"", costoCompra: 1.75384615 },
+            { id: "VAL003", name: "Medida: 1/2\" (Grande)", costoCompra: 2.31538462 }
+        ]
+    },
+    {
+        id: "VAL001", 
+        name: "Válvula de Servicio Soldable con Gusanillo 1/4\"", 
+        category: "Refrigeración", 
+        model: "1/4 Pulgada",
+        desc: `<b>Válvula de Servicio Soldable 1/4\" con Gusanillo</b><br><br>Válvula de acceso de cobre soldable (tipo gusanillo) de 1/4 de pulgada. Incluye tapa y núcleo (obús) para la carga y descarga de gas en sistemas de refrigeración.`,
+        costoCompra: 0.33076923, 
+        images: ["productos/VAL001.webp"],
+        specs: { "Medida": "1/4\"", "Tipo": "Soldable con Gusanillo", "Incluye": "Núcleo y Tapa" }
+    },
     {
         id: "TEE-VARIANTE", 
         name: "Conexion en T de Cobre (Varias Medidas)", 
@@ -58,10 +350,10 @@ const products = [
     },
     {
         id: "ADU-VARIANTE", 
-        name: "Adaptadores de Bronce (R22 a R410 y R410 a Rss22)", 
+        name: "Adaptadores de Bronce (R22 a R410 y R410 a R22)", 
         category: "Refrigeración", 
         model: "Varios Tipos",
-        desc: `<b>Adaptador de Conexión R22 / R410</b><br><br>Adaptador metálico indispensable para las mangueras de los manómetros al trabajar con equipos de nueva generación R410A o R22 tradicional.`,
+        desc: `<b>Adaptadores de Conexión R22 / R410</b><br><br>Adaptador metálico indispensable para las mangueras de los manómetros al trabajar con equipos de nueva generación R410A o R22 tradicional.`,
         costoCompra: 1.32307692, 
         images: ["productos/ADU300-350.webp"],
         specs: { "Tipo": "Adaptador de Rosca", "Material": "Bronce" },
