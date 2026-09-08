@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 813.74; 
+const TASA_BCV = 814.69; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -14,11 +14,105 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // 2. BASE DE DATOS DE PRODUCTOS
 // ==========================================
 const products = [
+// ==========================================
+    // SECCIÓN: TUBERÍAS DE COBRE (Variantes)
     // ==========================================
-    // SECCIÓN: CAPACITORES (Agrupados por Variantes)
+    {
+        id: "TUB-CAP-VARIANTE", 
+        name: "Tubo Capilar de Cobre (Varias Medidas) (Por Metro)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Tubo Capilar de Cobre</b><br><br>Tubería capilar de cobre de alta precisión, esencial para la expansión y control de flujo de gas en sistemas de refrigeración. Seleccione la medida requerida en las opciones.`,
+        costoCompra: 0.43846154, // Costo base (0.26)
+        images: ["productos/TUB001-TUB011.webp"],
+        specs: { "Material": "Cobre", "Tipo": "Capilar", "Uso": "Refrigeración" },
+        variants: [
+            { id: "TUB001", name: "Medida: 0.26", costoCompra: 0.43846154 },
+            { id: "TUB002", name: "Medida: 0.31", costoCompra: 0.56923077 },
+            { id: "TUB003", name: "Medida: 0.36", costoCompra: 0.59230769 },
+            { id: "TUB004", name: "Medida: 0.42", costoCompra: 0.66153846 },
+            { id: "TUB005", name: "Medida: 0.49", costoCompra: 0.72307692 },
+            { id: "TUB006", name: "Medida: 0.54", costoCompra: 0.80769231 },
+            { id: "TUB007", name: "Medida: 0.59", costoCompra: 0.99230769 },
+            { id: "TUB008", name: "Medida: 0.64", costoCompra: 1.12307692 },
+            { id: "TUB009", name: "Medida: 0.70", costoCompra: 1.16153846 },
+            { id: "TUB010", name: "Medida: 0.75", costoCompra: 1.65384615 },
+            { id: "TUB011", name: "Medida: 0.80", costoCompra: 1.96923077 }
+        ]
+    },
+    {
+        id: "TUB-FLEX-VARIANTE", 
+        name: "Tubería Flexible de Cobre (Varias Medidas) (Por Metro)", 
+        category: "Refrigeración", 
+        model: "Rollo Flexible",
+        desc: `<b>Tubería Flexible de Cobre (Pancake)</b><br><br>Rollo de tubería de cobre flexible, ideal para la instalación de aires acondicionados y sistemas de refrigeración. Resistente a altas presiones. Seleccione la medida.`,
+        costoCompra: 2.16923077, // Costo base (1/4")
+        images: ["productos/TUB100-107.webp"],
+        specs: { "Material": "Cobre", "Tipo": "Flexible (Rollo)", "Uso": "Instalación" },
+        variants: [
+            { id: "TUB107", name: "Medida: 3/16\"", costoCompra: 1.25384615 },
+            { id: "TUB100", name: "Medida: 1/4\"", costoCompra: 2.16923077 },
+            { id: "TUB106", name: "Medida: 5/16\"", costoCompra: 2.65384615 },
+            { id: "TUB101", name: "Medida: 3/8\"", costoCompra: 3.97692308 },
+            { id: "TUB102", name: "Medida: 1/2\"", costoCompra: 5.63846154 },
+            { id: "TUB103", name: "Medida: 5/8\"", costoCompra: 8.29230769 },
+            { id: "TUB104", name: "Medida: 3/4\"", costoCompra: 9.10769231 },
+            { id: "TUB105", name: "Medida: 7/8\"", costoCompra: 13.26153846 }
+        ]
+    },
+// ==========================================
+    // SECCIÓN: TARJETAS ELECTRÓNICAS UNIVERSALES
     // ==========================================
-    
-    // 1. CAPACITORES CUADRADOS NEGROS
+    {
+        id: "CRU002", 
+        name: "Tarjeta Universal Con Control Remoto Para Aires Acondicionados 220V", 
+        category: "Aires Acondicionados", 
+        model: "QD-U02B",
+        desc: `<b>Tarjeta Universal Con Control Remoto Para Aires Acondicionados 220V</b><br><br>Placa de control universal para reparación y actualización de aires acondicionados a 220V. Incluye control remoto y terminales de conexión.`,
+        costoCompra: 10.77692308, 
+        images: ["productos/CRU002.webp"],
+        specs: { "Tipo": "Tarjeta Electrónica", "Voltaje": "220V", "Incluye": "Control Remoto" }
+    },
+    {
+        id: "CRU003", 
+        name: "Tarjeta Universal Con Display Inteligente y Control Remoto para Aires Acondicionados 220v", 
+        category: "Aires Acondicionados", 
+        model: "QD-U11A",
+        desc: `<b>Tarjeta Universal Con Display Inteligente y Control Remoto para Aires Acondicionados 220v</b><br><br>Placa de control universal para aires acondicionados. Incluye display digital de temperatura y control remoto para una visualización y manejo cómodos.`,
+        costoCompra: 16.57692308, 
+        images: ["productos/CRU003.webp", "productos/CRU003 (2).webp"],
+        specs: { "Tipo": "Tarjeta Electrónica", "Compatibilidad": "Universal", "Incluye": "Display y Control Remoto" }
+    },
+    {
+        id: "CRU005", 
+        name: "Tarjeta Universal Con Control Remoto para Aires Acondicionados 110V", 
+        category: "Aires Acondicionados", 
+        model: "QD-U02B (SW)",
+        desc: `<b>Tarjeta Universal Con Control Remoto para Aires Acondicionados 110V</b><br><br>Placa de control universal específica para la reparación y modernización de aires acondicionados con alimentación a 110V. Incluye control remoto.`,
+        costoCompra: 10.78461538, 
+        images: ["productos/CRU005.webp"],
+        specs: { "Tipo": "Tarjeta Electrónica", "Voltaje": "110V", "Incluye": "Control Remoto" }
+    },
+    {
+        id: "CRU010", 
+        name: "Tarjeta Universal con Control para Aires Acondicionados 220v para Motores PG", 
+        category: "Aires Acondicionados", 
+        model: "QD-U05PGC+",
+        desc: `<b>Tarjeta Universal con Control para Aires Acondicionados 220v para Motores PG</b><br><br>Sistema de control universal avanzado para aires acondicionados, modelo QD-U05PGC+ con soporte para motores PG (ventiladores con sensor de velocidad). Incluye display y control remoto.`,
+        costoCompra: 11.83846154, 
+        images: ["productos/CRU010.webp"],
+        specs: { "Tipo": "Tarjeta Electrónica", "Modelo": "QD-U05PGC+", "Motor compatible": "Motores PG" }
+    },
+    {
+        id: "CRU011", 
+        name: "Tarjeta Universal Degar Con Control Remoto para Aires Acondicionados 220V", 
+        category: "Aires Acondicionados", 
+        model: "EL-QD-U02B",
+        desc: `<b>Tarjeta Universal Degar Con Control Remoto para Aires Acondicionados 220V</b><br><br>Placa de control electrónico de alta calidad de la marca Degar para aires acondicionados de 220V. Garantía de durabilidad. Incluye control remoto.`,
+        costoCompra: 13.66153846, 
+        images: ["productos/CRU011.webp"],
+        specs: { "Marca": "Degar", "Voltaje": "220V", "Incluye": "Control Remoto" }
+    },
     {
         id: "CAP-NEGRO-VAR", 
         name: "Capacitor Cuadrado Negro (Varias Medidas)", 
