@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 814.69; 
+const TASA_BCV = 820.10; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -15,8 +15,198 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // ==========================================
 const products = [
 // ==========================================
-    // SECCIÓN: TUBERÍAS DE COBRE (Variantes)
+    // SECCIÓN: CONTACTORES ADICIONALES
     // ==========================================
+    {
+        id: "CTP005", 
+        name: "Contactor 3 Polos 60 AMP 220V", 
+        category: "Protectores", 
+        model: "3 Polos 60A",
+        desc: `<b>Contactor Eléctrico 3 Polos 60 AMP (Bobina 220V)</b><br><br>Contactor de alta capacidad para cargas eléctricas pesadas. 3 Polos, 60 Amperios y accionamiento de bobina a 220V.`,
+        costoCompra: 18.56153846, 
+        images: ["productos/CTP005.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "60 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP010", 
+        name: "Contactor de Potencia SC6511 65A 220V", 
+        category: "Protectores", 
+        model: "SC6511",
+        desc: `<b>Contactor de Potencia SC6511 65A 220V</b><br><br>Contactor de potencia serie SC para aplicaciones industriales exigentes. Maneja hasta 65 Amperios con bobina de 220V.`,
+        costoCompra: 33.15384615, 
+        images: ["productos/CTP010.webp"],
+        specs: { "Modelo": "SC6511", "Amperaje": "65 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP011", 
+        name: "Contactor de Potencia SC4011 40A 220V", 
+        category: "Protectores", 
+        model: "SC4011",
+        desc: `<b>Contactor de Potencia SC4011 40A 220V</b><br><br>Contactor industrial serie SC diseñado para controlar motores y sistemas de hasta 40 Amperios. Bobina de 220V.`,
+        costoCompra: 23.86153846, 
+        images: ["productos/CTP011.webp"],
+        specs: { "Modelo": "SC4011", "Amperaje": "40 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP012", 
+        name: "Contactor 3 Polos 50 AMP 24V", 
+        category: "Protectores", 
+        model: "3 Polos 50A",
+        desc: `<b>Contactor Eléctrico 3 Polos 50 AMP (Bobina 24V)</b><br><br>Contactor trifásico de 50 Amperios, diseñado para sistemas de control de baja tensión con bobina de 24V.`,
+        costoCompra: 17.90000000, 
+        images: ["productos/CTP012.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "50 AMP", "Voltaje de Bobina": "24V" }
+    },
+    {
+        id: "CTP015", 
+        name: "Contactor 3 Polos 60 AMP 220V Chint", 
+        category: "Protectores", 
+        model: "Chint 60A",
+        desc: `<b>Contactor 3 Polos 60 AMP 220V Chint</b><br><br>Contactor industrial marca Chint. Alta capacidad de corte para sistemas pesados de 60 Amperios con control a 220V.`,
+        costoCompra: 18.47692308, 
+        images: ["productos/CTP015.webp"],
+        specs: { "Marca": "Chint", "Polos": "3 Polos", "Amperaje": "60 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "ACT401", 
+        name: "Aceite 68 Mineral de Galón Suniso 4GS", 
+        category: "Químicos", 
+        model: "4GS ISO 68",
+        desc: `<b>Aceite 68 Mineral de Galón Suniso 4GS ISO P</b><br><br>Aceite mineral de alta calidad marca Suniso. Presentación en galón, ideal para la lubricación de compresores de refrigeración comercial e industrial.`,
+        costoCompra: 35.14615385, 
+        images: ["productos/ACT401.webp"],
+        specs: { "Marca": "Suniso", "Tipo": "Mineral (4GS)", "Presentación": "Galón" }
+    },
+    {
+        id: "CTP001", 
+        name: "Contactor 2 Polos 40 AMP 24V", 
+        category: "Protectores", 
+        model: "2 Polos 40A",
+        desc: `<b>Contactor Eléctrico 2 Polos 40 AMP (Bobina 24V)</b><br><br>Contactor de propósito definido de 2 polos para control de cargas eléctricas en sistemas de aire acondicionado y refrigeración. Bobina de 24V.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/CTP001.webp", "productos/CTP001-2.webp"],
+        specs: { "Polos": "2 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "24V" }
+    },
+    {
+        id: "CTP009", 
+        name: "Contactor 2 Polos 40 AMP 110V", 
+        category: "Protectores", 
+        model: "2 Polos 40A",
+        desc: `<b>Contactor Eléctrico 2 Polos 40 AMP (Bobina 110V)</b><br><br>Contactor de propósito definido de 2 polos, ideal para el arranque seguro de equipos con voltaje de control de 110V.`,
+        costoCompra: 5.30000000, 
+        images: ["productos/CTP009.webp", "productos/CTP009-2.webp"],
+        specs: { "Polos": "2 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "110V" }
+    },
+    {
+        id: "CTP002", 
+        name: "Contactor 2 Polos 40 AMP 220V", 
+        category: "Protectores", 
+        model: "2 Polos 40A",
+        desc: `<b>Contactor Eléctrico 2 Polos 40 AMP (Bobina 220V)</b><br><br>Contactor de potencia de 2 polos, diseñado para sistemas que requieren un voltaje de bobina de 220V. Excelente conductividad y resistencia.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/CTP002.webp", "productos/CTP002-2.webp"],
+        specs: { "Polos": "2 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP003", 
+        name: "Contactor 3 Polos 40 AMP 24V", 
+        category: "Protectores", 
+        model: "3 Polos 40A",
+        desc: `<b>Contactor Eléctrico 3 Polos 40 AMP (Bobina 24V)</b><br><br>Contactor trifásico / 3 polos de alto rendimiento para el control de motores y compresores. Voltaje de accionamiento de la bobina: 24V.`,
+        costoCompra: 8.29230769, 
+        images: ["productos/CTP003.webp", "productos/CTP003-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "24V" }
+    },
+    {
+        id: "CTP004", 
+        name: "Contactor 3 Polos 40 AMP 220V", 
+        category: "Protectores", 
+        model: "3 Polos 40A",
+        desc: `<b>Contactor Eléctrico 3 Polos 40 AMP (Bobina 220V)</b><br><br>Contactor de 3 polos de uso pesado para sistemas de climatización comercial e industrial. Bobina de 220V.`,
+        costoCompra: 7.94615385, 
+        images: ["productos/CTP004.webp", "productos/CTP004-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP006", 
+        name: "Contactor 3 Polos 50 AMP 220V", 
+        category: "Protectores", 
+        model: "3 Polos 50A",
+        desc: `<b>Contactor Eléctrico 3 Polos 50 AMP (Bobina 220V)</b><br><br>Contactor de gran capacidad (50 Amperios) y 3 polos. Ideal para cargas industriales de alta demanda con control a 220V.`,
+        costoCompra: 14.62307692, 
+        images: ["productos/CTP006.webp", "productos/CTP006-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "50 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP007", 
+        name: "Contactor 3 Polos 90 AMP 220V", 
+        category: "Protectores", 
+        model: "3 Polos 90A",
+        desc: `<b>Contactor Eléctrico 3 Polos 90 AMP (Bobina 220V)</b><br><br>Contactor industrial de máxima capacidad (90 Amperios) diseñado para el control seguro de maquinaria pesada y grandes compresores. Bobina 220V.`,
+        costoCompra: 62.99230769, 
+        images: ["productos/CTP007.webp", "productos/CTP007-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "90 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP008", 
+        name: "Contactor 3 Polos 30 AMP 110V", 
+        category: "Protectores", 
+        model: "3 Polos 30A",
+        desc: `<b>Contactor Eléctrico 3 Polos 30 AMP (Bobina 110V)</b><br><br>Dispositivo de conmutación de 3 polos con soporte de 30 Amperios y accionamiento mediante bobina de 110V.`,
+        costoCompra: 9.94615385, 
+        images: ["productos/CTP008.webp", "productos/CTP008-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "30 AMP", "Voltaje de Bobina": "110V" }
+    },
+    {
+        id: "CTP013", 
+        name: "Contactor 3 Polos 40 AMP 220V", 
+        category: "Protectores", 
+        model: "Pickens LC1",
+        desc: `<b>Contactor 3 Polos 40 AMP 220V Pickens LC1</b><br><br>Contactor de grado industrial marca Pickens serie LC1. Garantiza durabilidad y resistencia en el manejo de cargas de 40 Amperios a 220V.`,
+        costoCompra: 49.73076923, 
+        images: ["productos/CTP013.webp"],
+        specs: { "Marca": "Pickens", "Polos": "3 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP014", 
+        name: "Contactor 3 Polos 32 AMP 110V", 
+        category: "Protectores", 
+        model: "Chint 32A",
+        desc: `<b>Contactor 3 Polos 32 AMP 110V Chint</b><br><br>Contactor de alta fiabilidad de la reconocida marca Chint. Configuración de 3 polos, 32 Amperios y bobina de accionamiento a 110V.`,
+        costoCompra: 7.19230769, 
+        images: ["productos/CTP014.webp", "productos/CTP014-2.webp"],
+        specs: { "Marca": "Chint", "Polos": "3 Polos", "Amperaje": "32 AMP", "Voltaje de Bobina": "110V" }
+    },
+    {
+        id: "CTP016", 
+        name: "Contactor 3 Polos 30 AMP 220V", 
+        category: "Protectores", 
+        model: "3 Polos 30A",
+        desc: `<b>Contactor Eléctrico 3 Polos 30 AMP (Bobina 220V)</b><br><br>Contactor trifásico estándar para el manejo eficiente de circuitos y motores. Capacidad de 30 Amperios con bobina 220V.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/CTP016.webp", "productos/CTP016-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "30 AMP", "Voltaje de Bobina": "220V" }
+    },
+    {
+        id: "CTP017", 
+        name: "Contactor 3 Polos 30 AMP 24V", 
+        category: "Protectores", 
+        model: "3 Polos 30A",
+        desc: `<b>Contactor Eléctrico 3 Polos 30 AMP (Bobina 24V)</b><br><br>Contactor de 3 polos diseñado para sistemas de control de baja tensión con bobina de 24V. Soporta hasta 30 Amperios.`,
+        costoCompra: 7.29230769, 
+        images: ["productos/CTP017.webp", "productos/CTP017-2.webp"],
+        specs: { "Polos": "3 Polos", "Amperaje": "30 AMP", "Voltaje de Bobina": "24V" }
+    },
+    {
+        id: "CNT012", 
+        name: "Contactor 3 Polos 40 AMP 110V", 
+        category: "Protectores", 
+        model: "Chint 40A",
+        desc: `<b>Contactor 3 Polos 40 AMP 110V</b><br><br>Contactor industrial marca Chint. Alta capacidad de corte y conducción eléctrica segura para sistemas de 40 Amperios con control de 110V.`,
+        costoCompra: 9.94615385, 
+        images: ["productos/CNT012.webp", "productos/CNT012-2.webp"],
+        specs: { "Marca": "Chint", "Polos": "3 Polos", "Amperaje": "40 AMP", "Voltaje de Bobina": "110V" }
+    },
     {
         id: "TUB-CAP-VARIANTE", 
         name: "Tubo Capilar de Cobre (Varias Medidas) (Por Metro)", 
