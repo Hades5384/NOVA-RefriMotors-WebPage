@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 820.10; 
+const TASA_BCV = 827.73; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -14,9 +14,237 @@ document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
 // 2. BASE DE DATOS DE PRODUCTOS
 // ==========================================
 const products = [
-// ==========================================
-    // SECCIÓN: CONTACTORES ADICIONALES
-    // ==========================================
+        // ============================================================== //
+    // ============================================================== //
+
+                // SECCIÓN: GASES REFRIGERANTES Y SOLDADURA //
+                    // (MANTENER EN REVISION CONSTANTE)
+
+    // ============================================================== //
+    // ============================================================== //
+    {
+        id: "GAS002", 
+        name: "Recarga de Gas Refrigerante R134a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R134a",
+        desc: `<b>Recarga de Gas R134a para Neveras / Autos</b><br><br>Servicio de recarga de gas refrigerante R134a kileado para neveras y automóviles. El precio indicado es por Kilo.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS002.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS003", 
+        name: "Recarga de Gas Refrigerante R410a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R410A",
+        desc: `<b>Recarga de Gas R410A para Aires Acondicionados</b><br><br>Gas refrigerante R410A de alta eficiencia para aires acondicionados. El precio indicado es por Kilo.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS003.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R410A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS006", 
+        name: "Lata de Gas Propano de 400gr Maxwell MAPP PRO", 
+        category: "Herramientas", 
+        model: "MAPP 400G",
+        desc: `<b>Lata de Gas Propano de 400gr Maxwell MAPP Pro</b><br><br>Lata de gas propano Maxwell MAPP Pro ideal para trabajos de soldadura fuerte en tuberías de refrigeración. Presentación por unidad.`,
+        costoCompra: 6.62307692, 
+        images: ["productos/GAS006.webp"],
+        specs: { "Tipo": "Gas de Soldadura", "Gas": "Propano MAPP", "Presentación": "Lata de 400G" }
+    },
+    {
+        id: "GAS007", 
+        name: "Recarga de Gas Refrigerante R404a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R404a",
+        desc: `<b>Recarga de Gas R404a para Cava-Cuarto</b><br><br>Gas refrigerante R404a diseñado para sistemas de refrigeración comercial y cavas cuarto. El precio indicado es por Kilo.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS007.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R404a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS008", 
+        name: "Lata de Gas Refrigerante R600A de 160gr", 
+        category: "Refrigeración", 
+        model: "R600A 160G",
+        desc: `<b>Lata de Gas Refrigerante R600a de 160gr</b><br><br>Gas refrigerante ecológico R600a en presentación de lata desechable de 160 gramos por unidad.`,
+        costoCompra: 3.32307692, 
+        images: ["productos/GAS008.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R600A", "Presentación": "Lata de 160G" }
+    },
+    {
+        id: "GAS012", 
+        name: "Recarga de Gas Refrigerante R407 (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R407",
+        desc: `<b>Recarga de Gas R407 Industrial</b><br><br>Servicio de recarga de gas refrigerante R407 kileado para sistemas de aire acondicionado y refrigeración industrial. El precio indicado es por Kilo.`,
+        costoCompra: 19.89230769, 
+        images: ["productos/GAS012.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R407", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS013", 
+        name: "Lata de Gas Refrigerante R134a de 340gr", 
+        category: "Refrigeración", 
+        model: "R134A 340G",
+        desc: `<b>Lata de Gas Refrigerante R134a 340gr</b><br><br>Gas refrigerante R134A en lata de 340 gramos con válvula de rosca fina.`,
+        costoCompra: 7.99230769, 
+        images: ["productos/GAS013.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134A", "Presentación": "Lata de 340G (Rosca Fina)" }
+    },
+    {
+        id: "GAS018", 
+        name: "Recarga de Gas Refrigerante R32 (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R32",
+        desc: `<b>Recarga de Gas Refrigerante R32 para Aires Acondicionados</b><br><br>Gas refrigerante R32 de nueva generación para aires acondicionados modernos. El precio indicado es por Kilo.`,
+        costoCompra: 16.57692308, 
+        images: ["productos/GAS018.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R32", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS019", 
+        name: "Recarga de Gas Refrigerante R422D (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R422D",
+        desc: `<b>Recarga de Gas Refrigerante R422D para Aires Acondicionados</b><br><br>Gas refrigerante R422D especial para equipos de aire acondicionado nuevos. El precio indicado es por Kilo.`,
+        costoCompra: 16.57692308, 
+        images: ["productos/GAS019.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R422D", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS022", 
+        name: "Recarga de Gas Refrigerante R134a DuPont Original (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R134A DuPont",
+        desc: `<b>Recarga de Gas Refrigerante R134a DuPont Original</b><br><br>Servicio de recarga de gas refrigerante premium R134A marca DuPont / Chemours. El precio indicado es por Kilo.`,
+        costoCompra: 22.00000000, 
+        images: ["productos/GAS022.webp"],
+        specs: { "Marca": "DuPont", "Gas": "R134A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS023", 
+        name: "Lata de Gas Propano Bernzomatic Botella de 400gr", 
+        category: "Herramientas", 
+        model: "Bernzomatic 400G",
+        desc: `<b>Lata de Gas Propano Bernzomatic Botella 400gr</b><br><br>Cilindro de propano original marca Bernzomatic para sopletes y soldadura. Presentación por unidad de 400 gramos.`,
+        costoCompra: 7.50000000, 
+        images: ["productos/GAS023.webp"],
+        specs: { "Marca": "Bernzomatic", "Tipo": "Gas Propano", "Presentación": "Lata de 400G" }
+    },
+    {
+        id: "GAS024", 
+        name: "Recarga de Gas Refrigerante R290a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R290a",
+        desc: `<b>Recarga de Gas Refrigerante R290a</b><br><br>Gas refrigerante ecológico de alta pureza R290a. El precio indicado es por Kilo.`,
+        costoCompra: 9.94615385, 
+        images: ["productos/GAS024.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290a", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS025", 
+        name: "Recarga de Gas Refrigerante R507A (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R507A",
+        desc: `<b>Recarga de Gas Refrigerante R507A</b><br><br>Mezcla de gas refrigerante R507A para bajas y medias temperaturas. El precio indicado es por Kilo.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS025.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R507A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS029", 
+        name: "Lata de Gas Refrigerante R600a de 340gr Cowplandt", 
+        category: "Refrigeración", 
+        model: "R600A 340G",
+        desc: `<b>Lata de Gas Refrigerante R600a de 340gr Cowplandt</b><br><br>Gas refrigerante ecológico R600a marca Cowplandt. Presentación de lata de 340 gramos.`,
+        costoCompra: 4.63076923, 
+        images: ["productos/GAS029.webp"],
+        specs: { "Marca": "Cowplandt", "Gas": "R600A", "Presentación": "Lata de 340G" }
+    },
+    {
+        id: "GAS031", 
+        name: "Recarga de Gas Refrigerante R417a (Por Kilo)", 
+        category: "Refrigeración", 
+        model: "R417A",
+        desc: `<b>Recarga de Gas Refrigerante R417A</b><br><br>Sustituto ecológico para R22 en equipos de aire acondicionado. El precio indicado es por Kilo.`,
+        costoCompra: 16.57692308, 
+        images: ["productos/GAS031.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R417A", "Presentación": "Recarga (Por Kilo)" }
+    },
+    {
+        id: "GAS032", 
+        name: "Lata de Gas Refrigerante R290 de 300gr", 
+        category: "Refrigeración", 
+        model: "R290 300G",
+        desc: `<b>Lata de Gas Refrigerante R290 de 300gr</b><br><br>Gas refrigerante ecológico R290 de alta pureza. Presentación en lata de 300 gramos por unidad.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/GAS032.webp"],
+        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290", "Presentación": "Lata de 300G" }
+    },
+    {
+        id: "GAS034", 
+        name: "Lata de Gas Refrigerante R134a de 750gr Cowplandt", 
+        category: "Refrigeración", 
+        model: "R134A 750G",
+        desc: `<b>Lata de Gas Refrigerante R134a de 750gr Cowplandt</b><br><br>Cilindro desechable de gas refrigerante R134A marca Cowplandt. Presentación de 750 gramos.`,
+        costoCompra: 13.26153846, 
+        images: ["productos/GAS034.webp"],
+        specs: { "Marca": "Cowplandt", "Gas": "R134A", "Presentación": "Lata de 750G" }
+    },
+    // ============================================================== //
+    // ============================================================== //
+
+                    // DESDE AQUI CODIGOS NUEVOS
+
+    // ============================================================== //
+    // ============================================================== //
+
+    {
+        id: "JMG-SET-VARIANTE", 
+        name: "Juego de Mangueras para Manifold (Estándar)", 
+        category: "Herramientas", 
+        model: "Varias Medidas",
+        desc: `<b>Juego de Mangueras para Manifold (Estándar)</b><br><br>Set de 3 mangueras (roja, amarilla y azul) para manómetros de refrigeración. Disponibles en diferentes longitudes y capacidades de presión. Seleccione la medida en las opciones.`,
+        costoCompra: 4.96923077, // Costo base (36")
+        images: ["productos/JMG001-004.webp"],
+        specs: { "Tipo": "Juego de 3 Mangueras", "Uso": "Manómetros", "Conexión": "Estándar" },
+        variants: [
+            { id: "JMG001", name: "Juego Corto 36\" (R22/R134)", costoCompra: 4.96923077 },
+            { id: "JMG002", name: "Juego Mediano 60\" (R22/R134)", costoCompra: 6.63076923 },
+            { id: "JMG003", name: "Juego Largo 72\" (R134/R410)", costoCompra: 7.62307692 },
+            { id: "JMG004", name: "Juego Extra Largo 96\" (R22)", costoCompra: 9.28461538 }
+        ]
+    },
+    {
+        id: "JMG-IND-VARIANTE", 
+        name: "Manguera Individual para Manómetro", 
+        category: "Herramientas", 
+        model: "Varias Medidas",
+        desc: `<b>Manguera Individual para Manómetro</b><br><br>Manguera de repuesto vendida por unidad para manómetros de refrigeración. Ideal para reemplazar una manguera dañada sin necesidad de comprar el set completo.`,
+        costoCompra: 1.66153846, // Costo base (36")
+        images: ["productos/JMG006-009.webp"],
+        specs: { "Tipo": "Individual (1 pieza)", "Uso": "Repuesto", "Conexión": "Estándar" },
+        variants: [
+            { id: "JMG006", name: "Manguera Corta 36\"", costoCompra: 1.66153846 },
+            { id: "JMG007", name: "Manguera Mediana 60\"", costoCompra: 2.24615385 },
+            { id: "JMG009", name: "Manguera Extra Larga 96\"", costoCompra: 2.76153846 }
+        ]
+    },
+    {
+        id: "JMG-PREM-VARIANTE", 
+        name: "Juego de Mangueras Alta Calidad (Landsfoss)", 
+        category: "Herramientas", 
+        model: "Alta Calidad",
+        desc: `<b>Juego de Mangueras de Alta Calidad (Landsfoss)</b><br><br>Set de 3 mangueras premium diseñadas para técnicos exigentes. Ofrecen mayor resistencia a la presión, flexibilidad y un sellado superior en las conexiones.`,
+        costoCompra: 9.34615385, // Costo base (36")
+        images: ["productos/JMG200-300.webp"],
+        specs: { "Marca": "Landsfoss", "Calidad": "Premium", "Tipo": "Juego de 3 Mangueras" },
+        variants: [
+            { id: "JMG200", name: "Juego Alta Calidad Corto 36\"", costoCompra: 9.34615385 },
+            { id: "JMG300", name: "Juego Alta Calidad Mediano 60\"", costoCompra: 12.03076923 }
+        ]
+    },
     {
         id: "CTP005", 
         name: "Contactor 3 Polos 60 AMP 220V", 
@@ -250,9 +478,6 @@ const products = [
             { id: "TUB105", name: "Medida: 7/8\"", costoCompra: 13.26153846 }
         ]
     },
-// ==========================================
-    // SECCIÓN: TARJETAS ELECTRÓNICAS UNIVERSALES
-    // ==========================================
     {
         id: "CRU002", 
         name: "Tarjeta Universal Con Control Remoto Para Aires Acondicionados 220V", 
@@ -335,8 +560,6 @@ const products = [
             { id: "CAP161", name: "15 MFD 250V (Eq. Pequeños)", costoCompra: 1.19230769 }
         ]
     },
-
-    // 2. CAPACITORES DE MARCHA METÁLICOS (Sencillos y Dobles)
     {
         id: "CAP-METAL-VAR", 
         name: "Capacitor Metálico de Marcha (Varias Medidas)", 
@@ -392,8 +615,6 @@ const products = [
             { id: "CAP061", name: "60+6 MFD 440V", costoCompra: 3.60000000 }
         ]
     },
-
-    // 3. CAPACITORES PARA BOMBA DE AGUA
     {
         id: "CAP-BOMBA-VAR", 
         name: "Capacitor para Bomba de Agua (Varias Medidas)", 
@@ -427,8 +648,6 @@ const products = [
             { id: "CAP086", name: "150 MFD 250V", costoCompra: 9.13846154 }
         ]
     },
-
-    // 4. CAPACITORES DE ARRANQUE
     {
         id: "CAP-ARRANQUE-VAR", 
         name: "Capacitor de Arranque (Varias Medidas)", 
@@ -890,9 +1109,6 @@ const products = [
         images: ["productos/ACT003.webp"],
         specs: { "Marca": "Johnsen's", "Tipo": "PAG 150 con UV", "Uso": "Automotriz" }
     },
-    // ==========================================
-    // SECCIÓN: QUÍMICOS Y LIMPIADORES
-    // ==========================================
     {
         id: "QMC018", 
         name: "Limpiador Alcalino Albrite 880ML", 
@@ -1043,169 +1259,7 @@ const products = [
         images: ["productos/QMC011.webp"],
         specs: { "Marca": "Evar 22", "Tipo": "Ácido Limpiador", "Presentación": "1 Galón (3.78L)" }
     },
-    // ==========================================
-    // SECCIÓN: GASES REFRIGERANTES Y SOLDADURA
-    // ==========================================
-    {
-        id: "GAS002", 
-        name: "Recarga de Gas Refrigerante R134a (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R134a",
-        desc: `<b>Recarga de Gas R134a para Neveras / Autos</b><br><br>Servicio de recarga de gas refrigerante R134a kileado para neveras y automóviles. El precio indicado es por Kilo.`,
-        costoCompra: 16.66923077, 
-        images: ["productos/GAS002.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134a", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS003", 
-        name: "Recarga de Gas Refrigerante R410a (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R410A",
-        desc: `<b>Recarga de Gas R410A para Aires Acondicionados</b><br><br>Gas refrigerante R410A de alta eficiencia para aires acondicionados. El precio indicado es por Kilo.`,
-        costoCompra: 11.13076923, 
-        images: ["productos/GAS003.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R410A", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS006", 
-        name: "Lata de Gas Propano de 400gr Maxwell MAPP PRO", 
-        category: "Herramientas", 
-        model: "MAPP 400G",
-        desc: `<b>Lata de Gas Propano de 400gr Maxwell MAPP Pro</b><br><br>Lata de gas propano Maxwell MAPP Pro ideal para trabajos de soldadura fuerte en tuberías de refrigeración. Presentación por unidad.`,
-        costoCompra: 6.62307692, 
-        images: ["productos/GAS006.webp"],
-        specs: { "Tipo": "Gas de Soldadura", "Gas": "Propano MAPP", "Presentación": "Lata de 400G" }
-    },
-    {
-        id: "GAS007", 
-        name: "Recarga de Gas Refrigerante R404a (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R404a",
-        desc: `<b>Recarga de Gas R404a para Cava-Cuarto</b><br><br>Gas refrigerante R404a diseñado para sistemas de refrigeración comercial y cavas cuarto. El precio indicado es por Kilo.`,
-        costoCompra: 14.57692308, 
-        images: ["productos/GAS007.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R404a", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS008", 
-        name: "Lata de Gas Refrigerante R600A de 160gr", 
-        category: "Refrigeración", 
-        model: "R600A 160G",
-        desc: `<b>Lata de Gas Refrigerante R600a de 160gr</b><br><br>Gas refrigerante ecológico R600a en presentación de lata desechable de 160 gramos por unidad.`,
-        costoCompra: 3.32307692, 
-        images: ["productos/GAS008.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R600A", "Presentación": "Lata de 160G" }
-    },
-    {
-        id: "GAS013", 
-        name: "Lata de Gas Refrigerante R134a de 340gr", 
-        category: "Refrigeración", 
-        model: "R134A 340G",
-        desc: `<b>Lata de Gas Refrigerante R134a 340gr</b><br><br>Gas refrigerante R134A en lata de 340 gramos con válvula de rosca fina.`,
-        costoCompra: 7.99230769, 
-        images: ["productos/GAS013.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R134A", "Presentación": "Lata de 340G (Rosca Fina)" }
-    },
-    {
-        id: "GAS018", 
-        name: "Recarga de Gas Refrigerante R32 (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R32",
-        desc: `<b>Recarga de Gas Refrigerante R32 para Aires Acondicionados</b><br><br>Gas refrigerante R32 de nueva generación para aires acondicionados modernos. El precio indicado es por Kilo.`,
-        costoCompra: 16.73076923, 
-        images: ["productos/GAS018.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R32", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS019", 
-        name: "Recarga de Gas Refrigerante R422D (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R422D",
-        desc: `<b>Recarga de Gas Refrigerante R422D para Aires Acondicionados</b><br><br>Gas refrigerante R422D especial para equipos de aire acondicionado. El precio indicado es por Kilo.`,
-        costoCompra: 11.33846154, 
-        images: ["productos/GAS019.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R422D", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS022", 
-        name: "Recarga de Gas Refrigerante R134a DuPont Original (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R134A DuPont",
-        desc: `<b>Recarga de Gas Refrigerante R134a DuPont Original</b><br><br>Servicio de recarga de gas refrigerante premium R134A marca DuPont / Chemours. El precio indicado es por Kilo.`,
-        costoCompra: 22.00000000, 
-        images: ["productos/GAS022.webp"],
-        specs: { "Marca": "DuPont", "Gas": "R134A", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS023", 
-        name: "Lata de Gas Propano Bernzomatic Botella de 400gr", 
-        category: "Herramientas", 
-        model: "Bernzomatic 400G",
-        desc: `<b>Lata de Gas Propano Bernzomatic Botella 400gr</b><br><br>Cilindro de propano original marca Bernzomatic para sopletes y soldadura. Presentación por unidad de 400 gramos.`,
-        costoCompra: 7.50000000, 
-        images: ["productos/GAS023.webp"],
-        specs: { "Marca": "Bernzomatic", "Tipo": "Gas Propano", "Presentación": "Lata de 400G" }
-    },
-    {
-        id: "GAS024", 
-        name: "Recarga de Gas Refrigerante R290a (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R290a",
-        desc: `<b>Recarga de Gas Refrigerante R290a</b><br><br>Gas refrigerante ecológico de alta pureza R290a. El precio indicado es por Kilo.`,
-        costoCompra: 9.94615385, 
-        images: ["productos/GAS024.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290a", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS025", 
-        name: "Recarga de Gas Refrigerante R507A (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R507A",
-        desc: `<b>Recarga de Gas Refrigerante R507A</b><br><br>Mezcla de gas refrigerante R507A para bajas y medias temperaturas. El precio indicado es por Kilo.`,
-        costoCompra: 11.93846154, 
-        images: ["productos/GAS025.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R507A", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS029", 
-        name: "Lata de Gas Refrigerante R600a de 340gr Cowplandt", 
-        category: "Refrigeración", 
-        model: "R600A 340G",
-        desc: `<b>Lata de Gas Refrigerante R600a de 340gr Cowplandt</b><br><br>Gas refrigerante ecológico R600a marca Cowplandt. Presentación de lata de 340 gramos.`,
-        costoCompra: 4.63076923, 
-        images: ["productos/GAS029.webp"],
-        specs: { "Marca": "Cowplandt", "Gas": "R600A", "Presentación": "Lata de 340G" }
-    },
-    {
-        id: "GAS031", 
-        name: "Recarga de Gas Refrigerante R417a (Por Kilo)", 
-        category: "Refrigeración", 
-        model: "R417A",
-        desc: `<b>Recarga de Gas Refrigerante R417A</b><br><br>Sustituto ecológico para R22 en equipos de aire acondicionado. El precio indicado es por Kilo.`,
-        costoCompra: 11.13076923, 
-        images: ["productos/GAS031.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R417A", "Presentación": "Recarga (Por Kilo)" }
-    },
-    {
-        id: "GAS032", 
-        name: "Lata de Gas Refrigerante R290 de 300gr", 
-        category: "Refrigeración", 
-        model: "R290 300G",
-        desc: `<b>Lata de Gas Refrigerante R290 de 300gr</b><br><br>Gas refrigerante ecológico R290 de alta pureza. Presentación en lata de 300 gramos por unidad.`,
-        costoCompra: 6.63076923, 
-        images: ["productos/GAS032.webp"],
-        specs: { "Tipo": "Gas Refrigerante", "Gas": "R290", "Presentación": "Lata de 300G" }
-    },
-    {
-        id: "GAS034", 
-        name: "Lata de Gas Refrigerante R134a de 750gr Cowplandt", 
-        category: "Refrigeración", 
-        model: "R134A 750G",
-        desc: `<b>Lata de Gas Refrigerante R134a de 750gr Cowplandt</b><br><br>Cilindro desechable de gas refrigerante R134A marca Cowplandt. Presentación de 750 gramos.`,
-        costoCompra: 13.26153846, 
-        images: ["productos/GAS034.webp"],
-        specs: { "Marca": "Cowplandt", "Gas": "R134A", "Presentación": "Lata de 750G" }
-    },
+
     {
         id: "PUN-MEDIDA", 
         name: "Evaporador de Placa para Nevera con Capilar", 
