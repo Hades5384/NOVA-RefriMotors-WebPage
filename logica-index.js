@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 827.73; 
+const TASA_BCV = 842.20; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -10,11 +10,9 @@ const TASA_INTERNA = 1000;
 // Mostrar tasa BCV en el encabezado
 document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`; 
 
-// ==========================================
-// 2. BASE DE DATOS DE PRODUCTOS
-// ==========================================
 const products = [
-        // ============================================================== //
+    
+    // ============================================================== //
     // ============================================================== //
 
                 // SECCIÓN: GASES REFRIGERANTES Y SOLDADURA //
@@ -22,6 +20,7 @@ const products = [
 
     // ============================================================== //
     // ============================================================== //
+
     {
         id: "GAS002", 
         name: "Recarga de Gas Refrigerante R134a (Por Kilo)", 
@@ -192,6 +191,7 @@ const products = [
         images: ["productos/GAS034.webp"],
         specs: { "Marca": "Cowplandt", "Gas": "R134A", "Presentación": "Lata de 750G" }
     },
+
     // ============================================================== //
     // ============================================================== //
 
@@ -200,6 +200,122 @@ const products = [
     // ============================================================== //
     // ============================================================== //
 
+    {
+        id: "PDV014", 
+        name: "Protector Landsfoss 220V de 60AMP ", 
+        category: "Protectores", 
+        model: "60AMP 220V",
+        desc: `<b>Protector de Voltaje 220V 60AMP Principal Landsfoss</b><br><br>Protector de voltaje integral para el suministro principal o equipos de alta capacidad. Soporta hasta 60 Amperios a 220V, protegiendo contra alzas, bajas y picos de tensión.`,
+        costoCompra: 33.38461538, 
+        images: ["productos/PDV014.webp"],
+        specs: { "Marca": "Landsfoss", "Voltaje": "220V", "Capacidad": "60 AMP" }
+    },
+    {
+        id: "CNT301", 
+        name: "Controlador Digital Full Gauge MT-512E 110-220V", 
+        category: "Refrigeración", 
+        model: "MT-512E",
+        desc: `<b>Controlador Digital Full Gauge MT-512E (110-220V)</b><br><br>Controlador e indicador de temperatura con deshielo natural por parada de compresor. Salida de relé potente. Bivolt (110V/220V).`,
+        costoCompra: 26.51538462, 
+        images: ["productos/CNT301.webp", "productos/CNT301-2.webp"],
+        specs: { "Marca": "Full Gauge", "Modelo": "MT-512E", "Voltaje": "110V-220V" }
+    },
+    {
+        id: "CNT324", 
+        name: "Controlador de Temperatura STC-1000 110V", 
+        category: "Refrigeración", 
+        model: "STC-1000",
+        desc: `<b>Controlador de Temperatura Digital STC-1000 (110V)</b><br><br>Termostato digital multiuso con doble relé (frío/calor). Ideal para cavas, incubadoras y acuarios. Alimentación a 110V.`,
+        costoCompra: 13.25384615, 
+        images: ["productos/CNT324.webp"],
+        specs: { "Modelo": "STC-1000", "Voltaje": "110V", "Función": "Frío y Calor" }
+    },
+    {
+        id: "CNT350", 
+        name: "Sensor NTC para Controlador Full Gauge SB70", 
+        category: "Refrigeración", 
+        model: "SB70 (NTC)",
+        desc: `<b>Sensor de Temperatura NTC Full Gauge SB70</b><br><br>Sensor de repuesto original Full Gauge tipo NTC, compatible con la mayoría de sus controladores de temperatura.`,
+        costoCompra: 7.95384615, 
+        images: ["productos/CNT350.webp"],
+        specs: { "Marca": "Full Gauge", "Tipo": "Sensor NTC", "Modelo": "SB70" }
+    },
+    {
+        id: "TRM000", 
+        name: "Termostato Ambiental Analógico", 
+        category: "Refrigeración", 
+        model: "Analógico",
+        desc: `<b>Termostato Ambiental Analógico SQ</b><br><br>Termostato de control ambiental básico y resistente. Ideal para sistemas de aire acondicionado y ventilación comercial.`,
+        costoCompra: 4.63846154, 
+        images: ["productos/TRM000.webp"],
+        specs: { "Tipo": "Analógico", "Uso": "Ambiental", "Modelo": "SQ" }
+    },
+    {
+        id: "TRM006", 
+        name: "Termostato Ambiental de Perilla", 
+        category: "Refrigeración", 
+        model: "Perilla Multi Fan",
+        desc: `<b>Termostato Ambiental Analógico (Perilla) Multi Fan</b><br><br>Termostato de control ambiental clásico con perilla de ajuste. Fácil instalación y manejo para sistemas de ventilación y aire acondicionado.`,
+        costoCompra: 6.63076923, 
+        images: ["productos/TRM006.webp"],
+        specs: { "Tipo": "Analógico (Perilla)", "Uso": "Ambiental", "Aplicación": "Multi Fan" }
+    },
+    {
+        id: "TRM050", 
+        name: "Termostato Lechero Económico (+30°C a -30°C) 220V", 
+        category: "Refrigeración", 
+        model: "Lechero Económico",
+        desc: `<b>Termostato Lechero Económico 220V</b><br><br>Termostato de bulbo capilar con rango de temperatura de +30°C a -30°C. Excelente relación calidad-precio para tanques de enfriamiento y cavas.`,
+        costoCompra: 6.06153846, 
+        images: ["productos/TRM050.webp"],
+        specs: { "Tipo": "Bulbo Capilar", "Rango": "+30°C a -30°C", "Voltaje": "220V" }
+    },
+    {
+        id: "TRM052", 
+        name: "Termostato Lechero 220V", 
+        category: "Refrigeración", 
+        model: "Lechero HVAC",
+        desc: `<b>Termostato Mecánico 220V "Lechero"</b><br><br>Termostato de bulbo capilar de alta precisión, diseñado especialmente para enfriadores de leche, tanques de agua y aplicaciones HVAC exigentes.`,
+        costoCompra: 19.89230769, 
+        images: ["productos/TRM052.webp"],
+        specs: { "Marca": "Landsfoss, Maxwell y Everwell", "Tipo": "Bulbo Capilar", "Voltaje": "220V" }
+    },
+    {
+        id: "TRM102", 
+        name: "Termostato Digital Inalámbrico Confort Start", 
+        category: "Aires Acondicionados", 
+        model: "Confort Sart",
+        desc: `<b>Termostato Digital Inalámbrico Confort S</b><br><br>Moderno termostato digital con conectividad inalámbrica para controlar unidades de aire acondicionado a distancia. Pantalla LCD de fácil lectura.`,
+        costoCompra: 19.88461538, 
+        images: ["productos/TRM102.webp", "productos/TRM102-2.webp", "productos/TRM102-3.webp"],
+        specs: { "Tipo": "Digital Inalámbrico", "Pantalla": "LCD", "Uso": "Aires Acondicionados" }
+    },
+    {
+        id: "TRM107", 
+        name: "Termostato Digital Inteligente Programable Degar", 
+        category: "Aires Acondicionados", 
+        model: "Degar",
+        desc: `<b>Termostato Digital Programable Degar</b><br><br>Termostato avanzado para empotrar en pared, permite programar ciclos de temperatura para maximizar el confort y el ahorro energético.`,
+        costoCompra: 38.80769231, 
+        images: ["productos/TRM107.webp"],
+        specs: { "Marca": "Degar", "Tipo": "Digital Programable", "Uso": "Pared (A/A)" }
+    },
+
+    {
+        id: "TRM-CAJAS-VARIANTE", 
+        name: "Caja Protectora Acrílica para Termostatos", 
+        category: "Aires Acondicionados", 
+        model: "Varias Medidas",
+        desc: `<b>Caja Protectora de Acrílico con Llave</b><br><br>Caja de seguridad transparente para proteger termostatos ambientales contra manipulaciones no autorizadas en oficinas, comercios o áreas públicas. Incluye cerradura con llave.`,
+        costoCompra: 5.30769231, // Costo base (Pequeña)
+        images: ["productos/TRM106-109.webp"],
+        specs: { "Material": "Acrílico Transparente", "Seguridad": "Cerradura con llave", "Uso": "Termostatos de pared" },
+        variants: [
+            { id: "TRM108", name: "Tamaño: Pequeña", costoCompra: 5.30769231 },
+            { id: "TRM106", name: "Tamaño: Mediana", costoCompra: 5.96153846 },
+            { id: "TRM109", name: "Tamaño: Grande", costoCompra: 6.63846154 }
+        ]
+    },
     {
         id: "JMG-SET-VARIANTE", 
         name: "Juego de Mangueras para Manifold (Estándar)", 
@@ -2134,7 +2250,11 @@ function renderProducts(productList) {
     let htmlContent = '';
     productList.forEach(prod => {
         const precios = calcularPrecios(prod.costoCompra);
-        const imgTag = `<img src="${prod.images[0]}" alt="${prod.name}" loading="lazy" onclick="openQuickView('${prod.id}')" onerror="this.src='https://static.vecteezy.com/system/resources/previews/004/141/669/non_2x/no-photo-or-blank-image-icon-loading-images-or-missing-image-mark-image-not-available-or-image-coming-soon-sign-simple-nature-silhouette-in-frame-isolated-illustration-vector.jpg'">`;
+        // Verificamos si el producto tiene imágenes guardadas. Si no, usamos NO_PHOTO
+    const imgSrc = (prod.images && prod.images.length > 0) ? prod.images[0] : 'productos/NO_PHOTO.webp';
+    
+    // Creamos la etiqueta de imagen usando la variable segura que acabamos de crear
+    const imgTag = `<img src="${imgSrc}" alt="${prod.name}" loading="lazy" onclick="openQuickView('${prod.id}')" onerror="this.src='productos/NO_PHOTO.webp'">`;
         
         // Si el producto tiene variantes (ej: la placa PUN), el botón dice "Ver Opciones"
         const btnText = prod.variants ? 'Ver Opciones' : 'Agregar al Pedido';
@@ -2216,8 +2336,9 @@ function openQuickView(productId) {
     
     // Imagen Principal
     const mainImg = document.getElementById('qvMainImg');
-    mainImg.src = currentViewedProduct.images[0];
-    mainImg.onerror = function () { this.src = 'https://static.vecteezy.com/system/resources/previews/004/141/669/non_2x/no-photo-or-blank-image-icon-loading-images-or-missing-image-mark-image-not-available-or-image-coming-soon-sign-simple-nature-silhouette-in-frame-isolated-illustration-vector.jpg'; };
+    const imgSrc = (currentViewedProduct.images && currentViewedProduct.images.length > 0) ? currentViewedProduct.images[0] : 'productos/NO_PHOTO.webp';
+    mainImg.src = imgSrc;
+    mainImg.onerror = function () { this.src = 'productos/NO_PHOTO.webp'; };
     
     // Miniaturas
     const thumbContainer = document.getElementById('qvThumbnails');
@@ -2391,52 +2512,25 @@ function toggleCart() {
     document.getElementById('cartModal').classList.toggle('active'); 
 }
 
-async function sendWhatsApp() {
+function sendWhatsApp() {
     if (cart.length === 0) {
         alert("Agrega al menos un repuesto para consultar la disponibilidad.");
         return;
     }
     const clientName = document.getElementById('customerName').value.trim();
     const clientPhone = document.getElementById('customerPhone').value.trim();
+    
     if (clientName === "" || clientPhone === "") {
         alert("Por favor, ingresa tu Nombre y tu número de WhatsApp para registrar el pedido.");
         document.getElementById('customerName').focus();
         return;
     }
     
-    let resumenCodigos = "";
-    let totalCantidad = 0;
-    let montoTotalPublico = 0;
-    let message = `Hola equipo de *NOVA RefriMotors*. Mi nombre es *${clientName}* y quisiera consultar la disponibilidad de los siguientes repuestos:%0A%0A`;
+    let message = `Hola equipo de *NOVA RefriMotors*. Mi nombre es *${clientName}* y quisiera consultar la disponibilidad de los siguientes repuestos de su web:%0A%0A`;
     
     cart.forEach(item => {
         message += `• Código: *${item.id}* - (Cantidad: ${item.quantity})%0A`;
-        resumenCodigos += `${item.id} (x${item.quantity}), `;
-        totalCantidad += item.quantity;
-        const preciosItem = calcularPrecios(item.costoCompra);
-        montoTotalPublico += preciosItem.publicoUSD * item.quantity;
     });
-    
-    const orderData = {
-        nombre: clientName,
-        whatsapp: clientPhone,
-        codigos: resumenCodigos,
-        cantidad: totalCantidad,
-        monto: montoTotalPublico.toFixed(2),
-        estado: "Pendiente"
-    };
-    
-    const webhookURL = "https://hook.us2.make.com/0wu87f5st6nmk708w61nt183oxfddwsa";
-    try {
-        await fetch(webhookURL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData)
-        });
-        console.log("Datos enviados a Notion con éxito:", orderData);
-    } catch (error) {
-        console.error("Error enviando a la base de datos:", error);
-    }
     
     const whatsappURL = `https://wa.me/${NUMERO_WHATSAPP}?text=${message}`;
     window.open(whatsappURL, '_blank'); 
