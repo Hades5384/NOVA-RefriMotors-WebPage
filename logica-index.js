@@ -201,6 +201,264 @@ const products = [
     // ============================================================== //
 
     {
+        id: "ANT-VARIANTE", 
+        name: "Antivibrador Flexible de Cobre", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Antivibrador Flexible de Cobre</b><br><br>Diseñado para absorber la vibración del compresor y evitar fisuras en las tuberías de sistemas de refrigeración y aire acondicionado comercial. Seleccione la medida.`,
+        costoCompra: 7.29230769, 
+        images: ["productos/ANT-ANTIVIBRADOR.webp"],
+        specs: { "Tipo": "Flexible Antivibración", "Material": "Cobre y Acero Inox", "Uso": "Refrigeración" },
+        variants: [
+            { id: "ANT038", name: "Medida: 3/8\"", costoCompra: 6.64615385 },
+            { id: "ANT012", name: "Medida: 1/2\"", costoCompra: 7.29230769 },
+            { id: "ANT058", name: "Medida: 5/8\"", costoCompra: 7.96923077 },
+            { id: "ANT079", name: "Medida: 3/4\"", costoCompra: 9.94615385 },
+            { id: "ANT078", name: "Medida: 7/8\"", costoCompra: 12.26923077 },
+            { id: "ANT080", name: "Medida: 1-1/8\"", costoCompra: 13.32307692 },
+            { id: "ANT081", name: "Medida: 1-5/8\"", costoCompra: 26.51538462 }
+        ]
+    },
+    {
+        id: "VLC-VARIANTE", 
+        name: "Válvula Check Landsfoss HVAC", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Válvula Check / Retención Landsfoss</b><br><br>Válvula unidireccional de alta calidad que permite el flujo de refrigerante en una sola dirección. Ideal para sistemas comerciales.`,
+        costoCompra: 10.90000000, 
+        images: ["productos/VLB-VALVULA_CHECK.webp"],
+        specs: { "Marca": "Landsfoss HVAC", "Tipo": "Check (Retención)" },
+        variants: [
+            { id: "VLC502", name: "Medida: 1/2\"", costoCompra: 10.90000000 },
+            { id: "VLC500", name: "Medida: 3/4\"", costoCompra: 16.59230769 },
+            { id: "VLC501", name: "Medida: 7/8\"", costoCompra: 17.90000000 }
+        ]
+    },
+    {
+        id: "VLS-VARIANTE", 
+        name: "Válvula Solenoide (Flare y Soldable)", 
+        category: "Refrigeración", 
+        model: "Series EVR",
+        desc: `<b>Válvula Solenoide para Refrigeración</b><br><br>Válvula electromagnética para el control automático del flujo de líquido o gas refrigerante. Disponible en conexiones Flare y Soldables (ODF).`,
+        costoCompra: 23.85384615, 
+        images: ["productos/VLS-VALVULA_SOLENOIDE.webp"],
+        specs: { "Tipo": "Solenoide", "Control": "Electromagnético" },
+        variants: [
+            { id: "VLS101", name: "3/8\" Flare EVR3-38", costoCompra: 23.85384615 },
+            { id: "VLS102", name: "1/2\" Flare EVR15", costoCompra: 30.70769231 },
+            { id: "VLS200", name: "5/8\" Soldable EVR15-58", costoCompra: 36.12732095 },
+            { id: "VLS201", name: "7/8\" Soldable EVR15-78", costoCompra: 37.06896552 }
+        ]
+    },
+    {
+        id: "VFV-VARIANTE", 
+        name: "Válvula Tipo Block Aire Central ODF", 
+        category: "Refrigeración", 
+        model: "Tipo Block",
+        desc: `<b>Válvula de Servicio Tipo Block ODF</b><br><br>Válvula de cierre compacta tipo block para equipos de aire acondicionado central. Conexiones soldables de alta seguridad.`,
+        costoCompra: 8.61538462, 
+        images: ["productos/VFV-VALVULA_TIPO_BLOCK.webp"],
+        specs: { "Tipo": "Block / Cierre", "Uso": "Aire Central", "Conexión": "ODF" },
+        variants: [
+            { id: "VFV-001", name: "Medida: 3/8\"", costoCompra: 8.61538462 },
+            { id: "VFV-002", name: "Medida: 1/2\"", costoCompra: 11.15384615 },
+            { id: "VFV-005", name: "Medida: 5/8\"", costoCompra: 16.67692308 },
+            { id: "VFV-003", name: "Medida: 3/4\"", costoCompra: 18.66923077 },
+            { id: "VFV-004", name: "Medida: 7/8\"", costoCompra: 22.03846154 }
+        ]
+    },
+    {
+        id: "VLB-ROT-VARIANTE", 
+        name: "Válvula Rotalock para Compresor Maneurop", 
+        category: "Refrigeración", 
+        model: "Rotalock",
+        desc: `<b>Válvula Rotalock para Compresores Maneurop</b><br><br>Válvulas de servicio Rotalock diseñadas para facilitar el mantenimiento y aislamiento en compresores comerciales tipo Maneurop.`,
+        costoCompra: 6.06923077, 
+        images: ["productos/VLB-VALVULA_ROTALOCK.webp"],
+        specs: { "Tipo": "Rotalock", "Compatibilidad": "Compresores Maneurop" },
+        variants: [
+            { id: "VLB500", name: "Conexión: 3/8\"", costoCompra: 6.06923077 },
+            { id: "VLB504", name: "Conexión: 1/2\"", costoCompra: 6.63076923 },
+            { id: "VLB502", name: "Conexión: 5/8\"", costoCompra: 6.62307692 },
+            { id: "VLB501", name: "Conexión: 3/4\"", costoCompra: 10.61538462 },
+            { id: "VLB503", name: "Conexión: 7/8\"", costoCompra: 11.93846154 },
+            { id: "VLB508", name: "Adaptador: 3/8\" x 1-1/2\"", costoCompra: 7.50769231 },
+            { id: "VLB507", name: "Adaptador: 5/8\" x 1-1/4\"", costoCompra: 6.45384615 },
+            { id: "VLB506", name: "Adaptador: 7/8\" x 1-3/4\"", costoCompra: 11.93076923 },
+            { id: "VLB505", name: "Adaptador: 1-1/8\" x 1-3/4\"", costoCompra: 11.93076923 }
+        ]
+    },
+    {
+        id: "UNR-VARIANTE", 
+        name: "Unión de Bronce Flare (Niples)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Unión de Bronce Flare</b><br><br>Niples de bronce macizo para empalmar tuberías de cobre con abocardado (Flare). Garantizan un sellado resistente a altas presiones.`,
+        costoCompra: 0.99230769, 
+        images: ["productos/UNR-UNION_BRONCE_FLARE.webp"],
+        specs: { "Material": "Bronce", "Tipo": "Unión Flare" },
+        variants: [
+            { id: "UNR101", name: "Medida: 1/4\"", costoCompra: 1.97692308 },
+            { id: "UNR112", name: "Medida: 5/16\"", costoCompra: 0.99230769 },
+            { id: "UNR100", name: "Medida: 3/8\"", costoCompra: 1.31538462 },
+            { id: "UNR102", name: "Medida: 1/2\"", costoCompra: 1.97692308 },
+            { id: "UNR104", name: "Medida: 5/8\"", costoCompra: 1.75384615 },
+            { id: "UNR103", name: "Medida: 3/4\"", costoCompra: 1.75384615 },
+            { id: "UNR113", name: "Medida: 7/8\"", costoCompra: 2.98461538 }
+        ]
+    },
+    {
+        id: "SAS-VARIANTE", 
+        name: "Sensor de Temperatura para Aire Acondicionado", 
+        category: "Aires Acondicionados", 
+        model: "Varios Tipos",
+        desc: `<b>Sensor de Temperatura (Termistor) para A/A</b><br><br>Sensores de repuesto (sencillos y dobles) de pozo y ambiente para tarjetas electrónicas de aires acondicionados Split.`,
+        costoCompra: 1.32307692, 
+        images: ["productos/SAS-SENSOR_K.webp", "productos/SAS017.webp"],
+        specs: { "Tipo": "Termistor (NTC)", "Uso": "Tarjetas de Split" },
+        variants: [
+            { id: "SAS004", name: "Doble Universal 5K (Negro/Rojo)", costoCompra: 0.99230769 },
+            { id: "SAS002", name: "Sencillo 5K Azul (Haier / GPlus)", costoCompra: 1.31538462 },
+            { id: "SAS003", name: "Gris 5K/10K (LG Artcool)", costoCompra: 1.32307692 },
+            { id: "SAS001", name: "Doble Universal 10K (Negro/Rojo)", costoCompra: 1.32307692 },
+            { id: "SAS017", name: "Doble 10K (Haier 12-18KBTU)", costoCompra: 1.52307692 },
+            { id: "SAS005", name: "Doble Universal 15K (Negro/Rojo)", costoCompra: 1.32307692 },
+            { id: "SAS006", name: "Doble Universal 20K (Negro/Rojo)", costoCompra: 1.32307692 }
+        ]
+    },
+    {
+        id: "TRM-AA-VARIANTE", 
+        name: "Termostato de Aire Acondicionado Ventana", 
+        category: "Aires Acondicionados", 
+        model: "Mecánico",
+        desc: `<b>Termostato para Aire Acondicionado de Ventana</b><br><br>Control de temperatura analógico con bulbo capilar para unidades de ventana.`,
+        costoCompra: 3.30769231, 
+        images: ["productos/TRM004-005.webp"],
+        specs: { "Tipo": "Mecánico (Bulbo)", "Uso": "A/A Ventana" },
+        variants: [
+            { id: "TRM004", name: "Capacidad: 12.000 a 18.000 BTU", costoCompra: 3.30769231 },
+            { id: "TRM005", name: "Capacidad: 18.000 a 24.000 BTU", costoCompra: 3.30769231 }
+        ]
+    },
+    {
+        id: "FIL-NEV-VARIANTE", 
+        name: "Filtro Secador para Nevera (Cobre)", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Filtro Secador de Cobre para Neveras</b><br><br>Filtros deshidratadores con sílica interior para atrapar la humedad en sistemas de refrigeración doméstica. Disponibles con o sin válvula de servicio.`,
+        costoCompra: 1.49230769, 
+        images: ["productos/FIL-FILTRO_CON_VALVULA.webp", "productos/FIL010.webp"],
+        specs: { "Material": "Cobre", "Uso": "Refrigeración Doméstica" },
+        variants: [
+            { id: "FIL007", name: "Pequeño Gigante Topflo", costoCompra: 1.49230769 },
+            { id: "FIL301", name: "Mediano 20/25G", costoCompra: 1.55384615 },
+            { id: "FIL008", name: "Mediano Kodiak Topflo", costoCompra: 1.65384615 },
+            { id: "FIL304", name: "Mediano Soldable Original", costoCompra: 1.65384615 },
+            { id: "FIL022", name: "Pequeño 10/15G (Con Válvula)", costoCompra: 1.77692308 },
+            { id: "FIL300", name: "Grande 30/35G", costoCompra: 1.84615385 },
+            { id: "FIL303", name: "Extra-Grande 50G", costoCompra: 2.35384615 },
+            { id: "FIL009", name: "Grande Hercules Topflo", costoCompra: 2.39230769 },
+            { id: "FIL020", name: "Grande (Con Válvula de Servicio)", costoCompra: 2.64615385 },
+            { id: "FIL010", name: "Filtro 1/4 con Rosca", costoCompra: 3.31538462 },
+            { id: "FIL021", name: "Pequeño Topflo 10G (Con Válvula)", costoCompra: 3.83846154 },
+            { id: "FIL012", name: "Grande Topflo 30G (Con Válvula)", costoCompra: 4.12307692 }
+        ]
+    },
+    {
+        id: "FIL-AGUA-VAR", 
+        name: "Filtro de Agua Interno para Nevera", 
+        category: "Neveras / Cavas", 
+        model: "Samsung / Whirlpool",
+        desc: `<b>Filtro Purificador de Agua para Neveras</b><br><br>Cartucho filtrante de repuesto para dispensadores de agua y fabricadores de hielo en neveras tipo Side-by-Side.`,
+        costoCompra: 5.63076923, 
+        images: ["productos/NO_PHOTO.webp"],
+        specs: { "Uso": "Purificación de Agua", "Instalación": "Interna" },
+        variants: [
+            { id: "FIL350", name: "Para Samsung DA29-00020", costoCompra: 5.63076923 },
+            { id: "FIL351", name: "Para Whirlpool 4396841/WF-31", costoCompra: 6.62307692 }
+        ]
+    },
+    {
+        id: "TMH-VARIANTE", 
+        name: "Terminales Eléctricos y Conectores", 
+        category: "Eléctrico", 
+        model: "Varios Tipos",
+        desc: `<b>Terminales y Conectores Eléctricos</b><br><br>Accesorios de conexión para cableado seguro. Disponibles en formato de ojal, tipo U, desconectables y regletas para cables múltiples.`,
+        costoCompra: 0.03846154, 
+        images: ["productos/TMH-TERMINALES.webp"],
+        specs: { "Tipo": "Terminal de Cobre/Aleación", "Uso": "Conexiones Eléctricas" },
+        variants: [
+            { id: "TMH205", name: "Tipo U 10-12 (SVS5.5-6)", costoCompra: 0.03846154 },
+            { id: "TMH200", name: "Metal Amarillo Sencillo", costoCompra: 0.06153846 },
+            { id: "TMH201", name: "Forro Amarillo Hembra", costoCompra: 0.06153846 },
+            { id: "TMH204", name: "Desconectables Macho-Hembra", costoCompra: 0.06153846 },
+            { id: "TMH206", name: "Tipo Ojo 1/4 (RNB8-6S)", costoCompra: 0.10769231 },
+            { id: "TMH207", name: "Tipo Ojo 5/16 (RNB8-8)", costoCompra: 0.13076923 },
+            { id: "TMH202", name: "Regleta Cable 15A 12MM (12 Polos)", costoCompra: 0.66153846 },
+            { id: "TMH203", name: "Regleta Doble Fila 1012P", costoCompra: 0.79230769 }
+        ]
+    },
+    {
+        id: "TRA001", 
+        name: "Transformador 24V/40/240 ECNMC", 
+        category: "Eléctrico", 
+        model: "24V 40VA",
+        desc: `<b>Transformador de Control 24V</b><br><br>Transformador reductor para suministrar voltaje de control de 24VAC a contactores, termostatos y tarjetas electrónicas.`,
+        costoCompra: 7.28461538, 
+        images: ["productos/TRA001.webp"],
+        specs: { "Salida": "24VAC", "Capacidad": "40VA", "Uso": "Control HVAC" }
+    },
+    {
+        id: "REL301", 
+        name: "Relay Potencial 064 220V", 
+        category: "Protectores", 
+        model: "064 - 220V",
+        desc: `<b>Relé de Potencial 064 (220V)</b><br><br>Relé electromecánico para desconectar el capacitor de arranque una vez que el compresor alcanza su velocidad operativa.`,
+        costoCompra: 5.30000000, 
+        images: ["productos/REL301.webp"],
+        specs: { "Tipo": "Potencial", "Voltaje": "220V", "Modelo": "064" }
+    },
+    {
+        id: "REL401", 
+        name: "Relay Potencial 063 110V", 
+        category: "Protectores", 
+        model: "063 - 110V",
+        desc: `<b>Relé de Potencial 063 (110V)</b><br><br>Relé electromecánico diseñado para sistemas de 110V, gestiona el corte del capacitor de arranque del compresor.`,
+        costoCompra: 5.30000000, 
+        images: ["productos/REL401.webp"],
+        specs: { "Tipo": "Potencial", "Voltaje": "110V", "Modelo": "063" }
+    },
+    {
+        id: "REL302", 
+        name: "Relay Fan 360 de 24V", 
+        category: "Protectores", 
+        model: "360 - 24V",
+        desc: `<b>Relé para Motor Ventilador (Fan) 360 de 24V</b><br><br>Relé de control accionado por 24V para encender motores de ventilación y sopladores en unidades centrales.`,
+        costoCompra: 3.08461538, 
+        images: ["productos/REL302.webp"],
+        specs: { "Uso": "Motor Ventilador (Fan)", "Bobina": "24V" }
+    },
+    {
+        id: "REL304", 
+        name: "Relay Fan 364 208/240V", 
+        category: "Protectores", 
+        model: "364 - 240V",
+        desc: `<b>Relé para Motor Ventilador (Fan) 364</b><br><br>Relé de conmutación de alto rendimiento para motores de ventilador operados con voltaje de 208/240V.`,
+        costoCompra: 3.77692308, 
+        images: ["productos/REL304.webp"],
+        specs: { "Uso": "Motor Ventilador (Fan)", "Bobina": "208/240V" }
+    },
+    {
+        id: "REL305", 
+        name: "Relay de Potencia G7L-2A-TUB 240VAC", 
+        category: "Protectores", 
+        model: "G7L-2A-TUB",
+        desc: `<b>Relé de Potencia G7L-2A-TUB 240VAC</b><br><br>Relé de propósito general y alta capacidad de carga, ideal para circuitos de potencia y calentadores.`,
+        costoCompra: 3.29230769, 
+        images: ["productos/REL305.webp"],
+        specs: { "Tipo": "Propósito General", "Voltaje": "240VAC", "Contactos": "Doble Polo" }
+    },
+    {
         id: "PDV014", 
         name: "Protector Landsfoss 220V de 60AMP ", 
         category: "Protectores", 
