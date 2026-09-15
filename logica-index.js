@@ -201,6 +201,333 @@ const products = [
     // ============================================================== //
 
     {
+        id: "VLB-BOLA-VARIANTE", 
+        name: "Válvula de Bola Landsfoss para Refrigeración", 
+        category: "Refrigeración", 
+        model: "Varias Medidas",
+        desc: `<b>Válvula de Bola Landsfoss</b><br><br>Válvula de aislamiento de flujo completo, ideal para mantenimientos y cortes en líneas de refrigeración comercial e industrial. Garantiza un sellado hermético. Seleccione la medida.`,
+        costoCompra: 12.60000000, // Costo base (3/8")
+        images: ["productos/VLB-BOLA.webp"],
+        specs: { "Marca": "Landsfoss", "Tipo": "Válvula de Bola", "Uso": "Refrigeración / HVAC" },
+        variants: [
+            { id: "VLB104", name: "Medida: 3/8\"", costoCompra: 12.60000000 },
+            { id: "VLB102", name: "Medida: 1/2\"", costoCompra: 14.22307692 },
+            { id: "VLB103", name: "Medida: 5/8\"", costoCompra: 13.26153846 },
+            { id: "VLB100", name: "Medida: 3/4\"", costoCompra: 18.20000000 },
+            { id: "VLB101", name: "Medida: 7/8\"", costoCompra: 20.70000000 }
+        ]
+    },
+    {
+        id: "TER-ARTICCO-VAR", 
+        name: "Protector Térmico Articco (Overload)", 
+        category: "Protectores", 
+        model: "Varios BTU/Voltajes",
+        desc: `<b>Protector Térmico Articco para Compresor</b><br><br>Dispositivo de seguridad (Overload) diseñado para desconectar el compresor en caso de sobrecalentamiento o picos de corriente. Seleccione la capacidad y el voltaje de su equipo.`,
+        costoCompra: 1.32307692, 
+        images: ["productos/TER200-208.webp"],
+        specs: { "Marca": "Articco", "Tipo": "Protector Térmico", "Uso": "Compresores de A/A" },
+        variants: [
+            { id: "TER206", name: "Capacidad: 5.000 BTU - 110V", costoCompra: 1.32307692 },
+            { id: "TER207", name: "Capacidad: 8.000 BTU - 110V", costoCompra: 1.32307692 },
+            { id: "TER208", name: "Capacidad: 10.000 BTU - 110V", costoCompra: 1.32307692 },
+            { id: "TER201", name: "Capacidad: 12.000 BTU - 110V", costoCompra: 1.32307692 },
+            { id: "TER202", name: "Capacidad: 12.000 BTU - 220V", costoCompra: 1.32307692 },
+            { id: "TER205", name: "Capacidad: 15.000 BTU - 220V", costoCompra: 1.32307692 },
+            { id: "TER203", name: "Capacidad: 18.000 BTU - 220V", costoCompra: 1.06153846 },
+            { id: "TER204", name: "Capacidad: 24.000 BTU - 220V", costoCompra: 1.32307692 }
+        ]
+    },
+    {
+        id: "AIR099", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 220V Khaled", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 220V Khaled (Nuevo en Caja)</b><br><br>Equipo de ventana marca Khaled, totalmente nuevo y sellado en su caja. Excelente capacidad de enfriamiento de 12.000 BTU.`,
+        costoCompra: 145.89230769, 
+        images: ["productos/AIR099.webp"],
+        specs: { "Marca": "Khaled", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Estado": "Nuevo en Caja" }
+    },
+    {
+        id: "AIP002", 
+        name: "Aire Acondicionado Portátil 12.000 BTU", 
+        category: "Aires Acondicionados", 
+        model: "Portátil 12K",
+        desc: `<b>Aire Acondicionado Portátil 12.000 BTU</b><br><br>Unidad portátil de 12.000 BTU, ideal para mover entre habitaciones. Fácil instalación sin necesidad de romper paredes.`,
+        costoCompra: 152.52307692, 
+        images: ["productos/AIP002.webp"],
+        specs: { "Tipo": "Portátil", "Capacidad": "12.000 BTU", "Instalación": "Móvil con Ruedas" }
+    },
+    {
+        id: "AIR126", 
+        name: "Aire Acondicionado Mini-Split 12.000 BTU 220V Khaled", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 220V",
+        desc: `<b>Aire Acondicionado Mini-Split 12.000 BTU 220V Khaled</b><br><br>Equipo Mini-Split eficiente y silencioso de 12.000 BTU. Ideal para habitaciones y oficinas modernas.`,
+        costoCompra: 172.41538462, 
+        images: ["productos/AIR126.webp"],
+        specs: { "Marca": "Khaled", "Tipo": "Mini-Split", "Capacidad": "12.000 BTU", "Voltaje": "220V", "Estado": "Nuevo en Caja" }
+    },
+    {
+        id: "AIR025", 
+        name: "Aire Acondicionado Split 24.000 BTU 220V Khaled (R410)", 
+        category: "Aires Acondicionados", 
+        model: "24K BTU 220V",
+        desc: `<b>Aire Acondicionado Split 24.000 BTU 220V Khaled</b><br><br>Unidad Split de alta capacidad (24.000 BTU) operando con gas ecológico R410. Excelente rendimiento para espacios amplios.`,
+        costoCompra: 331.56923077, 
+        images: ["productos/AIR025.webp"],
+        specs: { "Marca": "Khaled", "Tipo": "Split", "Capacidad": "24.000 BTU", "Voltaje": "220V", "Estado": "Nuevo en Caja" }
+    },
+    {
+        id: "AIR012", 
+        name: "Aire Acondicionado Ventana 8.000 BTU 110V Danby", 
+        category: "Aires Acondicionados", 
+        model: "8K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 8.000 BTU 110V Danby</b><br><br>Climatización compacta y confiable para espacios reducidos. Este equipo destaca por su bajo consumo y panel frontal con display digital intuitivo para el ajuste de temperatura.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por manejo de importación. No incluye control remoto.`,
+        costoCompra: 106.10000000, 
+        images: ["productos/AIR012.webp"],
+        specs: { "Marca": "Danby", "Tipo": "Ventana", "Capacidad": "8.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR016", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 110V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 110V Friedrich</b><br><br>Unidad premium de alto rendimiento diseñada para enfriar tus espacios rápidamente. Incorpora un display digital frontal que facilita la visualización y ajuste del clima ideal.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 132.62307692, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR021", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 220V Friedrich</b><br><br>Potencia y eficiencia premium en 220V. Su diseño robusto garantiza una larga vida útil, complementado con un display digital de fácil lectura en el panel frontal.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 145.89230769, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR008", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 220V Friedrich</b><br><br>Excelente capacidad térmica para habitaciones grandes o salas de estar. Operación confiable a 220V con panel de control y display digital integrado para una configuración precisa.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 179.04615385, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR006", 
+        name: "Aire Acondicionado Ventana 15.000 BTU 110V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "15K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 15.000 BTU 110V Friedrich</b><br><br>Alta capacidad de enfriamiento sin requerir instalación a 220V. Diseño moderno que maximiza el flujo de aire, equipado con panel de botones y display digital frontal.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 185.67692308, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "15.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR022", 
+        name: "Aire Acondicionado Ventana 18.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "18K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 18.000 BTU 220V Friedrich</b><br><br>Equipo de gran capacidad (Tonelada y media), ideal para mantener climatizados espacios residenciales amplios o locales comerciales. Incluye display digital para monitoreo de temperatura.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 218.83076923, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "18.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR020", 
+        name: "Aire Acondicionado Ventana 20.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "20K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 20.000 BTU 220V Friedrich</b><br><br>Potencia superior para las mayores exigencias térmicas. Sistema de enfriamiento acelerado, controlable y configurable fácilmente mediante su panel con display digital frontal.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 232.09230769, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "20.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR003", 
+        name: "Aire Acondicionado Ventana 24.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "24K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 24.000 BTU 220V Friedrich</b><br><br>Unidad pesada e industrial de 2 toneladas en formato de ventana. Rendimiento inigualable para grandes áreas, gestionado de manera amigable a través de su nítido display digital.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 265.25384615, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "24.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR005", 
+        name: "Aire Acondicionado Ventana 28.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "28K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 28.000 BTU 220V Friedrich</b><br><br>Climatización de ultra alto tonelaje para mangas de pared o ventanas amplias. Su panel de control con display digital permite un manejo preciso del potente flujo de aire.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 331.56153846, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "28.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR118", 
+        name: "Aire Acondicionado Ventana 36.000 BTU 220V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "36K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 36.000 BTU 220V Friedrich</b><br><br>La máxima capacidad en equipos de ventana (3 toneladas). Ideal para usos comerciales e industriales extremos. Configuración sencilla gracias a su display digital integrado.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 364.72307692, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "36.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR028", 
+        name: "Aire Acondicionado Ventana 8.000 BTU 110V Friedrich", 
+        category: "Aires Acondicionados", 
+        model: "8K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 8.000 BTU 110V Friedrich</b><br><br>Eficiencia y calidad superior en un chasis compacto. Perfecto para el confort en habitaciones y oficinas, controlable fácilmente desde su panel frontal con display digital.<br><br><b>Nota:</b> Equipo nuevo con leves detalles por importación. No incluye control remoto.`,
+        costoCompra: 106.10000000, 
+        images: ["productos/FRIEDRICH-CHILL.webp", "productos/FRIEDRICH-UNIFIT.webp"],
+        specs: { "Marca": "Friedrich", "Tipo": "Ventana", "Capacidad": "8.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR014", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 110V Frigidaire", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 110V Frigidaire</b><br><br>Climatización confiable y constante de la mano de Frigidaire. Su diseño incluye un práctico display digital que permite establecer la temperatura con total precisión.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 132.62307692, 
+        images: ["productos/FRIGIDAIRE.webp", "productos/FRIGIDAIRE-FHTC.webp"],
+        specs: { "Marca": "Frigidaire", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR102", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 110V Frigidaire", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 110V Frigidaire</b><br><br>Potencia excepcional de 14.000 BTU en corriente de 110V, brindando frío intenso sin alterar el cableado. Incorpora panel frontal con display digital de temperatura.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.78461538, 
+        images: ["productos/FRIGIDAIRE.webp", "productos/FRIGIDAIRE-FHTC.webp"],
+        specs: { "Marca": "Frigidaire", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR019", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 220V Frigidaire", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 220V Frigidaire</b><br><br>Unidad optimizada para 220V que ofrece un enfriamiento rápido y sostenido. Cuenta con panel de mando y display digital para una experiencia de uso sumamente amigable.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 179.04615385, 
+        images: ["productos/FRIGIDAIRE.webp", "productos/FRIGIDAIRE-FHTC.webp"],
+        specs: { "Marca": "Frigidaire", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR009", 
+        name: "Aire Acondicionado Ventana 8.000 BTU 110V Frigidaire", 
+        category: "Aires Acondicionados", 
+        model: "8K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 8.000 BTU 110V Frigidaire</b><br><br>El tamaño perfecto para cuartos de estudio y habitaciones pequeñas. Operación silenciosa y un panel frontal con display digital que facilita su ajuste diario.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 106.10000000, 
+        images: ["productos/FRIGIDAIRE.webp", "productos/FRIGIDAIRE-FHTC.webp"],
+        specs: { "Marca": "Frigidaire", "Tipo": "Ventana", "Capacidad": "8.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR034", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 110V G.E.", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 110V General Electric</b><br><br>Robusto y eficiente equipo de General Electric que garantiza un flujo de aire frío ininterrumpido. Dispone de display digital frontal para verificar la temperatura configurada.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.78461538, 
+        images: ["productos/AIR034.webp"],
+        specs: { "Marca": "General Electric", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR013", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 110V Hisense", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 110V Hisense</b><br><br>Climatización moderna y eficiente que refresca tus espacios en minutos. Incorpora un display digital claro y fácil de usar en el panel principal.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.77692308, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR049", 
+        name: "Aire Acondicionado Ventana 12.000 BTU 220V Hisense", 
+        category: "Aires Acondicionados", 
+        model: "12K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 12.000 BTU 220V Hisense</b><br><br>Funcionamiento suave y silencioso diseñado para la red de 220V. Su panel cuenta con display digital para un control absoluto del confort en tu habitación.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.80769231, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "12.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR080", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 110V Hisense", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 110V Hisense</b><br><br>Mayor cobertura térmica manteniendo la practicidad de la instalación a 110V. Interfaz de usuario directa mediante su pantalla y display digital integrado.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.78461538, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR180", 
+        name: "Aire Acondicionado Ventana 18.000 BTU 220V Hisense", 
+        category: "Aires Acondicionados", 
+        model: "18K BTU 220V",
+        desc: `<b>Aire Acondicionado de Ventana 18.000 BTU 220V Hisense</b><br><br>Alta potencia para climatizar salones o espacios de trabajo de manera rápida y uniforme. Permite visualizar la configuración actual a través de su display digital frontal.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 218.83076923, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "18.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR026", 
+        name: "Aire Acondicionado Ventana 8.000 BTU 110V Hisense", 
+        category: "Aires Acondicionados", 
+        model: "8K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 8.000 BTU 110V Hisense</b><br><br>Modelo compacto y ahorrativo, excelente para lograr el clima ideal en espacios pequeños. Incluye panel de control principal con display digital.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 106.10000000, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "8.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR018", 
+        name: "Aire Acondicionado Ventana 18.000 BTU 220V Hisense (Sin Rejilla)", 
+        category: "Aires Acondicionados", 
+        model: "18K BTU 220V S/R",
+        desc: `<b>Aire Acondicionado de Ventana 18.000 BTU 220V Hisense</b><br><br>Equipo de gran capacidad térmica con diseño optimizado (Sin Rejilla lateral). Pantalla display digital en el frente para conocer y ajustar la temperatura al instante.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 198.93846154, 
+        images: ["productos/HISENSE.webp", "productos/HISENSE-INVERTER.webp"],
+        specs: { "Marca": "Hisense", "Tipo": "Ventana", "Capacidad": "18.000 BTU", "Voltaje": "220V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR047", 
+        name: "Aire Acondicionado Ventana 14.000 BTU 110V LG", 
+        category: "Aires Acondicionados", 
+        model: "14K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 14.000 BTU 110V LG</b><br><br>Toda la tecnología y durabilidad de LG en una unidad sumamente potente. Diseño elegante que resalta su display digital frontal para una configuración precisa.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 165.78461538, 
+        images: ["productos/LG.webp"],
+        specs: { "Marca": "LG", "Tipo": "Ventana", "Capacidad": "14.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR108", 
+        name: "Aire Acondicionado Ventana 8.000 BTU 110V LG", 
+        category: "Aires Acondicionados", 
+        model: "8K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 8.000 BTU 110V LG</b><br><br>Enfriamiento constante y silencioso con el indiscutible respaldo de calidad LG. Sistema de control accesible con botones y display digital numérico.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 106.10000000, 
+        images: ["productos/LG.webp"],
+        specs: { "Marca": "LG", "Tipo": "Ventana", "Capacidad": "8.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
+        id: "AIR032", 
+        name: "Aire Acondicionado Ventana 15.000 BTU 110V TCL", 
+        category: "Aires Acondicionados", 
+        model: "15K BTU 110V",
+        desc: `<b>Aire Acondicionado de Ventana 15.000 BTU 110V TCL</b><br><br>Increíble potencia de 15.000 BTU operativa con corriente de 110V estándar. Gran desempeño térmico y facilidad de ajuste gracias a su panel con display digital.<br><br><b>Nota:</b> Equipo nuevo con detalles estéticos por importación. No incluye control remoto.`,
+        costoCompra: 185.67692308, 
+        images: ["productos/AIRE-8K.webp"],
+        specs: { "Marca": "TCL", "Tipo": "Ventana", "Capacidad": "15.000 BTU", "Voltaje": "110V", "Condición": "Nuevo (Detalles Importación)", "Control": "Display Digital (Sin Remoto)" }
+    },
+    {
         id: "ANT-VARIANTE", 
         name: "Antivibrador Flexible de Cobre", 
         category: "Refrigeración", 
@@ -347,7 +674,7 @@ const products = [
         model: "Varias Medidas",
         desc: `<b>Filtro Secador de Cobre para Neveras</b><br><br>Filtros deshidratadores con sílica interior para atrapar la humedad en sistemas de refrigeración doméstica. Disponibles con o sin válvula de servicio.`,
         costoCompra: 1.49230769, 
-        images: ["productos/FIL-FILTRO_CON_VALVULA.webp", "productos/FIL010.webp"],
+        images: ["productos/FIL-FILTRO_CON_VALVULA.webp", "productos/FIL010.webp", "productos/FIL303.webp"],
         specs: { "Material": "Cobre", "Uso": "Refrigeración Doméstica" },
         variants: [
             { id: "FIL007", name: "Pequeño Gigante Topflo", costoCompra: 1.49230769 },
@@ -371,7 +698,7 @@ const products = [
         model: "Samsung / Whirlpool",
         desc: `<b>Filtro Purificador de Agua para Neveras</b><br><br>Cartucho filtrante de repuesto para dispensadores de agua y fabricadores de hielo en neveras tipo Side-by-Side.`,
         costoCompra: 5.63076923, 
-        images: ["productos/NO_PHOTO.webp"],
+        images: ["productos/FIL350.webp", "productos/FIL351.webp"],
         specs: { "Uso": "Purificación de Agua", "Instalación": "Interna" },
         variants: [
             { id: "FIL350", name: "Para Samsung DA29-00020", costoCompra: 5.63076923 },
@@ -1855,102 +2182,7 @@ const products = [
         desc: `<b>Lavadora Doble Tina de 7kg AKARI</b><br><br>Semiautomática de doble tina para lavado y centrifugado eficiente, ideal para el hogar.`,
         costoCompra: 113, images: ["productos/LVT113.webp"],
         specs: { "Capacidad": "7 kg", "Tipo": "Doble Tina", "Voltaje": "110V" }
-    },
-    {
-        id: "AIR009", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU", category: "Aires Acondicionados", model: "Genérico",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU</b><br><br>Unidad de aire acondicionado de ventana eficiente para enfriar espacios y habitaciones medianas de forma rápida.`,
-        costoCompra: 106, images: ["productos/AIR009.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Tipo": "Ventana" }
-    },
-    {
-        id: "AIR012", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Danby", category: "Aires Acondicionados", model: "DAC080EB7WDB",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Danby</b><br><br>Equipo de climatización compacto Danby de alta eficiencia para habitaciones y espacios pequeños/medianos.`,
-        costoCompra: 106, images: ["productos/AIR009-DANBY.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Danby" }
-    },
-    {
-        id: "AIR009-FRIEDRICH-CHILL", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Friedrich Chill", category: "Aires Acondicionados", model: "CCF08A10A",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Friedrich Chill Premier</b><br><br>Unidad premium de ventana con operación ultrasilenciosa y conectividad moderna.`,
-        costoCompra: 106, images: ["productos/AIR009-FRIEDRICH-CHILL.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Friedrich" }
-    },
-    {
-        id: "AIR009-FRIEDRICH-UNIFIT", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Friedrich Uni-Fit", category: "Aires Acondicionados", model: "UCC08B10A",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Friedrich Uni-Fit</b><br><br>Equipo de la serie Uni-Fit diseñado para adaptarse fácilmente a mangas de pared universales o ventanas.`,
-        costoCompra: 106, images: ["productos/AIR009-FRIEDRICH-UNIFIT.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Friedrich" }
-    },
-    {
-        id: "AIR009-FRIGIDAIRE", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Frigidaire", category: "Aires Acondicionados", model: "FHWW084TE1",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Frigidaire</b><br><br>Aire acondicionado Frigidaire con control de temperatura preciso y múltiples modos de operación.`,
-        costoCompra: 106, images: ["productos/AIR009-FRIGIDAIRE.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Frigidaire" }
-    },
-    {
-        id: "AIR009-GE", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU General Electric", category: "Aires Acondicionados", model: "AHTT08BC",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU General Electric</b><br><br>Unidad GE de alta confiabilidad diseñada para un enfriamiento rápido y continuo.`,
-        costoCompra: 106, images: ["productos/AIR009-GE.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "General Electric" }
-    },
-    {
-        id: "AIR009-HISENSE", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU Hisense", category: "Aires Acondicionados", model: "AW0822CW1W",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU Hisense</b><br><br>Equipo Hisense con diseño moderno y funciones inteligentes para un confort total.`,
-        costoCompra: 106, images: ["productos/AIR009-HISENSE.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "Hisense" }
-    },
-    {
-        id: "AIR009-LG", name: "Aire Acondicionado de Ventana 110V de 8.000 BTU LG", category: "Aires Acondicionados", model: "LW8016ER",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 8.000 BTU LG</b><br><br>Aire acondicionado LG con control remoto y tecnología de enfriamiento eficiente.`,
-        costoCompra: 106, images: ["productos/AIR009-LG.webp"],
-        specs: { "Capacidad": "8000 BTU", "Voltaje": "110V", "Marca": "LG" }
-    },
-    {
-        id: "AIR007-FRIGIDAIRE", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire", category: "Aires Acondicionados", model: "FHWW144TF1",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire</b><br><br>Equipo de climatización de alta potencia Frigidaire para enfriar rápidamente espacios amplios y áreas medianas/grandes.`,
-        costoCompra: 185, images: ["productos/AIR007-FRIGIDAIRE.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Marca": "Frigidaire" }
-    },
-    {
-        id: "AIR017-FRIGIDAIRE-FHWW", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire Nuevo", category: "Aires Acondicionados", model: "FHWW144TF1",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire - Nuevo con Caja</b><br><br>Unidad completamente nueva en empaque original Frigidaire de 14.000 BTU.`,
-        costoCompra: 198.94, images: ["productos/AIR007-FRIGIDAIRE.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Estado": "Nuevo en Caja" }
-    },
-    {
-        id: "AIR017-FRIGIDAIRE-FHTC", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire Nuevo", category: "Aires Acondicionados", model: "FHTC142WA2",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU Frigidaire - Nuevo con Caja</b><br><br>Aire acondicionado Frigidaire serie FHTC de 14.000 BTU nuevo en caja.`,
-        costoCompra: 198.94, images: ["productos/AIR017-FRIGIDAIRE-FHTC.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Modelo": "FHTC142WA2" }
-    },
-    {
-        id: "AIR007-HISENSE", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU Hisense", category: "Aires Acondicionados", model: "AW1422CW1W",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU Hisense</b><br><br>Unidad Hisense de 14.000 BTU a 110V, ideal para climatizar salas, locales o habitaciones de gran tamaño.`,
-        costoCompra: 185, images: ["productos/AIR009-HISENSE.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Marca": "Hisense" }
-    },
-    {
-        id: "AIR007-GE", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU General Electric", category: "Aires Acondicionados", model: "AHWG14BC",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU General Electric</b><br><br>Unidad de climatización General Electric de alta capacidad.`,
-        costoCompra: 185, images: ["productos/AIR007-GE.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Marca": "General Electric" }
-    },
-    {
-        id: "AIR007-LG", name: "Aire Acondicionado de Ventana 110V de 14.000 BTU LG", category: "Aires Acondicionados", model: "LW1521ERSM",
-        desc: `<b>Aire Acondicionado de Ventana 110V de 14.000 BTU LG</b><br><br>Unidad de aire acondicionado de ventana LG con tecnología ThinQ.`,
-        costoCompra: 185, images: ["productos/AIR009-LG.webp"],
-        specs: { "Capacidad": "14000 BTU", "Voltaje": "110V", "Marca": "LG" }
-    },
-    {
-        id: "AIR022", name: "Aire Acondicionado de Ventana 220V de 18.000 BTU Hisense", category: "Aires Acondicionados", model: "AW1822DR3W",
-        desc: `<b>Aire Acondicionado de Ventana 220V de 18.000 BTU Hisense</b><br><br>Equipo de gran capacidad Hisense diseñado para climatizar espacios amplios.`,
-        costoCompra: 232, images: ["productos/AIR009-HISENSE.webp"],
-        specs: { "Capacidad": "18000 BTU", "Voltaje": "220V", "Marca": "Hisense" }
-    },
-    {
-        id: "AIR023", name: "Aire Acondicionado de Ventana 220V de 18.000 BTU Inverter Hisense", category: "Aires Acondicionados", model: "AW1823TW3W",
-        desc: `<b>Aire Acondicionado de Ventana 220V de 18.000 BTU Inverter Hisense</b><br><br>Aire acondicionado de alta eficiencia con tecnología Inverter para un consumo eléctrico menor.`,
-        costoCompra: 212, images: ["productos/AIR023.webp"],
-        specs: { "Capacidad": "18000 BTU", "Voltaje": "220V", "Tecnología": "Inverter" }
+
     },
     {
         id: "TIM053", name: "Reloj de Nevera de 6H 21M Paragon", category: "Neveras / Cavas", model: "6H 21M",
