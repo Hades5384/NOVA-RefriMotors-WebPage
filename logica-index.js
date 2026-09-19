@@ -199,9 +199,87 @@ const products = [
 
     // ============================================================== //
     // ============================================================== //
-    // ==========================================
-    // SECCIÓN: COMPONENTES ELÉCTRICOS PARA NEVERAS (Imágenes WEBP)
-    // ==========================================
+    
+    {
+        id: "REL-NEGRO-VAR", 
+        name: "Relay Negro Universal para Nevera 115V", 
+        category: "Protectores", 
+        model: "Varias Medidas",
+        desc: `<b>Relay Negro Universal para Nevera 115V</b><br><br>Relé de arranque universal de bobina (cobre) para compresores de neveras y refrigeradores a 115V. Diseñado para un reemplazo rápido y duradero.`,
+        costoCompra: 1.32307692, // Costo base (1/6 HP)
+        images: [
+            "productos/REL-RELAY_NEGRO(1).webp",
+            "productos/REL-RELAY_NEGRO(2).webp",
+            "productos/REL-RELAY_NEGRO(3).webp",
+            "productos/REL-RELAY_NEGRO(4).webp"
+        ],
+        specs: { "Tipo": "Relay de Bobina (Negro)", "Voltaje": "115V", "Uso": "Neveras" },
+        variants: [
+            { id: "REL004", name: "Capacidad: 1/6 HP", costoCompra: 1.32307692 },
+            { id: "REL003", name: "Capacidad: 1/4 HP", costoCompra: 1.73846154 },
+            { id: "REL002", name: "Capacidad: 1/3 HP", costoCompra: 0.95384615 }
+        ]
+    },
+    {
+        id: "REL-BLANCO-EMB-VAR", 
+        name: "Relay Blanco Embraco para Nevera 115V", 
+        category: "Protectores", 
+        model: "Tipo Embraco",
+        desc: `<b>Relay Blanco Tipo Embraco 115V</b><br><br>Relé de arranque de alta calidad tipo Embraco (Blanco). Ofrece excelente compatibilidad y protección para compresores domésticos y comerciales ligeros.`,
+        costoCompra: 1.32307692, // Costo base (1/4 HP)
+        images: [
+            "productos/RELAY_BLANCO_EMBRACO(1).webp",
+            "productos/RELAY_BLANCO_EMBRACO(2).webp",
+            "productos/RELAY_BLANCO_EMBRACO(3).webp",
+            "productos/RELAY_BLANCO_EMBRACO(4).webp"
+        ],
+        specs: { "Marca": "Embraco (Genérico)", "Tipo": "Relay Blanco", "Voltaje": "115V" },
+        variants: [
+            { id: "REL010", name: "Capacidad: 1/4 HP", costoCompra: 1.32307692 },
+            { id: "REL011", name: "Capacidad: 1/3 HP", costoCompra: 1.32307692 },
+            { id: "REL012", name: "Capacidad: 1/2 HP", costoCompra: 1.43076923 },
+            { id: "REL013", name: "Capacidad: 3/4 HP", costoCompra: 1.43076923 }
+        ]
+    },
+    {
+        id: "REL-PTC-PINES-VAR", 
+        name: "Relay PTC Americold / Landsfoss (Pines)", 
+        category: "Protectores", 
+        model: "PTC 1 a 3 Pines",
+        desc: `<b>Relay PTC de Estado Sólido (Pines)</b><br><br>Pastilla de arranque PTC de alta eficiencia para compresores de 1/12 a 1/2 HP. Disponible en configuraciones de 1, 2 o 3 pines para adaptarse a distintos sistemas.`,
+        costoCompra: 0.86923077, // Costo base (1 Pin)
+        images: [
+            "productos/REL015-018-RELAYS_PTC_PINES(1).webp",
+            "productos/REL015-018-RELAYS_PTC_PINES(2).webp",
+            "productos/REL015-018-RELAYS_PTC_PINES(3).webp",
+            "productos/REL015-018-RELAYS_PTC_PINES(4).webp"
+        ],
+        specs: { "Tipo": "PTC (Estado Sólido)", "Rango": "1/12 a 1/2 HP", "Color": "Negro" },
+        variants: [
+            { id: "REL015", name: "Americold PTC 1 Pin (115V)", costoCompra: 0.86923077 },
+            { id: "REL016", name: "Americold PTC 2 Pines (115V)", costoCompra: 0.71538462 },
+            { id: "REL017", name: "Americold PTC 3 Pines (115V)", costoCompra: 0.91538462 },
+            { id: "REL018", name: "Landsfoss PTC 3 Pines IC-5 (220V)", costoCompra: 1.32307692 }
+        ]
+    },
+    {
+        id: "REL-TARJETA-VAR", 
+        name: "Relay para Tarjeta Electrónica de Aire Acondicionado", 
+        category: "Aires Acondicionados", 
+        model: "MPQ Serie",
+        desc: `<b>Relay para Tarjeta de Aire Acondicionado</b><br><br>Relé de potencia para soldar en placa (PCB) de tarjetas electrónicas de aire acondicionado. Garantiza la conmutación segura del compresor.`,
+        costoCompra: 1.99230769, 
+        images: [
+            "productos/RELAY_PARA_TARJETA_DE_AIRE(1).webp",
+            "productos/RELAY_PARA_TARJETA_DE_AIRE(2).webp",
+            "productos/RELAY_PARA_TARJETA_DE_AIRE(3).webp"
+        ],
+        specs: { "Tipo": "Relé de Placa (PCB)", "Uso": "Tarjetas de A/A", "Voltaje": "DC/AC" },
+        variants: [
+            { id: "REL402", name: "Modelo: MPQ1-S-112D-A", costoCompra: 1.99230769 },
+            { id: "REL403", name: "Modelo: MPQ4-S-112D-A", costoCompra: 1.99230769 }
+        ]
+    },
     {
         id: "REL-EMBRACO-VAR", 
         name: "Relay Embraco Largo", 
