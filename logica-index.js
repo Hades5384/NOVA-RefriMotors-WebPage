@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 842.20; 
+const TASA_BCV = 849.56; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -199,7 +199,179 @@ const products = [
 
     // ============================================================== //
     // ============================================================== //
-
+    // ==========================================
+    // SECCIÓN: COMPONENTES ELÉCTRICOS PARA NEVERAS (Imágenes WEBP)
+    // ==========================================
+    {
+        id: "REL-EMBRACO-VAR", 
+        name: "Relay Embraco Largo", 
+        category: "Protectores", 
+        model: "Varias Medidas",
+        desc: `<b>Relay de Arranque Embraco Largo</b><br><br>Relé electromagnético de repuesto para compresores de neveras y cavas. Diseñado para ofrecer un arranque seguro y prolongar la vida útil del motor.`,
+        costoCompra: 1.97692308, // Costo base (1/4 HP)
+        images: [
+            "productos/REL-EMBRACO_LARGO.webp", 
+            "productos/REL-EMPRACO_LARGO2.webp", 
+            "productos/REL-EMBRACO_LARGO3.webp", 
+            "productos/REL-EMBRACO_LARGO4.webp"
+        ],
+        specs: { "Tipo": "Relay Largo", "Uso": "Compresores", "Marca": "Danfoss / Degar" },
+        variants: [
+            { id: "REL103", name: "Capacidad: 1/6 HP (Danfoss)", costoCompra: 1.97692308 },
+            { id: "REL102", name: "Capacidad: 1/4 HP (Danfoss)", costoCompra: 1.97692308 },
+            { id: "REL104", name: "Capacidad: 1/3 HP (Danfoss)", costoCompra: 1.49230769 },
+            { id: "REL105", name: "Capacidad: 1/3 HP (Degar)", costoCompra: 2.07692308 }
+        ]
+    },
+    {
+        id: "TER-NEVERA-VAR", 
+        name: "Protector Térmico para Nevera 115V", 
+        category: "Protectores", 
+        model: "Varios Caballajes",
+        desc: `<b>Protector Térmico (Overload) para Nevera 115V</b><br><br>Dispositivo térmico de seguridad tipo botón/redondo. Protege el compresor de su refrigerador contra sobrecalentamientos y excesos de corriente.`,
+        costoCompra: 0.99230769, 
+        images: [
+            "productos/TER-PROTECTOR_TERMICO(1).webp", 
+            "productos/TER-PROTECTOR_TERMICO(2).webp", 
+            "productos/TER-PROTECTOR_TERMICO(3).webp"
+        ],
+        specs: { "Tipo": "Protector Térmico", "Voltaje": "115V", "Uso": "Neveras y Enfriadores" },
+        variants: [
+            { id: "TER004", name: "Capacidad: 1/6 HP", costoCompra: 0.99230769 },
+            { id: "TER003", name: "Capacidad: 1/4 HP", costoCompra: 0.99230769 },
+            { id: "TER002", name: "Capacidad: 1/3 HP", costoCompra: 0.99230769 },
+            { id: "TER001", name: "Capacidad: 1/2 HP", costoCompra: 0.99230769 }
+        ]
+    },
+    {
+        id: "TER-ELEC-VAR", 
+        name: "Protector Térmico Electrónico Americold", 
+        category: "Protectores", 
+        model: "Varios Caballajes",
+        desc: `<b>Protector Térmico Electrónico Americold</b><br><br>Protector térmico de estado sólido (electrónico) para compresores. Mayor precisión de corte térmico frente a picos de voltaje.`,
+        costoCompra: 0.66153846, // Costo base (1/5 HP)
+        images: ["productos/TER-TERMICO_ELECTRONICO.webp"],
+        specs: { "Marca": "Americold", "Tipo": "Electrónico", "Uso": "Compresores" },
+        variants: [
+            { id: "TER103", name: "Capacidad: 1/6 HP (OL3)", costoCompra: 0.48461538 },
+            { id: "TER005", name: "Capacidad: 1/5 HP", costoCompra: 0.66153846 },
+            { id: "TER102", name: "Capacidad: 1/4 HP (OL1)", costoCompra: 0.66153846 },
+            { id: "TER101", name: "Capacidad: 1/3 HP (OL2)", costoCompra: 0.60769231 }
+        ]
+    },
+    {
+        id: "REL001", 
+        name: "Relay Marrón Americold PTC 4 Pines", 
+        category: "Protectores", 
+        model: "PTC 4 Pines",
+        desc: `<b>Relay Marrón Americold PTC 4 Pines</b><br><br>Relé de arranque PTC original Americold. Dispositivo eléctrico de alta calidad y precisión para arrancar compresores de refrigeración.`,
+        costoCompra: 0.45384615, 
+        images: ["productos/REL001.webp"],
+        specs: { "Marca": "Americold", "Tipo": "PTC", "Pines": "4 Pines" }
+    },
+    {
+        id: "SWU-VARIANTE", 
+        name: "Switch Universal para Nevera (1 Botón)", 
+        category: "Eléctrico", 
+        model: "LTK-2",
+        desc: `<b>Switch de Puerta Universal para Nevera</b><br><br>Interruptor pulsador de repuesto para encender o apagar la luz interior y controlar los ventiladores al abrir la puerta de la nevera.`,
+        costoCompra: 4.97692308, 
+        images: [
+            "productos/SWU-SWITCH.webp", 
+            "productos/SWU-SWITCH(2).webp"
+        ],
+        specs: { "Tipo": "Interruptor de Puerta", "Modelo": "1 Botón", "Uso": "Neveras" },
+        variants: [
+            { id: "SWU304", name: "Conexión: 2 Pines", costoCompra: 4.97692308 },
+            { id: "SWU303", name: "Conexión: 3 Pines", costoCompra: 4.97692308 }
+        ]
+    },
+    {
+        id: "MDN-CERAMICO-VAR", 
+        name: "Micro Motor Cerámico para Nevera", 
+        category: "Motores", 
+        model: "Varios Modelos",
+        desc: `<b>Micro Motor Cerámico DC para Nevera</b><br><br>Motores evaporadores de alta eficiencia con tecnología cerámica, diseñados para equipos modernos. Verifique el voltaje, vatiaje y las revoluciones (RPM) que requiere su nevera.`,
+        costoCompra: 13.25384615, // Costo base medio
+        images: [
+            "productos/MICRO_MOTOR_CERAMICO(1).webp", 
+            "productos/MICRO_MOTOR_CERAMICO(2).webp", 
+            "productos/MICRO_MOTOR_CERAMICO(3).webp"
+        ],
+        specs: { "Tipo": "Cerámico", "Uso": "Evaporadores de Nevera" },
+        variants: [
+            { id: "MDN011", name: "9.75V DC - 3.25W (Con Sensor)", costoCompra: 14.58461538 },
+            { id: "MDN004", name: "9.75V DC - 3.25W (Sin Sensor)", costoCompra: 13.25384615 },
+            { id: "MDN022", name: "12V - 2.1W - 2950 RPM", costoCompra: 7.95384615 },
+            { id: "MDN019", name: "12V - 2150 RPM (Hyundai)", costoCompra: 10.07692308 },
+            { id: "MDN007", name: "12V - 3.21W - 2520 RPM", costoCompra: 11.26153846 },
+            { id: "MDN003", name: "12V - 3.48W - 2770 RPM", costoCompra: 13.25384615 },
+            { id: "MDN012", name: "13V - 3.3W - 1120 RPM", costoCompra: 16.57692308 },
+            { id: "MDN014", name: "Haier 1.5W / 1130 RPM", costoCompra: 16.57692308 },
+            { id: "MDN013", name: "Haier 2.0W / 1160 RPM", costoCompra: 13.26153846 },
+            { id: "MDN015", name: "Haier 2.5W / 1650 RPM", costoCompra: 18.56153846 }
+        ]
+    },
+    {
+        id: "MDN001", 
+        name: "Micro Motor para Nevera 670 (Eje Grueso)", 
+        category: "Motores", 
+        model: "670 Eje Grueso",
+        desc: `<b>Micro Motor para Nevera 670 (Eje Grueso)</b><br><br>Motor ventilador interno de repuesto para neveras y refrigeradores. Diseño robusto con eje grueso para mayor durabilidad.`,
+        costoCompra: 6.17692308, 
+        images: ["productos/MDN001.webp"],
+        specs: { "Tipo": "Micro Motor", "Uso": "Neveras", "Eje": "Grueso" }
+    },
+    {
+        id: "MDN002", 
+        name: "Micro Motor para Nevera Universal 999 (Eje Fino)", 
+        category: "Motores", 
+        model: "999 Eje Fino",
+        desc: `<b>Micro Motor para Nevera Universal 999 (Eje Fino)</b><br><br>Motor ventilador universal para evaporadores de nevera. Modelo 999 equipado con eje fino, adaptable a múltiples marcas.`,
+        costoCompra: 5.63846154, 
+        images: ["productos/MDN002.webp"],
+        specs: { "Tipo": "Micro Motor Universal", "Uso": "Neveras", "Eje": "Fino" }
+    },
+    {
+        id: "JMG351", 
+        name: "Protector de Goma para Reloj de Manómetro", 
+        category: "Herramientas", 
+        model: "Protector de Goma",
+        desc: `<b>Protector de Goma para Reloj de Manómetro</b><br><br>Funda de goma diseñada para absorber impactos y proteger los relojes de tu manifold contra caídas en el área de trabajo.`,
+        costoCompra: 0.65384615, 
+        images: ["productos/JMG351.webp"],
+        specs: { "Accesorio": "Funda Protectora", "Material": "Goma Antiresbalante", "Uso": "Manómetros" }
+    },
+    {
+        id: "REL202", 
+        name: "Reloj Manómetro Alta Presión (Rojo) R22/R134", 
+        category: "Herramientas", 
+        model: "RG-500",
+        desc: `<b>Reloj Manómetro Alta Presión (Rojo) R22/R134</b><br><br>Reloj de repuesto para manifold de alta presión. Escalas de lectura nítidas y calibradas específicamente para gases R22 y R134a.`,
+        costoCompra: 2.64615385, 
+        images: ["productos/REL202.webp", "productos/REL202-2.webp"],
+        specs: { "Tipo": "Alta Presión (Rojo)", "Gases Compatibles": "R22 / R134a", "Repuesto": "Reloj Manifold" }
+    },
+    {
+        id: "REL204", 
+        name: "Reloj Manómetro Alta Presión (Rojo) R410", 
+        category: "Herramientas", 
+        model: "RG-R410-7",
+        desc: `<b>Reloj Manómetro Alta Presión (Rojo) R410</b><br><br>Reloj de repuesto diseñado para soportar y medir con precisión las altas presiones del gas refrigerante R410.`,
+        costoCompra: 3.30769231, 
+        images: ["productos/REL204.webp", "productos/REL204-2.webp"],
+        specs: { "Tipo": "Alta Presión (Rojo)", "Gases Compatibles": "R410", "Repuesto": "Reloj Manifold" }
+    },
+    {
+        id: "REL203", 
+        name: "Reloj Manómetro Baja Presión (Azul) R410", 
+        category: "Herramientas", 
+        model: "RG-R410",
+        desc: `<b>Reloj Manómetro Baja Presión (Azul) R410</b><br><br>Reloj de repuesto para manifold de baja presión (azul), con escalas precisas para la carga y monitoreo de gas R410.`,
+        costoCompra: 3.30769231, 
+        images: ["productos/REL203.webp", "productos/REL203-2.webp"],
+        specs: { "Tipo": "Baja Presión (Azul)", "Gases Compatibles": "R410", "Repuesto": "Reloj Manifold" }
+    },
     {
         id: "VLB-BOLA-VARIANTE", 
         name: "Válvula de Bola Landsfoss para Refrigeración", 
@@ -1229,34 +1401,34 @@ const products = [
         images: ["productos/CRU011.webp"],
         specs: { "Marca": "Degar", "Voltaje": "220V", "Incluye": "Control Remoto" }
     },
-    {
+{
         id: "CAP-NEGRO-VAR", 
         name: "Capacitor Cuadrado Negro (Varias Medidas)", 
         category: "Capacitores", 
         model: "Varias Medidas",
         desc: `<b>Capacitor Cuadrado Negro 450V</b><br><br>Capacitor de marcha de resina plástica negra. Ideal para motores de ventilador de consolas y equipos de aire acondicionado. Por favor, seleccione la capacitancia (MFD) que necesita.`,
-        costoCompra: 0.30000000, // Costo base (1 MFD)
+        costoCompra: 0.39787798, // Costo base (1 MFD)
         images: ["productos/CAP NEGRO.webp"],
         specs: { "Tipo": "Plástico Negro", "Voltaje": "450V / 250V", "Uso": "Motores Fan" },
         variants: [
-            { id: "CAP001", name: "1 MFD 450V", costoCompra: 0.30000000 },
-            { id: "CAP002", name: "1.2 MFD 450V", costoCompra: 0.32307692 },
-            { id: "CAP003", name: "1.5 MFD 450V", costoCompra: 0.33846154 },
-            { id: "CAP004", name: "2 MFD 450V", costoCompra: 0.36923077 },
-            { id: "CAP005", name: "2.5 MFD 450V", costoCompra: 0.40769231 },
-            { id: "CAP006", name: "3 MFD 450V", costoCompra: 0.43846154 },
-            { id: "CAP007", name: "3.5 MFD 450V", costoCompra: 0.46923077 },
-            { id: "CAP008", name: "4 MFD 450V", costoCompra: 0.50000000 },
-            { id: "CAP009", name: "4.5 MFD 450V", costoCompra: 0.53846154 },
-            { id: "CAP010", name: "5 MFD 450V", costoCompra: 0.56923077 },
-            { id: "CAP011", name: "6 MFD 450V", costoCompra: 0.60000000 },
-            { id: "CAP012", name: "7.5 MFD 450V", costoCompra: 0.63846154 },
-            { id: "CAP013", name: "8 MFD 450V", costoCompra: 0.66923077 },
-            { id: "CAP014", name: "10 MFD 450V", costoCompra: 0.70000000 },
+            { id: "CAP001", name: "1 MFD 450V", costoCompra: 0.39787798 },
+            { id: "CAP002", name: "1.2 MFD 450V", costoCompra: 0.43103448 },
+            { id: "CAP003", name: "1.5 MFD 450V", costoCompra: 0.46419098 },
+            { id: "CAP004", name: "2 MFD 450V", costoCompra: 0.49734748 },
+            { id: "CAP005", name: "2.5 MFD 450V", costoCompra: 0.53050398 },
+            { id: "CAP006", name: "3 MFD 450V", costoCompra: 0.56366048 },
+            { id: "CAP007", name: "3.5 MFD 450V", costoCompra: 0.59681698 },
+            { id: "CAP008", name: "4 MFD 450V", costoCompra: 0.62997347 },
+            { id: "CAP009", name: "4.5 MFD 450V", costoCompra: 0.66312997 },
+            { id: "CAP010", name: "5 MFD 450V", costoCompra: 0.69628647 },
+            { id: "CAP011", name: "6 MFD 450V", costoCompra: 0.72944297 },
+            { id: "CAP012", name: "7.5 MFD 450V", costoCompra: 0.76259947 },
+            { id: "CAP013", name: "8 MFD 450V", costoCompra: 0.79575597 },
+            { id: "CAP014", name: "10 MFD 450V", costoCompra: 0.82891247 },
             { id: "CAP066", name: "12 MFD 450V", costoCompra: 0.73846154 },
-            { id: "CAP015", name: "12.5 MFD 450V", costoCompra: 0.76923077 },
+            { id: "CAP015", name: "12.5 MFD 450V", costoCompra: 0.86206897 },
             { id: "CAP057", name: "13 MFD 450V", costoCompra: 1.25384615 },
-            { id: "CAP016", name: "15 MFD 450V", costoCompra: 0.86923077 },
+            { id: "CAP016", name: "15 MFD 450V", costoCompra: 0.89522546 },
             { id: "CAP068", name: "15 MFD 450V Original", costoCompra: 3.09230769 },
             { id: "CAP161", name: "15 MFD 250V (Eq. Pequeños)", costoCompra: 1.19230769 }
         ]
@@ -1267,34 +1439,36 @@ const products = [
         category: "Capacitores", 
         model: "Varias Medidas",
         desc: `<b>Capacitor de Marcha Metálico (Sencillo y Dual)</b><br><br>Capacitor cilíndrico de aluminio para el arranque y marcha continua de compresores y ventiladores de aire acondicionado. Resistente y duradero.`,
-        costoCompra: 1.05384615, // Costo base (4 MFD)
+        costoCompra: 1.06100796, // Costo base (4 MFD)
         images: ["productos/CAP METALICO.webp"],
         specs: { "Tipo": "Metálico Cilíndrico", "Voltaje": "370V / 440V", "Uso": "Compresores" },
         variants: [
-            // Sencillos
-            { id: "CAP081", name: "4 MFD 370/440V", costoCompra: 1.05384615 },
-            { id: "CAP020", name: "5 MFD 370/440V", costoCompra: 1.12307692 },
-            { id: "CAP082", name: "6 MFD 370/440V", costoCompra: 1.13846154 },
-            { id: "CAP085", name: "8 MFD 370/440V", costoCompra: 1.10769231 },
-            { id: "CAP022", name: "10 MFD 370/440V", costoCompra: 1.01538462 },
-            { id: "CAP023", name: "12.5 MFD 370/440V", costoCompra: 0.99230769 },
-            { id: "CAP024", name: "15 MFD 370/450V", costoCompra: 1.16923077 },
-            { id: "CAP025", name: "20 MFD 370/450V", costoCompra: 1.71538462 },
-            { id: "CAP026", name: "25 MFD 370/450V", costoCompra: 1.75384615 },
-            { id: "CAP027", name: "30 MFD 370/450V", costoCompra: 1.60769231 },
-            { id: "CAP028", name: "35 MFD 370/450V", costoCompra: 1.70000000 },
-            { id: "CAP029", name: "40 MFD 370/450V", costoCompra: 1.89230769 },
-            { id: "CAP030", name: "45 MFD 370/450V", costoCompra: 2.26923077 },
-            { id: "CAP031", name: "50 MFD 370/450V", costoCompra: 2.37692308 },
-            { id: "CAP032", name: "55 MFD 370/450V", costoCompra: 2.49230769 },
-            { id: "CAP033", name: "60 MFD 370/450V", costoCompra: 2.83076923 },
-            { id: "CAP034", name: "65 MFD 370/450V", costoCompra: 3.23846154 },
-            { id: "CAP035", name: "70 MFD 370/450V", costoCompra: 3.67692308 },
-            { id: "CAP038", name: "75 MFD 370/450V", costoCompra: 4.09230769 },
-            { id: "CAP036", name: "80 MFD 370/450V", costoCompra: 4.65384615 },
-            { id: "CAP037", name: "85 MFD 370/450V", costoCompra: 5.69230769 },
-            { id: "CAP039", name: "100 MFD 370/450V", costoCompra: 5.96153846 },
-            // Dobles (Dual)
+            // Sencillos Actualizados
+            { id: "CAP081", name: "4 MFD 370/440V", costoCompra: 1.06100796 },
+            { id: "CAP020", name: "5 MFD 370/440V", costoCompra: 1.12732095 },
+            { id: "CAP082", name: "6 MFD 370/440V", costoCompra: 1.19363395 },
+            { id: "CAP-S75", name: "7.5 MFD 370/440V", costoCompra: 1.25994695 },
+            { id: "CAP085", name: "8 MFD 370/440V", costoCompra: 1.32625995 },
+            { id: "CAP022", name: "10 MFD 370/440V", costoCompra: 1.32625995 },
+            { id: "CAP023", name: "12.5 MFD 370/440V", costoCompra: 1.32625995 },
+            { id: "CAP024", name: "15 MFD 370/450V", costoCompra: 1.49204244 },
+            { id: "CAP025", name: "20 MFD 370/450V", costoCompra: 1.65782493 },
+            { id: "CAP026", name: "25 MFD 370/450V", costoCompra: 1.82360743 },
+            { id: "CAP027", name: "30 MFD 370/450V", costoCompra: 1.98938992 },
+            { id: "CAP028", name: "35 MFD 370/450V", costoCompra: 2.15517241 },
+            { id: "CAP029", name: "40 MFD 370/450V", costoCompra: 2.32095491 },
+            { id: "CAP030", name: "45 MFD 370/450V", costoCompra: 2.48673740 },
+            { id: "CAP031", name: "50 MFD 370/450V", costoCompra: 2.65251989 },
+            { id: "CAP032", name: "55 MFD 370/450V", costoCompra: 2.81830239 },
+            { id: "CAP033", name: "60 MFD 370/450V", costoCompra: 2.98408488 },
+            { id: "CAP034", name: "65 MFD 370/450V", costoCompra: 3.14986737 },
+            { id: "CAP035", name: "70 MFD 370/450V", costoCompra: 3.31564987 },
+            { id: "CAP038", name: "75 MFD 370/450V", costoCompra: 3.48143236 },
+            { id: "CAP036", name: "80 MFD 370/450V", costoCompra: 3.64721485 },
+            { id: "CAP037", name: "85 MFD 370/450V", costoCompra: 3.81299735 },
+            { id: "CAP039", name: "100 MFD 370/450V", costoCompra: 5.96816976 },
+            
+            // Dobles (Dual) Mantenidos
             { id: "CAP042", name: "20+5 MFD 440V", costoCompra: 2.50000000 },
             { id: "CAP040", name: "25+5 MFD 440V", costoCompra: 2.50000000 },
             { id: "CAP069", name: "30+4 MFD 440V", costoCompra: 2.43846154 },
@@ -1584,16 +1758,6 @@ const products = [
             { id: "TUR006", name: "Medida: 3/4", costoCompra: 1.05384615 },
             { id: "TUR005", name: "Medida: 7/8", costoCompra: 1.63076923 }
         ]
-    },
-    {
-        id: "REL001", 
-        name: "Relay Marrón Americold PTC 4 Pines", 
-        category: "Protectores", 
-        model: "PTC 4 Pines",
-        desc: `<b>Relay Marrón Americold PTC 4 Pines</b><br><br>Relé de arranque PTC original Americold. Dispositivo eléctrico de alta calidad y precisión para arrancar compresores de refrigeración.`,
-        costoCompra: 0.43846154, 
-        images: ["productos/REL001.webp"],
-        specs: { "Marca": "Americold", "Tipo": "PTC", "Pines": "4 Pines" }
     },
     {
         id: "MCP003", 
