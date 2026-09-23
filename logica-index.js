@@ -199,7 +199,57 @@ const products = [
 
     // ============================================================== //
     // ============================================================== //
-    
+    {
+    id: "TIM-NEVERA-VARIANTE",
+    name: "Relojes (Timers) Defrost para Neveras",
+    category: "Neveras / Cavas",
+    model: "Varios Modelos",
+    desc: `<b>Relojes Temporizadores de Descongelamiento</b><br><br>Repuestos de temporizadores de ciclo (Timers) para control de descongelamiento en neveras. Disponibles en configuración Asiatic, Koreano, Metálico y Ajustable.`,
+    costoCompra: 3.35384615,
+    images: [
+      "productos/TIM010.webp",
+      "productos/TIM011.webp",
+      "productos/TIM016.webp",
+      "productos/TIM028.webp",
+      "productos/TIM028-2.webp",
+      "productos/TIM-AJUSTABLE.webp",
+      "productos/TIM-ASIATIC.webp",
+      "productos/TIM-KOREANO.webp",
+      "productos/TIM-METALICO.webp",
+      "productos/TIM-RECARGABLE.webp"
+    ],
+    specs: { "Tipo": "Timer Defrost", "Aplicación": "Refrigeración Doméstica" },
+    variants: [
+      // --- TIPO ASIATIC ---
+      { id: "TIM019", name: "Asiatic 10H-21M TMDGY35RB9", costoCompra: 7.95384615 },
+      { id: "TIM011", name: "Asiatic 10H-21M TMDJX21RB9", costoCompra: 5.33076923 },
+      { id: "TIM012", name: "Asiatic 10H-35M TMDJX35RB9", costoCompra: 9.94615385 },
+      { id: "TIM013", name: "Asiatic 8H-21M Sankyo Negro", costoCompra: 5.30000000 },
+      { id: "TIM027", name: "Asiatic 7H-30M TMDE625TA1", costoCompra: 3.10000000 },
+      { id: "TIM016", name: "Asiatic 6H-21M TMDJ621ZN9", costoCompra: 3.82307692 },
+      { id: "TIM023", name: "Asiatic 6H-25M TMDJ625ZQ9", costoCompra: 5.29230769 },
+      { id: "TIM003", name: "Asiatic 3x1 8H-21M TMDE807TD", costoCompra: 3.96923077 },
+      { id: "TIM007", name: "Asiatic 3x1 6H-25M DS-005", costoCompra: 3.96923077 },
+      { id: "TIM025", name: "Asiatic 3x1 6H-35M DS005-35", costoCompra: 3.35384615 },
+
+      // --- TIPO METÁLICO ---
+      { id: "TIM004", name: "Metálico 6H-21M DS-002 M830", costoCompra: 4.06153846 },
+      { id: "TIM005", name: "Metálico 8H-21M DTB-820MAX", costoCompra: 7.50000000 },
+      { id: "TIM026", name: "Metálico 8H-21M Degar", costoCompra: 9.94615385 },
+
+      // --- TIPO KOREANO ---
+      { id: "TIM008", name: "Koreano 6H-30M DS-006", costoCompra: 3.60000000 },
+      { id: "TIM024", name: "Koreano 12H-8M TD-20LVM SA", costoCompra: 3.96923077 },
+
+      // --- TIPO AJUSTABLE ---
+      { id: "TIM021", name: "Ajustable 4-6-8-10-12H Mabe", costoCompra: 5.35384615 },
+      { id: "TIM020", name: "Ajustable 6-8-12H ISYN 220V", costoCompra: 5.96153846 },
+
+      // --- MARCAS ESPECÍFICAS (MABE / HAIER) ---
+      { id: "TIM010", name: "Peq Mabe/Haier 4321 DBYC100", costoCompra: 3.35384615 },
+      { id: "TIM028", name: "Haier Negro 8H-21MIN", costoCompra: 4.00000000 }
+    ]
+  },,
     {
         id: "RTK-GE-VARIANTE",
         name: "Kit de Relay y Capacitor para Nevera G.E.",
@@ -259,7 +309,11 @@ const products = [
             { id: "TRM020", name: "RC-12473-8 (Puerta Sin Escarcha)", costoCompra: 5.90000000 },
             { id: "TRM021", name: "WPF27-7AL 125/250V (Congelador)", costoCompra: 2.79230769 },
             { id: "TRM022", name: "TSV0001-48 Robertshaw", costoCompra: 8.03846154 },
-            { id: "TRM023", name: "RFR-4000-4K (Cong. Horizontal)", costoCompra: 4.37692308 }
+            { id: "TRM023", name: "RFR-4000-4K (Cong. Horizontal)", costoCompra: 4.37692308 },
+            { id: "TRM001", name: "P1125 (Nev/Vitri/Exh)", costoCompra: 3.31538462 },
+            { id: "TRM002", name: "P1126 (Cong/Freezer)", costoCompra: 3.30769231 },
+            { id: "TRM003", name: "P1127 (Nev/Filtro Agua)", costoCompra: 3.30769231 },
+            { id: "TRM008", name: "P1133 (Nevera 1 Puerta)", costoCompra: 2.65384615 },
         ]
     },
     {
