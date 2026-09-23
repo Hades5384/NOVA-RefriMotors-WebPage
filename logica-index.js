@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 849.56; 
+const TASA_BCV = 853.50; 
 const NUMERO_WHATSAPP = "584246192394"; 
 const PORCENTAJE_UTILIDAD = 1.30; 
 const PORCENTAJE_IVA = 1.16; 
@@ -200,6 +200,273 @@ const products = [
     // ============================================================== //
     // ============================================================== //
     
+    {
+        id: "RTK-GE-VARIANTE",
+        name: "Kit de Relay y Capacitor para Nevera G.E.",
+        category: "Protectores",
+        model: "Varios Modelos",
+        desc: `<b>Kit de Relay y Capacitor Original G.E.</b><br><br>Conjunto de relé de arranque y capacitor de trabajo, diseñado para reemplazo directo en compresores de neveras General Electric.`,
+        costoCompra: 3.43846154,
+        images: ["productos/RTK003.webp", "productos/RTK011.webp"],
+        specs: { "Marca": "General Electric", "Tipo": "Kit de Arranque", "Uso": "Neveras G.E." },
+        variants: [
+            { id: "RTK003", name: "Modelo: WR07X10131", costoCompra: 3.43846154 },
+            { id: "RTK011", name: "Modelo: WR09X10107", costoCompra: 3.63076923 }
+        ]
+    },
+    {
+        id: "SAS007",
+        name: "Sensor para Nevera Samsung DA32-00006W",
+        category: "Protectores",
+        model: "DA32-00006W",
+        desc: `<b>Sensor para Nevera Samsung DA32-00006W (Cable Amarillo)</b><br><br>Termistor original de reemplazo para el control de temperatura en refrigeradores Samsung.`,
+        costoCompra: 1.65384615,
+        images: ["productos/SAS007.png"],
+        specs: { "Marca": "Samsung", "Tipo": "Sensor Termistor", "Color de Cable": "Amarillo" }
+    },
+    {
+        id: "SAS016",
+        name: "Sensor para Nevera Frigidaire / Electrolux",
+        category: "Protectores",
+        model: "Frigidaire/Electrolux",
+        desc: `<b>Sensor Termistor para Nevera Frigidaire y Electrolux</b><br><br>Sensor de temperatura de alta precisión, compatible con diversos modelos de neveras Frigidaire y Electrolux.`,
+        costoCompra: 2.14615385,
+        images: ["productos/SAS016.png"],
+        specs: { "Marca": "Frigidaire / Electrolux", "Tipo": "Sensor Termistor" }
+    },
+    {
+        id: "TRM-NEVERA-VARIANTE",
+        name: "Termostatos para Neveras y Congeladores",
+        category: "Neveras / Cavas",
+        model: "Varios Modelos",
+        desc: `<b>Termostatos de Repuesto para Neveras y Congeladores</b><br><br>Controles de temperatura mecánicos con capilar para diferentes aplicaciones (neveras de 1 o 2 puertas, vitrinas, congeladores horizontales). Seleccione el modelo específico.`,
+        costoCompra: 4.63846154,
+        images: [
+            "productos/TRM013.png",
+            "productos/TRM014.png",
+            "productos/TRM018-019.png",
+            "productos/TRM020.png",
+            "productos/TRM021.png",
+            "productos/TRM022.png",
+            "productos/TRM023.png"
+        ],
+        specs: { "Tipo": "Termostato Mecánico", "Aplicación": "Refrigeración Doméstica / Comercial" },
+        variants: [
+            { id: "TRM013", name: "Degar P1126 (Nevera/Vitrina)", costoCompra: 4.63846154 },
+            { id: "TRM014", name: "Degar P1127 (Nevera/Vitrina)", costoCompra: 4.63846154 },
+            { id: "TRM018", name: "K50P-1127-001 (+1.5C° a +5C°)", costoCompra: 6.06923077 },
+            { id: "TRM019", name: "K50P-1126-001 (-24.5C° a -18C°)", costoCompra: 6.03846154 },
+            { id: "TRM020", name: "RC-12473-8 (Puerta Sin Escarcha)", costoCompra: 5.90000000 },
+            { id: "TRM021", name: "WPF27-7AL 125/250V (Congelador)", costoCompra: 2.79230769 },
+            { id: "TRM022", name: "TSV0001-48 Robertshaw", costoCompra: 8.03846154 },
+            { id: "TRM023", name: "RFR-4000-4K (Cong. Horizontal)", costoCompra: 4.37692308 }
+        ]
+    },
+    {
+        id: "TIM-UNIVERSAL-VARIANTE",
+        name: "Reloj de Descongelación Universal para Nevera",
+        category: "Neveras / Cavas",
+        model: "Universal",
+        desc: `<b>Reloj Temporizador Universal (Timer)</b><br><br>Reloj de descongelación electromecánico para refrigeradores. Disponible en ciclos de trabajo de 6 o 8 horas, con 21 minutos de deshielo.`,
+        costoCompra: 3.15384615,
+        images: ["productos/TIM001-002.webp"],
+        specs: { "Tipo": "Temporizador de Deshielo", "Uso": "Universal", "Deshielo": "21 Minutos" },
+        variants: [
+            { id: "TIM002", name: "Ciclo: 8 Horas (Económico)", costoCompra: 3.15384615 },
+            { id: "TIM001", name: "Ciclo: 6 Horas (DS-004)", costoCompra: 3.20000000 }
+        ]
+    },
+    {
+        id: "MCP001",
+        name: "Medidor Capilar Americano de Precisión",
+        category: "Herramientas",
+        model: "Americano",
+        desc: `<b>Regla Medidora de Tubo Capilar (Americana)</b><br><br>Herramienta de medición de alta precisión para determinar el diámetro interno de tubos capilares en sistemas de refrigeración. Indispensable para técnicos profesionales.`,
+        costoCompra: 72.93846154,
+        images: ["productos/MCP001.webp"],
+        specs: { "Tipo": "Medidor de Diámetro Interno", "Origen": "Americano", "Uso": "Tubo Capilar" }
+    },
+    {
+        id: "REM-VARIANTE", 
+        name: "Resistencia de Metal para Nevera", 
+        category: "Neveras / Cavas", 
+        model: "Varias Medidas",
+        desc: `<b>Resistencia de Metal de Descongelación</b><br><br>Resistencia calefactora tubular metálica de repuesto, encargada de derretir la escarcha en el evaporador de las neveras No Frost. Seleccione la longitud adecuada para su equipo.`,
+        costoCompra: 3.31538462, // Costo base (33 CM)
+        images: ["productos/RESISTENCIAS_METALICAS.webp"],
+        specs: { "Tipo": "Tubular Metálica", "Uso": "Sistema de Deshielo", "Compatibilidad": "Neveras No Frost" },
+        variants: [
+            { id: "REM010", name: "Medida: 33 CM", costoCompra: 3.31538462 },
+            { id: "REM004", name: "Medida: 35 CM", costoCompra: 1.97692308 },
+            { id: "REM012", name: "Medida: 36 CM", costoCompra: 2.88461538 },
+            { id: "REM005", name: "Medida: 38 CM", costoCompra: 3.97692308 },
+            { id: "REM007", name: "Medida: 41 CM", costoCompra: 3.30769231 },
+            { id: "REM015", name: "Medida: 43 CM", costoCompra: 3.18461538 },
+            { id: "REM008", name: "Medida: 45 CM", costoCompra: 3.23076923 },
+            { id: "REM011", name: "Medida: 46 CM", costoCompra: 3.46153846 },
+            { id: "REM001", name: "Medida: 47 CM", costoCompra: 3.25384615 },
+            { id: "REM009", name: "Medida: 52 CM", costoCompra: 4.46153846 },
+            { id: "REM014", name: "Medida: 53 CM", costoCompra: 4.49230769 },
+            { id: "REM006", name: "Medida: 56 CM", costoCompra: 3.90000000 },
+            { id: "REM003", name: "Medida: 65 CM", costoCompra: 6.50000000 },
+            { id: "REM013", name: "Medida: 66 CM", costoCompra: 5.00000000 },
+            { id: "REM100", name: "Medida: 87x7x87 CM (Doble)", costoCompra: 46.42307692 }
+        ]
+    },
+    {
+        id: "RES-VIDRIO-VARIANTE", 
+        name: "Resistencia de Vidrio para Nevera", 
+        category: "Neveras / Cavas", 
+        model: "Varias Medidas",
+        desc: `<b>Resistencia de Vidrio de Descongelación</b><br><br>Resistencia de cuarzo/vidrio para sistemas de descongelación de refrigeradores. Alta transferencia térmica. Seleccione la longitud en pulgadas o centímetros según el modelo de su nevera.`,
+        costoCompra: 1.65384615, // Costo base (10")
+        images: ["productos/RESISTENCIAS_DE_VIDRIO.webp"],
+        specs: { "Tipo": "Tubo de Vidrio/Cuarzo", "Uso": "Sistema de Deshielo", "Compatibilidad": "Neveras No Frost" },
+        variants: [
+            { id: "RES001", name: "Medida: 8\" (20.32 CM)", costoCompra: 3.51538462 },
+            { id: "RES002", name: "Medida: 9\" (22.86 CM)", costoCompra: 1.65384615 },
+            { id: "RES003", name: "Medida: 10\" (26 CM)", costoCompra: 1.65384615 },
+            { id: "RES013", name: "Medida: 10-5/8\" (276)", costoCompra: 3.56153846 },
+            { id: "RES014", name: "Medida: 11\" (27.94 CM)", costoCompra: 2.16153846 },
+            { id: "RES004", name: "Medida: 12\" (30 CM)", costoCompra: 2.31538462 },
+            { id: "RES005", name: "Medida: 14\" (36 CM)", costoCompra: 1.86153846 },
+            { id: "RES006", name: "Medida: 16\" (40.6 CM)", costoCompra: 3.07692308 },
+            { id: "RES007", name: "Medida: 18\" (46 CM)", costoCompra: 2.31538462 },
+            { id: "RES009", name: "Medida: 21-3/16\" (55 CM)", costoCompra: 3.97692308 },
+            { id: "RES010", name: "Medida: 21-5/8\" (263)", costoCompra: 4.45384615 },
+            { id: "RES012", name: "Medida: 22-13/16\" (60 CM)", costoCompra: 3.49230769 }
+        ]
+    },
+    {
+        id: "BIM-UNIVERSAL-VAR", 
+        name: "Bimetal para Nevera Universal (Serie L)", 
+        category: "Protectores", 
+        model: "Serie L (L45 a L70)",
+        desc: `<b>Bimetal Universal para Descongelación</b><br><br>Termostato bimetálico de reemplazo universal para sistemas de deshielo en neveras No Frost. Protege el evaporador controlando el encendido de la resistencia. Seleccione la medida.`,
+        costoCompra: 1.32307692, // Costo base (L45)
+        images: ["productos/BIMETALES_L.webp"],
+        specs: { "Tipo": "Universal (Serie L)", "Uso": "Sistema de Deshielo", "Cables": "2 Cables" },
+        variants: [
+            { id: "BIM002", name: "Modelo L45 (20F)", costoCompra: 1.32307692 },
+            { id: "BIM003", name: "Modelo L50 (20F)", costoCompra: 1.32307692 },
+            { id: "BIM004", name: "Modelo L55 (20F/35F)", costoCompra: 1.32307692 },
+            { id: "BIM005", name: "Modelo L60", costoCompra: 1.32307692 },
+            { id: "BIM006", name: "Modelo L70 (40F)", costoCompra: 1.31538462 }
+        ]
+    },
+    {
+        id: "BIM-SAMSUNG-VAR", 
+        name: "Bimetal / Termofusible para Nevera Samsung", 
+        category: "Protectores", 
+        model: "Serie N",
+        desc: `<b>Bimetal y Termofusible para Nevera Samsung</b><br><br>Repuestos específicos para sistemas de descongelación de refrigeradores Samsung. Disponibles en variantes de 2 o 3 cables con conectores originales.`,
+        costoCompra: 1.97692308, 
+        images: [
+            "productos/BIM009.webp",
+            "productos/BIM010.webp",
+            "productos/BIM012.webp",
+            "productos/BIM013.webp",
+            "productos/BIM029.webp",
+            "productos/BIM034.webp"
+        ],
+        specs: { "Marca": "Samsung", "Tipo": "Bimetal de Deshielo", "Conexión": "Conectores Específicos" },
+        variants: [
+            { id: "BIM013", name: "Samsung N13-4 (TH-B2-004)", costoCompra: 0.79230769 },
+            { id: "BIM012", name: "Samsung N8 (2 Cables) Conector 6192", costoCompra: 0.93076923 },
+            { id: "BIM034", name: "Samsung N13 (3 Cables) C/Sensor", costoCompra: 1.26153846 },
+            { id: "BIM010", name: "Samsung N9 (2 Cables) Conector 3003", costoCompra: 1.97692308 },
+            { id: "BIM029", name: "Samsung N13-4 (2 Cables Naranja)", costoCompra: 1.97692308 },
+            { id: "BIM009", name: "Samsung N13 (2 Cables)", costoCompra: 2.84615385 }
+        ]
+    },
+    {
+        id: "BIM-LG-VAR", 
+        name: "Bimetal / Termofusible para Nevera LG", 
+        category: "Protectores", 
+        model: "Varios Modelos",
+        desc: `<b>Bimetal y Termofusible para Nevera LG</b><br><br>Sensores bimetálicos y fusibles térmicos diseñados para encajar en el cableado original de neveras LG.`,
+        costoCompra: 1.97692308, 
+        images: [
+            "productos/BIM008.webp",
+            "productos/BIM016.webp",
+            "productos/BIM017.webp",
+            "productos/BIM020.webp"
+        ],
+        specs: { "Marca": "LG", "Tipo": "Bimetal / Fusible", "Uso": "Deshielo Evaporador" },
+        variants: [
+            { id: "BIM016", name: "Fusible Térmico LG (2 Cables Roj/Ama)", costoCompra: 0.46923077 },
+            { id: "BIM008", name: "Bimetal LG N8 (3 Cables 3002)", costoCompra: 1.97692308 },
+            { id: "BIM017", name: "Bimetal LG (4 Cables C/Fusible/Sensor)", costoCompra: 2.33846154 },
+            { id: "BIM020", name: "Bimetal LG N13-4 (4 Cables Azul)", costoCompra: 3.31538462 }
+        ]
+    },
+    {
+        id: "BIM-MABE-VAR", 
+        name: "Bimetal de Repuesto para Nevera Mabe / G.E.", 
+        category: "Protectores", 
+        model: "Varios Modelos",
+        desc: `<b>Bimetal de Repuesto para Nevera Mabe</b><br><br>Componente de seguridad térmica para sistemas No Frost en neveras Mabe y General Electric.`,
+        costoCompra: 1.98461538, 
+        images: [
+            "productos/BIM024.webp",
+            "productos/BIM025.webp",
+            "productos/BIM037.webp"
+        ],
+        specs: { "Marca": "Mabe / G.E.", "Tipo": "Bimetal de Deshielo" },
+        variants: [
+            { id: "BIM037", name: "Mabe Marrón KSD301B L15", costoCompra: 1.22307692 },
+            { id: "BIM024", name: "Mabe Negro 238C2208P002 (Open 18C)", costoCompra: 1.98461538 },
+            { id: "BIM025", name: "Mabe Negro KDS 8003 L55", costoCompra: 1.98461538 }
+        ]
+    },
+    {
+        id: "BIM-OTROS-VAR", 
+        name: "Bimetales y Fusibles Especiales (Whirlpool, Haier, Asiática)", 
+        category: "Protectores", 
+        model: "Especiales",
+        desc: `<b>Bimetales y Termofusibles Específicos</b><br><br>Gama de bimetales de deshielo y termofusibles para neveras Whirlpool, Haier, y marcas de fabricación asiática. Seleccione el repuesto que corresponda a su unidad.`,
+        costoCompra: 1.79230769, 
+        images: [
+            "productos/BIM015.webp",
+            "productos/BIM030.webp",
+            "productos/BIM031.webp",
+            "productos/BIM032.webp",
+            "productos/BIM033.webp"
+        ],
+        specs: { "Uso": "Sistema de Deshielo", "Compatibilidad": "Multimarca Específica" },
+        variants: [
+            { id: "BIM030", name: "Fusible C/Conector (2 Cables Rojos)", costoCompra: 0.60769231 },
+            { id: "BIM015", name: "Bimetal N12-5 (3 Cables Doble Conector)", costoCompra: 1.36153846 },
+            { id: "BIM031", name: "Whirlpool B-261N 20T80K K-1", costoCompra: 1.79230769 },
+            { id: "BIM032", name: "Fusible Haier HRF6 (0060401909C)", costoCompra: 2.31538462 },
+            { id: "BIM033", name: "Bimetal C/Termofusible Asiática (Forma H)", costoCompra: 3.19230769 }
+        ]
+    },
+    {
+        id: "CRU-MABE-VAR", 
+        name: "Tarjeta de Control para Nevera Mabe", 
+        category: "Neveras / Cavas", 
+        model: "Serie 225D7291",
+        desc: `<b>Tarjeta de Control Principal Nevera Mabe</b><br><br>Placa electrónica PCB de repuesto para controlar los ciclos de enfriamiento y descongelación en neveras digitales Mabe.`,
+        costoCompra: 12.43076923, 
+        images: ["productos/CRU100-102.webp"],
+        specs: { "Marca": "Mabe", "Tipo": "Tarjeta de Control PCB", "Voltaje": "115V" },
+        variants: [
+            { id: "CRU100", name: "Mabe 225D7291G003", costoCompra: 12.43076923 },
+            { id: "CRU101", name: "Mabe 225D7291G004", costoCompra: 12.43076923 },
+            { id: "CRU102", name: "Mabe 225D7291G005", costoCompra: 12.43076923 }
+        ]
+    },
+    {
+        id: "SAS012", 
+        name: "Sensor para Nevera Cable Azul Largo Samsung", 
+        category: "Protectores", 
+        model: "Samsung Cable Largo",
+        desc: `<b>Sensor para Nevera Samsung Cable Azul Largo</b><br><br>Sensor de temperatura tipo termistor con cable extendido azul, diseñado específicamente para la lectura precisa del frío en neveras Samsung.`,
+        costoCompra: 1.65384615, 
+        images: ["productos/SAS012.webp"],
+        specs: { "Marca": "Samsung", "Tipo": "Sensor Termistor", "Cable": "Azul (Largo)" }
+    },
     {
         id: "REL-NEGRO-VAR", 
         name: "Relay Negro Universal para Nevera 115V", 
