@@ -3669,134 +3669,268 @@ function toggleCart() {
     document.getElementById('cartModal').classList.toggle('active');
 }
 
+// ==========================================
+// PRE-CARGA del logo de factura para Canvas 2D
+// (Evita dependencia de html2canvas en iOS Safari)
+// ==========================================
+let _invoiceLogoImg = null;
+(function () {
+    const img = new Image();
+    img.onload = function () { _invoiceLogoImg = img; };
+    img.onerror = function () { console.warn('No se pudo pre-cargar nova-factura.png'); };
+    img.src = 'nova-factura.png';
+})();
+
+// ==========================================
+// GENERADOR DE FACTURA — Canvas 2D Nativo
+// (100% compatible: Chrome, Firefox, Safari, iOS)
+// ==========================================
 async function generateAndCopyInvoice() {
     if (cart.length === 0) {
         alert("Agrega al menos un repuesto para generar la factura.");
         return;
     }
 
+    // --- Datos del cliente ---
     const clientName = document.getElementById('customerName').value.trim() || 'Cliente No Registrado';
     const clientRif = document.getElementById('customerRif').value.trim() || 'J-000000000';
     const clientPhone = document.getElementById('customerPhone').value.trim() || 'No especificado';
     const method = document.getElementById('paymentMethod').value;
 
-    // Configurar Fecha y Hora
+    // --- Fecha y Hora ---
     const now = new Date();
     const fecha = now.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const hora = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Llenar Datos Generales
-    document.getElementById('inv-nombre').innerText = clientName;
-    document.getElementById('inv-rif').innerText = clientRif;
-    document.getElementById('inv-telefono').innerText = clientPhone;
-    document.getElementById('inv-fecha').innerText = fecha;
-    document.getElementById('inv-hora').innerText = hora;
-
-    // Llenar Items
-    const itemsContainer = document.getElementById('inv-items');
-    itemsContainer.innerHTML = '';
-
+    // --- Moneda ---
     const isUSD = method === 'EFECTIVO_USD' || method === 'OTRAS FORMAS DE PAGO';
     const currencySymbol = isUSD ? '$' : 'Bs. ';
-
-    let totalFactura = 0;
-    let totalItems = 0;
-
-    cart.forEach(item => {
-        const preciosItem = calcularPrecios(item.costoCompra);
-        let itemPrice = isUSD ? preciosItem.novaClientesUSD : (preciosItem.novaClientesUSD * TASA_BCV);
-
-        const lineTotal = itemPrice * item.quantity;
-        totalFactura += lineTotal;
-        totalItems += item.quantity;
-
-        itemsContainer.innerHTML += `
-            <div class="invoice-item">
-                <div class="invoice-item-name">${item.quantity}x [${item.id}] ${item.name}</div>
-                <div class="invoice-item-price">${currencySymbol}${lineTotal.toFixed(2)}</div>
-            </div>
-        `;
-    });
-
-    // Llenar Totales y Métodos de pago dinámicamente
-    const totalsContainer = document.getElementById('inv-totals-container');
     let methodNameDisplay = method;
     if (method === 'EFECTIVO_USD') methodNameDisplay = 'EFECTIVO USD';
     if (method === 'EFECTIVO_BS') methodNameDisplay = 'EFECTIVO BS';
     if (method === 'OTRAS FORMAS DE PAGO') methodNameDisplay = 'OTRAS FORMAS DE PAGO';
 
-    totalsContainer.innerHTML = `
-        <div>TOTAL <span style="float:right;">${currencySymbol}${totalFactura.toFixed(2)}</span></div>
-        <div>${methodNameDisplay} <span style="float:right;">${currencySymbol}${totalFactura.toFixed(2)}</span></div>
-        <div style="margin-top: 5px;">TOTAL PRODUCTOS VENDIDOS: <span style="float:right;">${totalItems}</span></div>
-    `;
+    // --- Preparar ítems ---
+    let totalFactura = 0;
+    let totalItems = 0;
+    const items = [];
+    cart.forEach(item => {
+        const preciosItem = calcularPrecios(item.costoCompra);
+        const itemPrice = isUSD ? preciosItem.novaClientesUSD : (preciosItem.novaClientesUSD * TASA_BCV);
+        const lineTotal = itemPrice * item.quantity;
+        totalFactura += lineTotal;
+        totalItems += item.quantity;
+        items.push({
+            text: `${item.quantity}x [${item.id}] ${item.name}`,
+            price: `${currencySymbol}${lineTotal.toFixed(2)}`
+        });
+    });
 
-    // Generar Imagen con html2canvas
+    // --- Control del botón ---
     const btn = document.querySelector('.invoice-btn');
-    if (btn.innerText === "Generando...") return; // Evitar múltiples clics
+    if (btn.dataset.generating === 'true') return; // Evitar múltiples clics
     const originalBtnText = btn.innerText;
 
     try {
         btn.innerText = "Generando...";
+        btn.dataset.generating = 'true';
+        // Ceder el hilo para que la UI actualice el texto del botón
         await new Promise(r => setTimeout(r, 50));
 
-        // TRUCO PARA iOS SAFARI: Safari bloquea el renderizado de imágenes y CSS si el elemento está completamente
-        // fuera del viewport (left: -9999px). Lo movemos temporalmente a la pantalla, haciéndolo invisible.
-        const invoiceWrapper = document.getElementById('invoice-wrapper');
-        const originalStyle = invoiceWrapper.style.cssText;
-        invoiceWrapper.style.cssText = "position: fixed; left: 0; top: 0; opacity: 0.01; z-index: -9999; pointer-events: none;";
-        
-        // Esperar un instante para que Safari recalcule los estilos
-        await new Promise(r => setTimeout(r, 100));
+        // ============================================
+        // RENDERIZADO NATIVO CON CANVAS 2D API
+        // ============================================
+        const SCALE = 2;
+        const WIDTH = 320 * SCALE;
+        const PAD = 20 * SCALE;
+        const CONTENT_W = WIDTH - PAD * 2;
+        const FONT_SIZE = 11 * SCALE;
+        const SMALL_FONT_SIZE = 10 * SCALE;
+        const LINE_H = Math.round(FONT_SIZE * 1.5);
+        const FONT = FONT_SIZE + "px 'Courier New', Courier, monospace";
+        const FONT_BOLD = "bold " + FONT_SIZE + "px 'Courier New', Courier, monospace";
+        const FONT_SMALL = SMALL_FONT_SIZE + "px 'Courier New', Courier, monospace";
 
-        let canvas;
-        try {
-            canvas = await Promise.race([
-                html2canvas(document.getElementById('invoice-container'), {
-                    scale: 2,
-                    backgroundColor: "#ffffff",
-                    useCORS: true,
-                    allowTaint: false,
-                    logging: false
-                }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al renderizar (html2canvas)")), 8000))
-            ]);
-        } finally {
-            // Restaurar siempre su posición original, incluso si falla
-            invoiceWrapper.style.cssText = originalStyle;
+        // Helper: word-wrap de texto para Canvas
+        function wrapText(ctx, text, maxWidth) {
+            const lines = [];
+            let currentLine = '';
+            for (let i = 0; i < text.length; i++) {
+                const testLine = currentLine + text[i];
+                if (ctx.measureText(testLine).width > maxWidth && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = text[i];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+            return lines;
         }
 
-        let imgUrl;
-        try {
-            imgUrl = canvas.toDataURL("image/png");
-        } catch (taintError) {
-            throw new Error("El canvas se ha contaminado (tainted). Error: " + taintError.message);
+        // Helper: dibujar línea punteada (divisor de factura)
+        function drawDashedDivider(ctx, y) {
+            ctx.save();
+            ctx.setLineDash([4 * SCALE, 3 * SCALE]);
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1 * SCALE;
+            ctx.beginPath();
+            ctx.moveTo(PAD, y);
+            ctx.lineTo(WIDTH - PAD, y);
+            ctx.stroke();
+            ctx.restore();
         }
 
-        // Convertir sincrónicamente usando fetch para evitar fallos del callback de toBlob en Safari
-        const res = await fetch(imgUrl);
-        const blob = await res.blob();
+        // --- Pre-calcular alturas de ítems para determinar alto total del canvas ---
+        const measureCanvas = document.createElement('canvas');
+        measureCanvas.width = 1;
+        measureCanvas.height = 1;
+        const measureCtx = measureCanvas.getContext('2d');
+        measureCtx.font = FONT;
+
+        const ITEM_NAME_W = Math.round(CONTENT_W * 0.65);
+        const itemsLayout = items.map(item => {
+            const nameLines = wrapText(measureCtx, item.text, ITEM_NAME_W);
+            return { nameLines, price: item.price, height: Math.max(nameLines.length, 1) * LINE_H + 4 * SCALE };
+        });
+        const totalItemsHeight = itemsLayout.reduce((sum, it) => sum + it.height, 0);
+
+        // --- Calcular alto total ---
+        let totalHeight = PAD; // padding superior
+        // Logo
+        let logoDrawH = 0;
+        if (_invoiceLogoImg) {
+            const logoScale = CONTENT_W / _invoiceLogoImg.naturalWidth;
+            logoDrawH = Math.round(_invoiceLogoImg.naturalHeight * logoScale);
+            totalHeight += logoDrawH + 10 * SCALE;
+        }
+        totalHeight += LINE_H * 3;           // info cliente (3 líneas)
+        totalHeight += 5 * SCALE;            // espacio
+        totalHeight += LINE_H;              // fecha/hora
+        totalHeight += 5 * SCALE;            // espacio
+        totalHeight += 16 * SCALE;           // divisor (margen arriba + abajo)
+        totalHeight += totalItemsHeight;     // ítems
+        totalHeight += 10 * SCALE;           // margen inferior ítems
+        totalHeight += 16 * SCALE;           // divisor
+        totalHeight += LINE_H * 3 + 5 * SCALE; // totales
+        totalHeight += 30 * SCALE;           // margen footer
+        totalHeight += LINE_H * 2;           // footer (2 líneas)
+        totalHeight += PAD;                  // padding inferior
+
+        // --- Crear Canvas ---
+        const canvas = document.createElement('canvas');
+        canvas.width = WIDTH;
+        canvas.height = totalHeight;
+        const ctx = canvas.getContext('2d');
+
+        // Fondo blanco
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, WIDTH, totalHeight);
+
+        // Configuración de texto
+        ctx.fillStyle = '#000000';
+        ctx.textBaseline = 'top';
+        let curY = PAD;
+
+        // === LOGO ===
+        if (_invoiceLogoImg) {
+            ctx.drawImage(_invoiceLogoImg, PAD, curY, CONTENT_W, logoDrawH);
+            curY += logoDrawH + 10 * SCALE;
+        }
+
+        // === INFO CLIENTE ===
+        ctx.font = FONT;
+        ctx.fillText('NOMBRE: ' + clientName, PAD, curY);
+        curY += LINE_H;
+        ctx.fillText('RIF: ' + clientRif, PAD, curY);
+        curY += LINE_H;
+        ctx.fillText('TELÉFONO: ' + clientPhone, PAD, curY);
+        curY += LINE_H + 5 * SCALE;
+
+        // === FECHA / HORA ===
+        ctx.fillText('FECHA: ' + fecha + '   HORA: ' + hora, PAD, curY);
+        curY += LINE_H + 5 * SCALE;
+
+        // === DIVISOR ===
+        curY += 8 * SCALE;
+        drawDashedDivider(ctx, curY);
+        curY += 8 * SCALE;
+
+        // === ÍTEMS ===
+        ctx.font = FONT;
+        itemsLayout.forEach(item => {
+            // Nombre (multilínea si es necesario)
+            item.nameLines.forEach((line, lineIdx) => {
+                ctx.fillText(line, PAD, curY + lineIdx * LINE_H);
+            });
+            // Precio (alineado a la derecha, primera línea)
+            const priceW = ctx.measureText(item.price).width;
+            ctx.fillText(item.price, WIDTH - PAD - priceW, curY);
+            curY += item.height;
+        });
+        curY += 10 * SCALE;
+
+        // === DIVISOR ===
+        curY += 8 * SCALE;
+        drawDashedDivider(ctx, curY);
+        curY += 8 * SCALE;
+
+        // === TOTALES (negrita) ===
+        ctx.font = FONT_BOLD;
+        const totalVal = currencySymbol + totalFactura.toFixed(2);
+        ctx.fillText('TOTAL', PAD, curY);
+        ctx.fillText(totalVal, WIDTH - PAD - ctx.measureText(totalVal).width, curY);
+        curY += LINE_H;
+
+        const methodVal = currencySymbol + totalFactura.toFixed(2);
+        ctx.fillText(methodNameDisplay, PAD, curY);
+        ctx.fillText(methodVal, WIDTH - PAD - ctx.measureText(methodVal).width, curY);
+        curY += LINE_H + 5 * SCALE;
+
+        const prodVal = '' + totalItems;
+        ctx.fillText('TOTAL PRODUCTOS VENDIDOS:', PAD, curY);
+        ctx.fillText(prodVal, WIDTH - PAD - ctx.measureText(prodVal).width, curY);
+        curY += LINE_H;
+
+        // === FOOTER ===
+        curY += 30 * SCALE;
+        ctx.font = FONT_SMALL;
+        const footer1 = '*** CONSERVE SU RECIBO PARA CUALQUIER RECLAMO ***';
+        const footer2 = '**** LAS PIEZAS ELECTRICAS NO TIENEN GARANTIA ****';
+        ctx.fillText(footer1, PAD + (CONTENT_W - ctx.measureText(footer1).width) / 2, curY);
+        curY += LINE_H;
+        ctx.fillText(footer2, PAD + (CONTENT_W - ctx.measureText(footer2).width) / 2, curY);
+
+        // ============================================
+        // EXPORTAR Y COPIAR AL PORTAPAPELES
+        // ============================================
+        const imgUrl = canvas.toDataURL('image/png');
 
         try {
-            // API Moderna
-            const item = new ClipboardItem({ "image/png": blob });
-            await navigator.clipboard.write([item]);
+            // Intentar la API moderna del portapapeles (funciona en Chrome, Edge, Firefox desktop)
+            const fetchRes = await fetch(imgUrl);
+            const blob = await fetchRes.blob();
+            const clipItem = new ClipboardItem({ "image/png": blob });
+            await navigator.clipboard.write([clipItem]);
             alert("¡Factura copiada al portapapeles! Ya puedes pegarla en WhatsApp.");
         } catch (clipboardErr) {
-            // Safari bloquea la escritura asíncrona. Fallback al modal nativo.
+            // Fallback para iOS Safari: mostrar modal para copiado manual (long-press en la imagen)
             mostrarModalFacturaMobile(imgUrl);
         }
+
     } catch (e) {
         console.error("Error al generar factura:", e);
-        // Si falló todo, intentamos mostrar solo el alert y asegurarnos de limpiar el texto
-        alert("Hubo un error al generar la factura. Verifica tu conexión o intenta desde otro navegador.");
+        alert("Hubo un error al generar la factura: " + e.message);
     } finally {
-        // Asegurar que el botón regrese a su estado original sí o sí
         btn.innerText = originalBtnText;
-        btn.disabled = false;
+        btn.dataset.generating = 'false';
     }
 }
 
+// ==========================================
+// MODAL FALLBACK para iOS Safari
+// (Long-press para copiar/compartir imagen)
+// ==========================================
 function mostrarModalFacturaMobile(imgUrl) {
     const existingModal = document.getElementById('invoice-mobile-modal');
     if (existingModal) existingModal.remove();
@@ -3805,9 +3939,9 @@ function mostrarModalFacturaMobile(imgUrl) {
         <div id="invoice-mobile-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; font-family: sans-serif;">
             <div style="background: white; padding: 20px; border-radius: 12px; text-align: center; max-width: 100%; max-height: 100%; display: flex; flex-direction: column;">
                 <p style="color:#333; margin-top:0; margin-bottom:15px; font-weight:bold; font-size: 16px;">
-                    Tu navegador requiere copiado manual.
+                    📋 Factura generada exitosamente.
                     <br/><br/>
-                    Mantén presionada la imagen abajo y selecciona <br/>"Copiar" o "Compartir".
+                    Mantén presionada la imagen y selecciona <br/>"Copiar" o "Compartir".
                 </p>
                 <div style="overflow-y: auto; flex-grow: 1; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px;">
                     <img src="${imgUrl}" style="width: 100%; height: auto; display: block;" alt="Factura Generada" />
