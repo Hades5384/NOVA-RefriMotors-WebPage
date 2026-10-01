@@ -148,8 +148,11 @@
                 <img src="whatsapp-icono.png" alt="Icono WhatsApp">
                 Enviar Pedido
             </button>
-            <button class="invoice-btn" onclick="generateAndCopyInvoice()">
+            <button class="invoice-btn" onclick="generateAndCopyInvoice()" style="margin-bottom: 10px;">
                 🧾 Copiar Factura como Imagen
+            </button>
+            <button class="invoice-preview-btn" onclick="previewInvoice()">
+                👁️ Vista Previa de la Factura
             </button>
         </div>
     </div>
@@ -213,6 +216,57 @@
                     *** CONSERVE SU RECIBO PARA CUALQUIER RECLAMO ***<br>
                     **** LAS PIEZAS ELECTRICAS NO TIENEN GARANTIA ****
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL DE AVISOS Y ALERTAS ATRACTIVAS
+    =========================================== -->
+    <div class="nova-alert-overlay" id="novaAlertModal" role="dialog" aria-modal="true" aria-hidden="true" onclick="closeNovaAlert(event)">
+        <div class="nova-alert-card" onclick="event.stopPropagation()">
+            <div class="nova-alert-icon warning" id="novaAlertIcon"></div>
+            <h3 class="nova-alert-title" id="novaAlertTitle">Aviso</h3>
+            <p class="nova-alert-message" id="novaAlertMessage">Mensaje informativo...</p>
+            <div class="nova-alert-actions">
+                <button class="nova-alert-btn" id="novaAlertConfirmBtn" onclick="closeNovaAlert()">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL DE VISTA PREVIA DE FACTURA DIGITAL
+    =========================================== -->
+    <div class="nova-preview-overlay" id="invoicePreviewModal" role="dialog" aria-modal="true" aria-hidden="true" onclick="closeInvoicePreview(event)">
+        <div class="nova-preview-card" onclick="event.stopPropagation()">
+            <div class="nova-preview-header">
+                <div class="nova-preview-title-group">
+                    <span class="nova-preview-badge">TICKET DIGITAL</span>
+                    <h3 class="nova-preview-title">Vista Previa de la Factura</h3>
+                </div>
+                <button class="nova-preview-close" onclick="closeInvoicePreview()" aria-label="Cerrar vista previa">✕</button>
+            </div>
+            
+            <div id="invoicePreviewNotice" class="nova-preview-tip">
+                💡 <strong>Vista previa lista:</strong> Revisa el detalle o usa los botones inferiores para copiar o descargar la factura.
+            </div>
+
+            <div class="nova-preview-body">
+                <div class="nova-preview-img-box">
+                    <img id="invoicePreviewImg" class="nova-preview-img" src="" alt="Factura Nova RefriMotors">
+                </div>
+            </div>
+
+            <div class="nova-preview-footer">
+                <button class="nova-preview-btn nova-preview-btn-copy" id="btnCopyFromPreview" onclick="copyInvoiceFromPreview()">
+                    📋 Copiar Imagen
+                </button>
+                <button class="nova-preview-btn nova-preview-btn-download" onclick="downloadInvoiceFromPreview()">
+                    📥 Descargar
+                </button>
+                <button class="nova-preview-btn nova-preview-btn-close" onclick="closeInvoicePreview()">
+                    Cerrar
+                </button>
             </div>
         </div>
     </div>
