@@ -3738,29 +3738,48 @@ async function generateAndCopyInvoice() {
 
     try {
         btn.innerText = "Generando...";
+        // Forzar actualización de UI
+        await new Promise(r => setTimeout(r, 50));
 
-        const canvas = await html2canvas(document.getElementById('invoice-container'), {
-            scale: 2, // Mejor resolución
-            backgroundColor: "#ffffff",
-            useCORS: true
-        });
+        // Promise wrapper con timeout de 8 segundos para html2canvas (evita cuelgues eternos en iOS)
+        const canvas = await Promise.race([
+            html2canvas(document.getElementById('invoice-container'), {
+                scale: 2,
+                backgroundColor: "#ffffff",
+                useCORS: true,
+                allowTaint: false
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al renderizar (html2canvas)")), 8000))
+        ]);
 
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) throw new Error("No se pudo generar el blob de la imagen");
+        let imgUrl;
+        try {
+            imgUrl = canvas.toDataURL("image/png");
+        } catch (taintError) {
+            throw new Error("El canvas se ha contaminado (tainted). Error: " + taintError.message);
+        }
+
+        // Convertir sincrónicamente usando fetch para evitar fallos del callback de toBlob en Safari
+        const res = await fetch(imgUrl);
+        const blob = await res.blob();
 
         try {
+            // API Moderna
             const item = new ClipboardItem({ "image/png": blob });
             await navigator.clipboard.write([item]);
             alert("¡Factura copiada al portapapeles! Ya puedes pegarla en WhatsApp.");
-        } catch (err) {
-            // Fallback para iOS/Safari o permisos denegados
-            mostrarModalFacturaMobile(canvas.toDataURL("image/png"));
+        } catch (clipboardErr) {
+            // Safari bloquea la escritura asíncrona. Fallback al modal nativo.
+            mostrarModalFacturaMobile(imgUrl);
         }
     } catch (e) {
-        alert("Hubo un error al generar la factura.");
-        console.error(e);
+        console.error("Error al generar factura:", e);
+        // Si falló todo, intentamos mostrar solo el alert y asegurarnos de limpiar el texto
+        alert("Hubo un error al generar la factura. Verifica tu conexión o intenta desde otro navegador.");
     } finally {
+        // Asegurar que el botón regrese a su estado original sí o sí
         btn.innerText = originalBtnText;
+        btn.disabled = false;
     }
 }
 
