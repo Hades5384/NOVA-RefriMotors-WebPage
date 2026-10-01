@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
 const TASA_BCV = 860.18;
@@ -3732,34 +3732,60 @@ async function generateAndCopyInvoice() {
     `;
 
     // Generar Imagen con html2canvas
+    const btn = document.querySelector('.invoice-btn');
+    if (btn.innerText === "Generando...") return; // Evitar múltiples clics
+    const originalBtnText = btn.innerText;
+
     try {
-        const originalBtnText = document.querySelector('.invoice-btn').innerText;
-        document.querySelector('.invoice-btn').innerText = "Generando...";
+        btn.innerText = "Generando...";
 
         const canvas = await html2canvas(document.getElementById('invoice-container'), {
             scale: 2, // Mejor resolución
-            backgroundColor: "#ffffff"
+            backgroundColor: "#ffffff",
+            useCORS: true
         });
 
-        canvas.toBlob(async function (blob) {
-            try {
-                const item = new ClipboardItem({ "image/png": blob });
-                await navigator.clipboard.write([item]);
-                alert("¡Factura copiada al portapapeles! Ya puedes pegarla en WhatsApp.");
-            } catch (err) {
-                alert("Tu navegador no soporta el copiado directo de imágenes o faltan permisos. Se abrirá la imagen en una pestaña nueva para que la descargues o copies.");
-                const imgUrl = canvas.toDataURL("image/png");
-                const newWin = window.open();
-                newWin.document.write('<img src="' + imgUrl + '"/>');
-            } finally {
-                document.querySelector('.invoice-btn').innerText = originalBtnText;
-            }
-        });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error("No se pudo generar el blob de la imagen");
+
+        try {
+            const item = new ClipboardItem({ "image/png": blob });
+            await navigator.clipboard.write([item]);
+            alert("¡Factura copiada al portapapeles! Ya puedes pegarla en WhatsApp.");
+        } catch (err) {
+            // Fallback para iOS/Safari o permisos denegados
+            mostrarModalFacturaMobile(canvas.toDataURL("image/png"));
+        }
     } catch (e) {
         alert("Hubo un error al generar la factura.");
         console.error(e);
-        document.querySelector('.invoice-btn').innerText = "🧾 Copiar Factura como Imagen";
+    } finally {
+        btn.innerText = originalBtnText;
     }
+}
+
+function mostrarModalFacturaMobile(imgUrl) {
+    const existingModal = document.getElementById('invoice-mobile-modal');
+    if (existingModal) existingModal.remove();
+
+    const modalHtml = `
+        <div id="invoice-mobile-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; font-family: sans-serif;">
+            <div style="background: white; padding: 20px; border-radius: 12px; text-align: center; max-width: 100%; max-height: 100%; display: flex; flex-direction: column;">
+                <p style="color:#333; margin-top:0; margin-bottom:15px; font-weight:bold; font-size: 16px;">
+                    Tu navegador requiere copiado manual.
+                    <br/><br/>
+                    Mantén presionada la imagen abajo y selecciona <br/>"Copiar" o "Compartir".
+                </p>
+                <div style="overflow-y: auto; flex-grow: 1; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px;">
+                    <img src="${imgUrl}" style="width: 100%; height: auto; display: block;" alt="Factura Generada" />
+                </div>
+                <button onclick="document.getElementById('invoice-mobile-modal').remove()" style="padding:15px; font-size:16px; font-weight:bold; background:#d9534f; color:white; border:none; border-radius:8px; cursor:pointer; width: 100%;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function sendWhatsApp() {
