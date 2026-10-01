@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo | NOVA RefriMotors</title>
+    <!-- Fuente moderna: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="estilos-index.css">
+    <link rel="icon" type="image/x-icon" href="nova_favicon.png">
+</head>
+<body>
+    <!-- BARRA DE ANUNCIO SUPERIOR -->
+    <div class="top-announcement-bar">
+        <span>🎉 <b>¡Promoción!</b> Por tu primera compra grande obtén el delivery gratis.</span>
+        <a href="https://wa.me/584246192394" target="_blank">¡Consulta al WhatsApp!</a>
+    </div>
+
+    <!-- ENCABEZADO Y BUSCADOR -->
+    <header>
+        <div class="logo-container">
+            <a href="carrusel.html" title="Ver Equipos Destacados">
+                <img src="nova-logo-color.png" alt="Logo Nova RefriMotors" style="transition: transform 0.3s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            </a>
+        </div>
+        
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Buscar repuestos, código o modelo..." onkeyup="resetPaginationAndFilter()">
+            </div>
+            <!-- WIDGET TASA BCV -->
+            <div class="bcv-widget">
+                Tasa BCV del Día: <span id="bcv-display">Bs. 771.00</span>
+            </div>
+        </div>
+        <button class="cart-btn" onclick="toggleCart()">🛒 Mi Pedido (<span id="cart-count">0</span>)</button>
+    </header>
+
+    <!-- CATEGORÍAS -->
+    <nav class="category-menu" id="categoryMenu">
+        <button class="cat-btn active" onclick="setCategory('Todos', this)">Todos</button>
+        <button class="cat-btn" onclick="setCategory('Aires Acondicionados', this)">Aires Acondicionados</button>
+        <button class="cat-btn" onclick="setCategory('Neveras / Cavas', this)">Neveras / Cavas</button>
+        <button class="cat-btn" onclick="setCategory('Refrigeración', this)">Refrigeración</button>
+        <button class="cat-btn" onclick="setCategory('Motores', this)">Motores</button>
+        <button class="cat-btn" onclick="setCategory('Protectores', this)">Protectores</button>
+        <button class="cat-btn" onclick="setCategory('Licuadoras', this)">Licuadoras</button>
+        <button class="cat-btn" onclick="setCategory('Lavadoras', this)">Lavadoras</button>
+        <button class="cat-btn" onclick="setCategory('Químicos', this)">Químicos</button>
+        <button class="cat-btn" onclick="setCategory('Capacitores', this)">Capacitores</button>
+        <button class="cat-btn" onclick="setCategory('Herramientas', this)">Herramientas</button>
+    </nav>
+
+
+    <!-- CONTENEDOR DE PRODUCTOS -->
+    <main class="products-grid" id="products-container"></main>
+
+    <!-- PAGINACIÓN -->
+    <div class="pagination" id="pagination-container"></div>
+
+    <!-- ==========================================
+         MODAL DE VISTA RÁPIDA (QUICK VIEW)
+    =========================================== -->
+    <div class="quick-view-overlay" id="quickViewModal" onclick="closeQuickView(event)">
+        <div class="quick-view-box" onclick="event.stopPropagation()">
+            <span class="close-qv" onclick="closeQuickView(event)">✖</span>
+            
+            <div class="qv-gallery">
+                <img id="qvMainImg" class="qv-main-img" src="" alt="Producto" onclick="openZoom()" title="Haz clic para ampliar">
+                <div class="qv-thumbnails" id="qvThumbnails"></div>
+            </div>
+            
+            <div class="qv-info">
+                <div class="qv-category" id="qvCategory">Categoría</div>
+                <h2 class="qv-title" id="qvTitle">Nombre</h2>
+                <div class="qv-code" id="qvCode">CÓDIGO: XXXX</div>
+                
+                <!-- SELECTOR DE VARIANTES (MEDIDAS) OCULTO POR DEFECTO -->
+                <div id="qvVariantContainer" style="display: none; margin-bottom: 20px; padding-top: 10px; border-top: 1px solid var(--border-light);">
+                    <label for="qvVariantSelect" style="font-size: 11px; font-weight: 800; color: var(--text-light); margin-bottom: 8px; display: block; text-transform: uppercase;">Selecciona una medida:</label>
+                    <select id="qvVariantSelect" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-light); border-radius: 8px; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; background: #f8f9fa; cursor: pointer; transition: 0.3s;"></select>
+                </div>
+
+                <div class="qv-desc-container">
+                    <p class="qv-desc" id="qvDesc">Descripción...</p>
+                    <button class="read-more-btn" id="qvReadMoreBtn" onclick="toggleDescription()">Leer más</button>
+                </div>
+                
+                <table class="qv-specs" id="qvSpecsTable"></table>
+                
+                <div class="qv-price-box">
+                    <div class="price-public-usd" id="qvPrice">Precio: $0.00</div>
+                    <div class="price-public-bs" id="qvPriceVes">Ref: Bs. 0.00</div>
+                    <div class="price-nova-badge" style="margin-top: 10px; width: fit-content; gap: 15px;">
+                        Descuento NovaClientes: <span id="qvPriceNova">$0.00</span>
+                    </div>
+                </div>
+                <button class="add-btn" id="qvAddBtn">Agregar al Pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA ZOOM DE IMAGEN -->
+    <div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom(event)">
+        <span class="close-zoom" onclick="closeZoom(event)">✖</span>
+        <img class="zoom-img" id="zoomImg" src="" alt="Imagen Expandida" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- ==========================================
+         MODAL DEL CARRITO DE COMPRAS
+    =========================================== -->
+    <div class="cart-modal" id="cartModal">
+        <div class="cart-header">
+            <h2>Carrito de Compras</h2>
+            <div class="close-btn" style="cursor:pointer;" onclick="toggleCart()">✖</div>
+        </div>
+        <div class="cart-items" id="cart-items"></div>
+        <div class="cart-footer">
+            <div class="customer-form">
+                <label for="customerName">Nombre del Cliente:</label>
+                <input type="text" id="customerName" placeholder="Ingresa Nombre del Cliente" required>
+                
+                <label for="customerRif">RIF / Cédula:</label>
+                <input type="text" id="customerRif" placeholder="V-12345678 / J-123456789" oninput="this.value = this.value.replace(/[^vjgeVJGE0-9-]/g, '')" required>
+
+                <label for="customerPhone">Número de WhatsApp / Teléfono:</label>
+                <input type="tel" id="customerPhone" placeholder="Ej: 0414-1234567 o 04141234567" oninput="this.value = this.value.replace(/[^0-9+\s-]/g, '')" required>
+
+                <label for="paymentMethod">Método de Pago:</label>
+                <select id="paymentMethod" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-light); border-radius: 8px; outline: none; font-size: 14px;">
+                    <option value="EFECTIVO_USD">Efectivo USD</option>
+                    <option value="EFECTIVO_BS">Efectivo Bs</option>
+                    <option value="DEBITO">Débito</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="BIOPAGO">Biopago</option>
+                    <option value="OTRAS FORMAS DE PAGO">Otras formas de pago (Binance/Zelle)</option>
+                </select>
+
+
+            </div>
+            <div class="cart-total">
+                <div style="font-size: 14px; color: var(--text-light);">Total: <span id="cart-total-public">$0.00</span></div>
+                <div style="font-size: 18px; color: var(--nova-blue); font-weight: 900;">Descuento NovaClientes: <span id="cart-total-nova">$0.00</span></div>
+            </div>
+            <button class="whatsapp-btn" onclick="sendWhatsApp()" style="margin-bottom: 10px;">
+                <img src="whatsapp-icono.png" alt="Icono WhatsApp">
+                Enviar Pedido
+            </button>
+            <button class="invoice-btn" onclick="generateAndCopyInvoice()">
+                🧾 Copiar Factura como Imagen
+            </button>
+        </div>
+    </div>
+
+    <!-- PIE DE PÁGINA PROFESIONAL -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <div class="footer-col">
+                <img src="nova_footer2.png" alt="Logo NOVA RefriMotors" style="max-height: 71px; width: auto; margin-bottom: 15px; filter: brightness(0) invert(1);">
+                <p>Tu aliado estratégico en repuestos para sistemas de refrigeración y aires acondicionados comerciales e industriales en Cabimas.</p>
+            </div>
+            <div class="footer-col">
+                <h3>Contacto Directo</h3>
+                <ul>
+                    <li>📞 +58 424-6192394</li>
+                    <li>💬 Soporte por WhatsApp</li>
+                    <li>📍 Cabimas, Estado Zulia, Venezuela</li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Información de Utilidad</h3>
+                <ul>
+                    <li>⏰ Lun - Sáb: 8:00 AM - 5:00 PM</li>
+                    <li>🚚 Envíos locales seguros</li>
+                    <li>🛡️ Garantía directa en equipos de refrigeración</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 NOVA RefriMotors (RIF: J504401994). Todos los derechos reservados.</p>
+            <p>Precios sujetos a cambio según tasa BCV del día.</p>
+        </div>
+    </footer>
+
+    <!-- ==========================================
+         PLANTILLA DE FACTURA DIGITAL (OCULTA)
+    =========================================== -->
+    <div id="invoice-wrapper" style="position: absolute; left: -9999px; top: -9999px;">
+        <div id="invoice-container" class="invoice-container">
+            <div class="invoice-header">
+                <img src="nova-factura.png" alt="Nova Factura" style="max-width: 100%; height: auto; display: block; margin: 0 auto 10px auto;">
+            </div>
+            <div class="invoice-client-info">
+                <div>NOMBRE: <span id="inv-nombre"></span></div>
+                <div>RIF: <span id="inv-rif"></span></div>
+                <div>TELÉFONO: <span id="inv-telefono"></span></div>
+            </div>
+            <div class="invoice-meta">
+                <div>FECHA: <span id="inv-fecha"></span> &nbsp;&nbsp;&nbsp;HORA: <span id="inv-hora"></span></div>
+            </div>
+            <div class="invoice-divider"></div>
+            <div class="invoice-items" id="inv-items">
+                <!-- Items se inyectan acá -->
+            </div>
+            <div class="invoice-divider"></div>
+            <div class="invoice-totals" id="inv-totals-container">
+                <!-- Totals and dynamic payment methods injected here -->
+            </div>
+            <div class="invoice-footer">
+                <div class="invoice-notes">
+                    *** CONSERVE SU RECIBO PARA CUALQUIER RECLAMO ***<br>
+                    **** LAS PIEZAS ELECTRICAS NO TIENEN GARANTIA ****
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librería html2canvas para generación de imágenes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- LÓGICA DE PROGRAMACIÓN -->
+    <script src="logica-index.js"></script>
+</body>
+</html>
