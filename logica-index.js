@@ -3738,19 +3738,33 @@ async function generateAndCopyInvoice() {
 
     try {
         btn.innerText = "Generando...";
-        // Forzar actualización de UI
         await new Promise(r => setTimeout(r, 50));
 
-        // Promise wrapper con timeout de 8 segundos para html2canvas (evita cuelgues eternos en iOS)
-        const canvas = await Promise.race([
-            html2canvas(document.getElementById('invoice-container'), {
-                scale: 2,
-                backgroundColor: "#ffffff",
-                useCORS: true,
-                allowTaint: false
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al renderizar (html2canvas)")), 8000))
-        ]);
+        // TRUCO PARA iOS SAFARI: Safari bloquea el renderizado de imágenes y CSS si el elemento está completamente
+        // fuera del viewport (left: -9999px). Lo movemos temporalmente a la pantalla, haciéndolo invisible.
+        const invoiceWrapper = document.getElementById('invoice-wrapper');
+        const originalStyle = invoiceWrapper.style.cssText;
+        invoiceWrapper.style.cssText = "position: fixed; left: 0; top: 0; opacity: 0.01; z-index: -9999; pointer-events: none;";
+        
+        // Esperar un instante para que Safari recalcule los estilos
+        await new Promise(r => setTimeout(r, 100));
+
+        let canvas;
+        try {
+            canvas = await Promise.race([
+                html2canvas(document.getElementById('invoice-container'), {
+                    scale: 2,
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: false,
+                    logging: false
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al renderizar (html2canvas)")), 8000))
+            ]);
+        } finally {
+            // Restaurar siempre su posición original, incluso si falla
+            invoiceWrapper.style.cssText = originalStyle;
+        }
 
         let imgUrl;
         try {
