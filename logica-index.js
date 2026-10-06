@@ -208,7 +208,7 @@ const products = [
         model: "GSM-LPM120",
         desc: `<b>Protector 120V E-E Exceline GSM-LPM120</b><br><br>Protector de voltaje enchufable (Entrada-Enchufe) compacto y seguro. Ideal para proteger electrodomésticos y equipos electrónicos sensibles contra fluctuaciones de energía.`,
         costoCompra: 6.63076923,
-        images: ["productos/GSM-LPM.webp"],
+        images: ["productos/PDV007.webp"],
         specs: { "Marca": "Exceline", "Voltaje": "120V", "Tipo": "Enchufable (E-E)" }
     },
     {
