@@ -1,7 +1,7 @@
 ﻿// ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 750.0;
+const TASA_BCV = 881.07;
 const NUMERO_WHATSAPP = "584246192394";
 const PORCENTAJE_UTILIDAD = 1.30;
 const PORCENTAJE_IVA = 1.16;
@@ -21,188 +21,6 @@ const products = [
     // ============================================================== //
     // ============================================================== //
 
-
-    {
-        id: "ALT101",
-        name: "Alicate de Presión Curvo 10\" (254mm)",
-        category: "Herramientas",
-        model: "10 Pulgadas",
-        desc: `<b>Alicate de Presión Curvo 10"</b><br><br>Herramienta de sujeción indispensable de 10 pulgadas (254mm). Su mandíbula curva permite un agarre extra fuerte en tuberías, tuercas redondeadas y piezas cilíndricas.`,
-        costoCompra: 4.63846154,
-        images: ["productos/ALT101.webp"],
-        specs: { "Tipo": "Alicate de Presión", "Tamaño": "10\" (254mm)", "Forma": "Curva" }
-    },
-    {
-        id: "BASE-AA-VAR",
-        name: "Base para Aire Acondicionado (Consola / Piso)",
-        category: "Aires Acondicionados",
-        model: "Pared / Piso PVC",
-        desc: `<b>Bases de Soporte para Aires Acondicionados</b><br><br>Soportes de alta resistencia para garantizar una instalación segura de tu aire acondicionado. Disponibles en formato de escuadra metálica para consolas de pared o bases antivibración de PVC para condensadoras de piso.`,
-        costoCompra: 5.30769231, // Base (BPS001)
-        images: ["productos/BPS001.webp", "productos/GBC013.webp"],
-        specs: { "Tipo": "Soporte / Base", "Uso": "Instalación de A/A" },
-        variants: [
-            { id: "BPS001", name: "Base Escuadra para Consola (Hasta 30k BTU)", costoCompra: 5.30769231 },
-            { id: "GBC013", name: "Base Condensadora de Piso PVC (Hasta 12k BTU)", costoCompra: 11.93076923 }
-        ]
-    },
-    {
-        id: "CAM201",
-        name: "Juego de Cables para Amperímetro (Alta Calidad)",
-        category: "Herramientas",
-        model: "Cables Universales",
-        desc: `<b>Juego de Cables para Amperímetro / Tester</b><br><br>Cables de prueba (puntas de tester) de alta calidad, recubiertos en silicona flexible. Puntas precisas y resistentes para multímetros y pinzas amperimétricas universales.`,
-        costoCompra: 1.03846154,
-        images: ["productos/CAM201.webp"],
-        specs: { "Tipo": "Cables de Medición", "Uso": "Tester / Multímetro", "Calidad": "Alta" }
-    },
-    {
-        id: "CAP-METER-VAR",
-        name: "Capacímetro Digital Profesional",
-        category: "Herramientas",
-        model: "Varios Modelos",
-        desc: `<b>Capacímetro Digital Profesional</b><br><br>Instrumento de medición especializado para leer con exactitud la capacitancia (microfaradios) de los condensadores de marcha y arranque. Evite diagnósticos erróneos en compresores y motores.`,
-        costoCompra: 9.93846154, // Base (CAP251)
-        images: ["productos/CAP251.webp", "productos/CAP250.webp"],
-        specs: { "Tipo": "Capacímetro Digital", "Uso": "Medición de Capacitores" },
-        variants: [
-            { id: "CAP251", name: "Capacímetro Digital Negro (CM7115A)", costoCompra: 9.93846154 },
-            { id: "CAP250", name: "Capacímetro Digital Zenic 2.8V (M6013)", costoCompra: 19.23076923 }
-        ]
-    },
-    {
-        id: "CNA-VAR",
-        name: "Conectores Aislantes Wire Caps (Wadfow)",
-        category: "Eléctrico",
-        model: "P3 / P4",
-        desc: `<b>Conectores Aislantes (Wire Caps) Wadfow</b><br><br>Capuchones plásticos con espiral metálica interna para realizar empalmes eléctricos rápidos, seguros y sin necesidad de cinta aislante. Resistentes a la vibración y temperatura.`,
-        costoCompra: 1.00000000, // Base (CNA001)
-        images: ["productos/CNA001.webp", "productos/CNA002.webp"],
-        specs: { "Marca": "Wadfow", "Tipo": "Wire Caps", "Uso": "Empalmes Eléctricos" },
-        variants: [
-            { id: "CNA001", name: "Conectores Amarillos P4 (12 Piezas)", costoCompra: 1.00000000 },
-            { id: "CNA002", name: "Conectores Naranjas P3 (20 Piezas)", costoCompra: 1.05384615 }
-        ]
-    },
-    {
-        id: "EST003",
-        name: "Pasta Térmica para Soldar Estaño (50G)",
-        category: "Químicos",
-        model: "Pasta Fundente",
-        desc: `<b>Pasta Térmica para Soldar Estaño</b><br><br>Fundente en pasta (50 gramos) que facilita la adhesión del estaño en componentes electrónicos y placas. Limpia la superficie y asegura soldaduras brillantes y sin residuos aislantes.`,
-        costoCompra: 1.75384615,
-        images: ["productos/EST003.webp"],
-        specs: { "Tipo": "Pasta de Soldar", "Presentación": "50 Gramos", "Uso": "Electrónica" }
-    },
-    {
-        id: "EXT301",
-        name: "Extractor de Aire 110V 8\" con Rejilla Maxwell",
-        category: "Motores",
-        model: "8 Pulgadas 110V",
-        desc: `<b>Extractor de Aire 110V 8" Maxwell</b><br><br>Ventilador extractor de grado comercial con aspas de 8 pulgadas y alimentación a 110V. Incluye rejilla protectora. Ideal para ventilación de cuartos, tableros o espacios confinados.`,
-        costoCompra: 16.57692308,
-        images: ["productos/EXT301.webp"],
-        specs: { "Marca": "Maxwell", "Tipo": "Extractor Axial", "Tamaño": "8 Pulgadas", "Voltaje": "110V" }
-    },
-    {
-        id: "HID-EXT-VAR",
-        name: "Extensión Larga para Pistola de Hidrojet",
-        category: "Herramientas",
-        model: "Curva 45° / 90°",
-        desc: `<b>Extensión de Pistola para Hidrojet</b><br><br>Lanza de extensión metálica para llegar a las zonas más difíciles de los serpentines y paneles. Disponible con curvatura en la punta para mejorar el ángulo de lavado.`,
-        costoCompra: 5.30769231,
-        images: ["productos/HID013.webp", "productos/HID014.webp"],
-        specs: { "Tipo": "Extensión de Lavado", "Uso": "Hidrojet Mantenimiento" },
-        variants: [
-            { id: "HID013", name: "Extensión Curva 45°", costoCompra: 5.30769231 },
-            { id: "HID014", name: "Extensión Curva 90°", costoCompra: 5.30769231 }
-        ]
-    },
-    {
-        id: "HSE100",
-        name: "Hoja de Segueta Morse 18 Dientes",
-        category: "Herramientas",
-        model: "18 Dientes",
-        desc: `<b>Hoja de Segueta Bimetálica Morse</b><br><br>Hoja de corte de 18 dientes por pulgada. Extraordinaria resistencia y flexibilidad, diseñada para realizar cortes limpios y rápidos en metales, tuberías de cobre y PVC.`,
-        costoCompra: 1.57692308,
-        images: ["productos/HSE100.webp"],
-        specs: { "Marca": "Morse", "Dientes": "18 TPI", "Uso": "Corte de Metales" }
-    },
-    {
-        id: "LJA-VAR",
-        name: "Lija de Esmeril (Diesel Tools)",
-        category: "Herramientas",
-        model: "Varios Granos",
-        desc: `<b>Lija de Esmeril / Lija de Agua</b><br><br>Hojas de lija de alta abrasión para pulir y limpiar impurezas en tuberías de cobre antes de soldar, asegurando una adherencia perfecta del fundente y la aleación.`,
-        costoCompra: 0.39230769,
-        images: ["productos/LIJA.webp"],
-        specs: { "Marca": "Diesel Tools", "Tipo": "Esmeril", "Uso": "Limpieza de Tuberías" },
-        variants: [
-            { id: "LJA100", name: "Lija Grano N° 100", costoCompra: 0.39230769 },
-            { id: "LJA101", name: "Lija Grano N° 180", costoCompra: 0.39230769 }
-        ]
-    },
-    {
-        id: "MAF001",
-        name: "Juego de Flaring Kit 3/16 - 5/8 (Abocardador)",
-        category: "Herramientas",
-        model: "Azul/Rojo",
-        desc: `<b>Juego de Flaring Kit (Abocardador)</b><br><br>Herramienta esencial para expandir los extremos de las tuberías de cobre (flare) y asegurar uniones herméticas con tuercas en sistemas de aire acondicionado. Cubre diámetros desde 3/16" hasta 5/8".`,
-        costoCompra: 13.92307692,
-        images: ["productos/MAF001.webp"],
-        specs: { "Tipo": "Abocardador (Flaring)", "Capacidad": "3/16\" a 5/8\"", "Uso": "Tubería de Cobre" }
-    },
-    {
-        id: "PST-VAR",
-        name: "Presostato para Aire Central R410",
-        category: "Refrigeración",
-        model: "Alta / Baja Presión",
-        desc: `<b>Presostato de Protección para Aire Central R410</b><br><br>Interruptor de presión de seguridad que desconecta el sistema automáticamente si la presión del gas R410 sube o baja a niveles peligrosos, protegiendo el compresor.`,
-        costoCompra: 3.64615385,
-        images: ["productos/PST005.webp", "productos/PST006.webp"],
-        specs: { "Tipo": "Presostato Cápsula", "Gas": "R410", "Uso": "Aire Central" },
-        variants: [
-            { id: "PST005", name: "Presostato de Alta Presión (Rojo)", costoCompra: 3.64615385 },
-            { id: "PST006", name: "Presostato de Baja Presión (Azul)", costoCompra: 3.64615385 }
-        ]
-    },
-    {
-        id: "RAM-VAR",
-        name: "Ramplug / Tacos de Expansión (Plástico y Hierro)",
-        category: "Herramientas",
-        model: "Varias Medidas",
-        desc: `<b>Ramplug de Anclaje para Instalaciones</b><br><br>Tacos de expansión de alta fijación para mampostería y concreto. Indispensables para colgar y fijar de forma segura soportes y consolas de aire acondicionado.`,
-        costoCompra: 0.33076923, // Base (Hierro 1/4)
-        images: ["productos/RAMPLU.webp"],
-        specs: { "Tipo": "Taco de Expansión", "Uso": "Anclaje en Concreto/Pared" },
-        variants: [
-            { id: "RAM001", name: "Ramplug de Plástico Verde 1/4\"", costoCompra: 0.01538462 },
-            { id: "RAM003", name: "Ramplug de Hierro 1/4\" (#1)", costoCompra: 0.33076923 },
-            { id: "RAM002", name: "Ramplug de Hierro 5/16\" (#2)", costoCompra: 0.66153846 },
-            { id: "RAM004", name: "Ramplug de Hierro 3/8\" (#3)", costoCompra: 0.66153846 },
-            { id: "RAM005", name: "Ramplug de Hierro 1/2\" (#4)", costoCompra: 0.99230769 }
-        ]
-    },
-    {
-        id: "TJP501",
-        name: "Tijera Corta Manguera Automotriz",
-        category: "Herramientas",
-        model: "Corte Preciso",
-        desc: `<b>Tijera Corta Mangueras Automotriz y PVC</b><br><br>Pinza cortadora tipo tijera diseñada para realizar cortes perfectamente rectos, limpios y sin aplastamientos en mangueras automotrices, PVC y tubos plásticos.`,
-        costoCompra: 5.96153846,
-        images: ["productos/TJP501.webp"],
-        specs: { "Tipo": "Tijera Cortatubos", "Uso": "Mangueras y Plásticos", "Corte": "Recto Limpio" }
-    },
-    {
-        id: "VAM001",
-        name: "Pinza Amperimétrica UNI-T UT200B+ 600VAC",
-        category: "Herramientas",
-        model: "UT200B+",
-        desc: `<b>Pinza Amperimétrica Profesional UNI-T UT200B+</b><br><br>Multímetro de gancho de precisión superior marca UNI-T. Ideal para técnicos que requieren mediciones de corriente alterna hasta 600V con alta confiabilidad y pantalla LCD retroiluminada.`,
-        costoCompra: 26.52307692,
-        images: ["productos/VAM001.webp"],
-        specs: { "Marca": "UNI-T", "Modelo": "UT200B+", "Tipo": "Pinza Amperimétrica Profesional" }
-    },
     {
         id: "GAS002",
         name: "Recarga de Gas Refrigerante R134a (Por Kilo)",
@@ -382,6 +200,186 @@ const products = [
     // ============================================================== //
     // ============================================================== //
 
+
+    {
+        id: "VAM103",
+        name: "Voltiamperímetro + Capacímetro Econ DT-203",
+        category: "Herramientas",
+        model: "DT-203",
+        desc: `<b>Pinza Amperimétrica y Capacímetro (Económica)</b><br><br>Herramienta 2 en 1 ideal para técnicos. Combina las funciones de un voltiamperímetro digital de gancho con la capacidad de medir microfaradios de condensadores. Modelo económico y versátil.`,
+        costoCompra: 13.92307692,
+        images: ["productos/VAM103.webp"],
+        specs: { "Tipo": "Pinza Digital", "Funciones": "Voltaje, Corriente, Capacitancia", "Modelo": "DT-203" }
+    },
+    {
+        id: "VAL008",
+        name: "Válvula de Carga para Lata de Gas (1/4 y 5/16)",
+        category: "Herramientas",
+        model: "Pinchadora de Lata",
+        desc: `<b>Válvula Dispensadora para Latas de Refrigerante</b><br><br>Válvula perforadora tipo mariposa fabricada en bronce. Permite extraer el gas de las botellas o latas de refrigerante de forma segura, con salida dual para conexiones de 1/4" y 5/16".`,
+        costoCompra: 2.98461538,
+        images: ["productos/VAL008.webp"],
+        specs: { "Tipo": "Válvula Pinchadora", "Uso": "Latas de Gas Desechables", "Salida": "1/4 y 5/16" }
+    },
+    {
+        id: "DSC-VARIANTE",
+        name: "Ducto de Extracción para Secadora",
+        category: "Aires Acondicionados", // Ajusta si tienes categoría de línea blanca
+        model: "Ducto Flexible",
+        desc: `<b>Ducto de Aluminio Flexible para Secadora</b><br><br>Sistemas de extracción de pelusa y aire caliente para secadoras domésticas. Disponibles en kits completos con recipientes trampa de pelusa (interiores) o con rejillas de salida exterior (americano).`,
+        costoCompra: 5.45384615, // Base (DSC100)
+        images: [
+            "productos/DSC100.webp",
+            "productos/DSC106.webp",
+            "productos/DSC107.webp",
+            "productos/DSC108.webp"
+        ],
+        specs: { "Material": "Aluminio Flexible", "Uso": "Ventilación de Secadoras", "Tipo": "Kits de Instalación" },
+        variants: [
+            { id: "DSC100", name: "Ducto con Recipiente (10.2cm x 1.5m)", costoCompra: 5.45384615 },
+            { id: "DSC106", name: "Ducto con Recipiente C. (10.2cm x 1.5m)", costoCompra: 7.50000000 },
+            { id: "DSC108", name: "Ducto con Recipiente Lambro (USA)", costoCompra: 11.02307692 },
+            { id: "DSC107", name: "Ducto con Rejilla Americana (4\" x 2.4m)", costoCompra: 23.16923077 }
+        ]
+    },
+    {
+        id: "TMC-110V-VAR",
+        name: "Tomacorriente 110V (Sencillo y Doble)",
+        category: "Eléctrico",
+        model: "Para Empotrar",
+        desc: `<b>Tomacorrientes de Pared 110V</b><br><br>Tomacorrientes residenciales para empotrar. Opciones disponibles en formato hembra individual, doble polarizado tradicional y modelo doble decorativo en color beige.`,
+        costoCompra: 0.60769231, // Base (TMC001)
+        images: ["productos/TMC001.webp", "productos/TMC010.webp", "productos/TMC013.webp"],
+        specs: { "Voltaje": "110V / 125V", "Instalación": "Empotrar (Pared)" },
+        variants: [
+            { id: "TMC001", name: "Toma Doble Polarizada", costoCompra: 0.60769231 },
+            { id: "TMC013", name: "Toma Hembra Individual", costoCompra: 1.65384615 },
+            { id: "TMC010", name: "Toma Doble Beige Decorativa", costoCompra: 1.65384615 }
+        ]
+    },
+    {
+        id: "TMC-220V-VAR",
+        name: "Tomacorriente 220V (Bipolar y 3 Polos)",
+        category: "Eléctrico",
+        model: "Alta Carga",
+        desc: `<b>Tomacorrientes Industriales y de Alta Carga 220V</b><br><br>Conectores de pared robustos diseñados para soportar el consumo de aires acondicionados y equipos pesados. Disponibles en configuración bipolar con tierra (20A) y de 3 polos (50A).`,
+        costoCompra: 2.32307692, // Base (TMC016)
+        images: ["productos/TMC016.webp", "productos/TMC015.webp"],
+        specs: { "Voltaje": "220V / 250V", "Uso": "Aires Acondicionados y Maquinaria" },
+        variants: [
+            { id: "TMC016", name: "Toma Bipolar c/Tierra 20A 250V", costoCompra: 2.32307692 },
+            { id: "TMC015", name: "Toma 3 Polos 50A 250V (P/Embutir)", costoCompra: 3.97692308 }
+        ]
+    },
+    {
+        id: "TMT004",
+        name: "Tapa para Tomacorriente Circular",
+        category: "Eléctrico",
+        model: "Tapa Ciega/Circular",
+        desc: `<b>Tapa Decorativa para Tomacorriente Circular</b><br><br>Placa plástica resistente diseñada para cubrir y dar un acabado estético a cajetines con salidas de tomacorrientes redondos o conexiones individuales.`,
+        costoCompra: 0.53076923,
+        images: ["productos/TMT004.webp"],
+        specs: { "Tipo": "Tapa Plástica", "Formato": "Circular", "Uso": "Acabado Eléctrico" }
+    },
+    {
+        id: "CPR001",
+        name: "Cajetín Blanco PVC Plástico Rectangular",
+        category: "Eléctrico",
+        model: "Superficial PVC",
+        desc: `<b>Cajetín Rectangular Superficial de PVC</b><br><br>Caja de montaje superficial fabricada en PVC blanco ignífugo. Ideal para instalar tomacorrientes e interruptores sin necesidad de romper o empotrar en la pared.`,
+        costoCompra: 0.43846154,
+        images: ["productos/CPR001.webp"],
+        specs: { "Material": "Plástico PVC", "Instalación": "Superficial", "Forma": "Rectangular" }
+    },
+    {
+        id: "TEA-ALUM-VAR",
+        name: "Cinta de Aluminio para Ductos (Teipe Aluminio)",
+        category: "Refrigeración",
+        model: "Varias Medidas",
+        desc: `<b>Cinta de Aluminio Adhesiva</b><br><br>Cinta metálica de aluminio puro o recubrimiento aluminizado. Indispensable para sellar juntas en ductos de aire acondicionado, reparar aislamientos y reflejar el calor. Excelente adherencia y durabilidad térmica.`,
+        costoCompra: 1.98461538, // Base (TEA302)
+        images: ["productos/TEA300.webp", "productos/TEA302.webp", "productos/TEI005.webp"],
+        specs: { "Tipo": "Cinta Metálica Adhesiva", "Uso": "Ductería y Aislamiento Térmico" },
+        variants: [
+            { id: "TEA302", name: "Aluminio 2\" Pulgadas x 30 Metros", costoCompra: 1.98461538 },
+            { id: "TEA300", name: "Aluminio 2\" Pulgadas x 45 Metros", costoCompra: 2.98461538 },
+            { id: "TEI005", name: "Aluminizada 75mm x 45M (Landsfoss)", costoCompra: 4.63846154 },
+            { id: "TEA301", name: "Aluminio 3\" Pulgadas x 45 Metros", costoCompra: 5.30769231 }
+        ]
+    },
+    {
+        id: "TEB-PVC-VAR",
+        name: "Cinta PVC para Tubería Split",
+        category: "Refrigeración",
+        model: "Adhesiva / Sin Adhesivo",
+        desc: `<b>Cinta Decorativa de PVC para Tubería</b><br><br>Cinta plástica ancha diseñada para envolver, proteger y embellecer el revestimiento térmico (armalón) de las tuberías de aires acondicionados Split. Disponible en versión lisa (para amarrar) o con pegamento.`,
+        costoCompra: 1.00000000, // Base (TEB320)
+        images: ["productos/TEB320.webp", "productos/TEB321.webp"],
+        specs: { "Material": "PVC", "Uso": "Revestimiento de Tuberías", "Aplicación": "Estética y Protección" },
+        variants: [
+            { id: "TEB320", name: "Cinta PVC Lisa (Sin Adhesivo)", costoCompra: 1.00000000 },
+            { id: "TEB321", name: "Cinta PVC con Adhesivo", costoCompra: 1.65384615 }
+        ]
+    },
+    {
+        id: "TEI008",
+        name: "Teipe Eléctrico Negro (19mm x 10 Metros)",
+        category: "Eléctrico",
+        model: "19mm x 10M",
+        desc: `<b>Cinta Aislante Eléctrica (Teipe)</b><br><br>Rollo de teipe negro de PVC ignífugo, esencial para aislar empalmes y proteger conexiones eléctricas contra la humedad y cortocircuitos.`,
+        costoCompra: 0.66153846,
+        images: ["productos/TEI008.webp"],
+        specs: { "Tipo": "Cinta Aislante", "Medidas": "19mm x 10 Metros", "Color": "Negro" }
+    },
+    {
+        id: "TEF002",
+        name: "Teflón Industrial Profesional (3/4\" x 15 Mts)",
+        category: "Herramientas", // O Consumibles
+        model: "3/4 x 15 Metros",
+        desc: `<b>Cinta de Teflón (PTFE) Profesional</b><br><br>Cinta selladora de roscas de alta densidad (3/4 de pulgada de ancho por 15 metros). Evita fugas de agua y gases en uniones roscadas de válvulas y tuberías.`,
+        costoCompra: 0.66153846,
+        images: ["productos/TEF002.webp"],
+        specs: { "Tipo": "Cinta Selladora (PTFE)", "Medidas": "3/4\" x 15 Metros", "Uso": "Roscas y Uniones" }
+    },
+    {
+        id: "FJA201",
+        name: "Faja para Motor Ventilador (Doble O-ring / Larga)",
+        category: "Motores",
+        model: "Universal Ajustable",
+        desc: `<b>Faja de Sujeción para Motor Ventilador</b><br><br>Banda de sujeción universal tipo araña con aros de goma (O-rings) reforzados. Diseñada para asegurar y centrar los motores universales de aspa en las rejillas de aires de ventana y condensadores.`,
+        costoCompra: 4.63846154,
+        images: ["productos/FJA201.webp"],
+        specs: { "Tipo": "Soporte de Goma", "Uso": "Montaje de Motores", "Formato": "Larga / Doble Aro" }
+    },
+    {
+        id: "ENF-MACHO-VAR",
+        name: "Enchufe Macho de Repuesto (110V / 220V)",
+        category: "Eléctrico",
+        model: "Reemplazo Manual",
+        desc: `<b>Enchufe Macho Desarmable</b><br><br>Clavijas de repuesto para reparar cables de alimentación dañados de equipos y electrodomésticos. Fáciles de instalar atornillando los cables internamente. Disponibles en formatos para 110V y 220V.`,
+        costoCompra: 0.66153846, // Base (ENF002)
+        images: ["productos/ENF-ENCHUFE.webp"],
+        specs: { "Tipo": "Clavija Macho Desarmable", "Instalación": "Atornillable", "Material": "Plástico Rígido/Goma" },
+        variants: [
+            { id: "ENF002", name: "Enchufe Macho Recto 220V", costoCompra: 0.66153846 },
+            { id: "ENF001", name: "Enchufe Macho 110V Polarizado", costoCompra: 1.12307692 },
+            { id: "ENF003", name: "Enchufe Tripolar 220V (Pata e' Gallina)", costoCompra: 1.32307692 }
+        ]
+    },
+    {
+        id: "ADU-VAR",
+        name: "Adaptadores Eléctricos y Multiplicadores",
+        category: "Eléctrico",
+        model: "Accesorios de Toma",
+        desc: `<b>Adaptadores y Multiplicadores de Corriente</b><br><br>Accesorios prácticos para tus enchufes. Convertidores de clavija con toma a tierra o multiplicadores de salidas para expandir la capacidad de tu tomacorriente principal de manera segura.`,
+        costoCompra: 0.43076923, // Base (ADU001)
+        images: ["productos/ADU001.webp", "productos/ADU001-2.webp", "productos/ADU002.webp"],
+        specs: { "Tipo": "Conversor / Ladrón Eléctrico", "Uso": "Adaptación de Enchufes" },
+        variants: [
+            { id: "ADU001", name: "Adaptador Multiplicador 2x15A 125V", costoCompra: 0.43076923 },
+            { id: "ADU002", name: "Adaptador a Tierra (Par) Volteck", costoCompra: 0.80000000 }
+        ]
+    },
     {
         id: "MAN006",
         name: "Juego de Manómetro Digital ISYN R22/R134/R410",
@@ -1518,7 +1516,7 @@ const products = [
             "productos/TRM020.webp",
             "productos/TRM021.webp",
             "productos/TRM022.webp",
-            "productos/TRM023.webp"
+            "productos/TRM023.png"
         ],
         specs: { "Tipo": "Termostato Mecánico", "Aplicación": "Refrigeración Doméstica / Comercial" },
         variants: [
