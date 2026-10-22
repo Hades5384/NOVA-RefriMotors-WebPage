@@ -1,7 +1,7 @@
 // ==========================================
 // 1. CONFIGURACIÓN DEL SISTEMA
 // ==========================================
-const TASA_BCV = 883.40;
+const TASA_BCV = 884.75;
 const NUMERO_WHATSAPP = "584246192394";
 const PORCENTAJE_UTILIDAD = 1.30;
 const PORCENTAJE_IVA = 1.16;
@@ -200,7 +200,120 @@ const products = [
     // ============================================================== //
     // ============================================================== //
 
-    // --- RECIBIDORES DE LÍQUIDO ---
+
+    {
+        id: "MOI-EMERSON-1075-VAR",
+        name: "Motor Ventilador Condensador Emerson (1075 RPM)",
+        category: "Motores",
+        model: "1075 RPM (Varias Capacidades)",
+        desc: `<b>Motor de Condensador Emerson (1075 RPM)</b><br><br>Motores eléctricos de alta confiabilidad y rendimiento marca Emerson, diseñados para unidades condensadoras de aires acondicionados. Operan a 1075 RPM y 220V. Selecciona el caballaje (HP) adecuado para tu equipo.`,
+        costoCompra: 72.94615385, // Base (MOI013 - 1/4 HP)
+        images: ["productos/MOI018.webp", "productos/MOI015.webp"],
+        specs: { "Marca": "Emerson", "RPM": "1075 RPM", "Voltaje": "220V", "Uso": "Unidad Condensadora" },
+        variants: [
+            { id: "MOI016", name: "1/6 HP (1075 RPM)", costoCompra: 79.56923077 },
+            { id: "MOI013", name: "1/4 HP (1075 RPM)", costoCompra: 72.94615385 },
+            { id: "MOI007", name: "1/3 HP (1075 RPM)", costoCompra: 96.15384615 },
+            { id: "MOI015", name: "1/3 a 1/6 HP (Multicapacidad)", costoCompra: 92.83846154 },
+            { id: "MOI008", name: "1/2 HP (1075 RPM)", costoCompra: 99.46153846 },
+            { id: "MOI006", name: "3/4 HP (1075 RPM)", costoCompra: 106.09230769 },
+            { id: "MOI033", name: "3/4 HP (1075 RPM - Mod A)", costoCompra: 102.77692308 },
+            { id: "MOI034", name: "1 HP (1075 RPM - Mod S)", costoCompra: 109.41538462 },
+            { id: "MOI035", name: "1 HP (1075 RPM - Mod A)", costoCompra: 109.41538462 }
+        ]
+    },
+
+    // --- MOTORES EMERSON (OTRAS RPM) ---
+    {
+        id: "MOI-EMERSON-ALT-VAR",
+        name: "Motor Ventilador Condensador Emerson (825 / 1625 RPM)",
+        category: "Motores",
+        model: "825 / 1625 RPM",
+        desc: `<b>Motor de Condensador Emerson (Revoluciones Especiales)</b><br><br>Motores Emerson para unidades condensadoras con requerimientos de revoluciones específicos. Disponibles en versiones de bajas revoluciones (825 RPM) y altas revoluciones (1625 RPM) a 220V.`,
+        costoCompra: 79.56923077, // Base (MOI032)
+        images: ["productos/MOI018.webp"],
+        specs: { "Marca": "Emerson", "Voltaje": "220V", "Uso": "Unidad Condensadora" },
+        variants: [
+            { id: "MOI018", name: "1/3 HP (825 RPM - TE)", costoCompra: 119.35384615 },
+            { id: "MOI032", name: "1/3 HP (1625 RPM)", costoCompra: 79.56923077 },
+            { id: "MOI009", name: "1/2 HP (1625 RPM)", costoCompra: 120.00000000 }
+        ]
+    },
+
+    // --- MOTORES UNICOOL / MAXGOLD / POWERSAVE ---
+    {
+        id: "MOI-UNICOOL-VAR",
+        name: "Motor Ventilador Condensador Unicool / MaxGold (1075 RPM)",
+        category: "Motores",
+        model: "1075 RPM (Genérico)",
+        desc: `<b>Motor Condensador Unicool / MaxGold / Powersave</b><br><br>Motores de reemplazo de excelente calidad para unidades condensadoras de 220V (1075 RPM). Marcas reconocidas en el mercado de reposición por su durabilidad y excelente relación costo-beneficio.`,
+        costoCompra: 42.62307692, // Base (MOI014)
+        images: ["productos/MOI011.webp"],
+        specs: { "Marcas": "Unicool / MaxGold / Powersave", "RPM": "1075 RPM", "Voltaje": "220V" },
+        variants: [
+            { id: "MOI014", name: "1/6 HP Unicool", costoCompra: 42.62307692 },
+            { id: "MOI002", name: "1/4 HP Unicool", costoCompra: 47.27692308 },
+            { id: "MOI026", name: "1/4 HP MaxGold", costoCompra: 56.36604775 },
+            { id: "MOI001", name: "1/3 HP Unicool", costoCompra: 57.10769231 },
+            { id: "MOI025", name: "1/3 HP MaxGold", costoCompra: 62.99734748 },
+            { id: "MOI011", name: "1/2 HP Unicool", costoCompra: 66.31538462 },
+            { id: "MOI003", name: "3/4 HP Unicool", costoCompra: 79.57692308 },
+            { id: "MOI012", name: "3/4 HP Powersave", costoCompra: 76.25384615 }
+        ]
+    },
+
+    // --- MOTORES STEINMANN ---
+    {
+        id: "MOI-STEINMANN-VAR",
+        name: "Motor Ventilador Condensador Steinmann (1075 RPM)",
+        category: "Motores",
+        model: "1075 RPM (Steinmann)",
+        desc: `<b>Motor Condensador Steinmann (1075 RPM)</b><br><br>Motores eléctricos de condensación marca Steinmann, reconocidos por su construcción robusta. Diseñados para operar a 1075 RPM y 220V. Disponibles en un amplio rango de capacidades.`,
+        costoCompra: 59.67692308, // Base (MOI024 - Doble eje)
+        images: ["productos/MOI019.webp", "productos/MOI020.webp"],
+        specs: { "Marca": "Steinmann", "RPM": "1075 RPM", "Voltaje": "220V" },
+        variants: [
+            { id: "MOI024", name: "1/6 HP Doble Eje", costoCompra: 59.67692308 },
+            { id: "MOI019", name: "1/4 HP", costoCompra: 69.62307692 },
+            { id: "MOI020", name: "1/3 HP", costoCompra: 76.25384615 },
+            { id: "MOI021", name: "1/2 HP", costoCompra: 89.51538462 },
+            { id: "MOI022", name: "3/4 HP", costoCompra: 86.20000000 }
+        ]
+    },
+
+    // --- MOTORES REVERSIBLES 3-5 TONELADAS ---
+    {
+        id: "MOI-REVERS-VAR",
+        name: "Motor Ventilador Reversible (3 a 5 Toneladas)",
+        category: "Motores",
+        model: "Reversible 220V",
+        desc: `<b>Motor Condensador Reversible (Alta Capacidad)</b><br><br>Motores de grado pesado diseñados para condensadoras grandes de aire acondicionado central (equipos de 3 a 5 Toneladas). Su característica reversible permite adaptar el sentido de giro según la aspa instalada.`,
+        costoCompra: 66.34615385, // Base (MOI005)
+        images: ["productos/MOI010.webp"],
+        specs: { "Tipo": "Reversible", "Capacidad del Equipo": "3 a 5 Toneladas", "Voltaje": "220V" },
+        variants: [
+            { id: "MOI005", name: "1/2 HP Reversible", costoCompra: 66.34615385 },
+            { id: "MOI004", name: "3/4 HP Reversible", costoCompra: 66.33076923 },
+            { id: "MOI010", name: "1 HP Reversible", costoCompra: 89.51538462 }
+        ]
+    },
+
+    // --- MOTORES PEQUEÑOS (1/20 HP) ---
+    {
+        id: "MOI-1-20-VAR",
+        name: "Motor Ventilador Pequeño 1/20 HP (1550 RPM)",
+        category: "Motores",
+        model: "1/20 HP (1550 RPM)",
+        desc: `<b>Motor de Ventilación Compacto (1/20 HP)</b><br><br>Motores fraccionarios de tamaño reducido (1/20 HP) de alta velocidad (1550 RPM) a 220V. Utilizados comúnmente en exhibidoras comerciales, neveras y extractores pequeños.`,
+        costoCompra: 59.66923077, // Base (MOI030)
+        images: ["productos/MOI036.webp"],
+        specs: { "Capacidad": "1/20 HP", "RPM": "1550 RPM", "Voltaje": "220V" },
+        variants: [
+            { id: "MOI030", name: "1/20 HP Emerson", costoCompra: 59.66923077 },
+            { id: "MOI036", name: "1/20 HP Motorvenca", costoCompra: 72.94615385 },
+            { id: "MOI017", name: "1/3 HP Rostock (825 RPM)", costoCompra: 72.93846154 } // Añadido Rostock aquí o como opción separada, lo incluí por voltaje/uso
+        ]
+    },
     {
         id: "RCB-LIQUIDO-VAR",
         name: "Recibidor de Líquido para Refrigeración",
@@ -4959,7 +5072,9 @@ function calcularPrecios(costoCompra) {
 function setCategory(categoryName, btnElement) {
     currentCategory = categoryName;
     document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
-    btnElement.classList.add('active');
+    if (btnElement && btnElement.classList) {
+        btnElement.classList.add('active');
+    }
     currentPage = 1;
     filterProducts();
     updateHash();
@@ -5075,7 +5190,8 @@ function openQuickView(productId, autoVariantIndex = -1) {
     descEl.classList.remove('expanded');
     btnEl.innerText = 'Leer más';
 
-    if (currentViewedProduct.desc.length > 130) {
+    const descLength = currentViewedProduct.desc ? currentViewedProduct.desc.length : 0;
+    if (descLength > 130) {
         btnEl.style.display = 'inline-block';
     } else {
         btnEl.style.display = 'none';
@@ -5337,12 +5453,12 @@ function updateCartUI() {
         totalNovaUSD += preciosItem.novaClientesUSD * item.quantity;
         totalItems += item.quantity;
 
-        const imgSource = item.images && item.images.length > 0 ? item.images[0] : 'https://static.vecteezy.com/system/resources/previews/004/141/669/non_2x/no-photo-or-blank-image-icon-loading-images-or-missing-image-mark-image-not-available-or-image-coming-soon-sign-simple-nature-silhouette-in-frame-isolated-illustration-vector.jpg';
+        const imgSource = (item.images && item.images.length > 0) ? item.images[0] : 'productos/NO_PHOTO.webp';
 
         htmlContent += `
             <div class="cart-item">
                 <div class="cart-item-info">
-                    <img src="${imgSource}" alt="${item.name}" class="cart-item-img">
+                    <img src="${imgSource}" alt="${item.name}" class="cart-item-img" onerror="this.onerror=null;this.src='productos/NO_PHOTO.webp'">
                     <div class="cart-item-details">
                         <span class="cart-item-code">${item.id}</span>
                         <span class="cart-item-name">${item.name}</span>
@@ -5909,14 +6025,17 @@ function sendWhatsApp() {
         return;
     }
 
-    let message = `Hola equipo de *NOVA RefriMotors*. Mi nombre es *${clientName}* (Tlf: ${clientPhone}) y quisiera consultar la disponibilidad de los siguientes repuestos de su web:%0A%0A`;
+    let messageLines = [
+        `Hola equipo de *NOVA RefriMotors*. Mi nombre es *${clientName}* (Tlf: ${clientPhone}) y quisiera consultar la disponibilidad de los siguientes repuestos de su web:\n`
+    ];
 
     cart.forEach(item => {
-        message += `• Código: *${item.id}* - (Cantidad: ${item.quantity})%0A`;
+        messageLines.push(`• Código: *${item.id}* - (Cantidad: ${item.quantity})`);
     });
 
+    const fullMessage = messageLines.join('\n');
     const destinationPhone = NUMERO_WHATSAPP.replace(/[^0-9]/g, '');
-    const whatsappURL = `https://wa.me/${destinationPhone}?text=${message}`;
+    const whatsappURL = `https://wa.me/${destinationPhone}?text=${encodeURIComponent(fullMessage)}`;
     window.open(whatsappURL, '_blank');
 }
 
@@ -5979,10 +6098,9 @@ function readHashAndRestore() {
         });
     }
 
-    // Restaurar filtro de letra
+    // Restaurar filtro de letra (si se proporcionó)
     const letter = params.get('letter');
     if (letter) {
-        currentLetterFilter = letter;
         document.querySelectorAll('.alpha-btn').forEach(btn => btn.classList.remove('active'));
         const letterBtn = document.getElementById('letter-' + letter);
         if (letterBtn) letterBtn.classList.add('active');
