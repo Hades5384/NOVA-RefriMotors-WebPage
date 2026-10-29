@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -10,8 +10,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="estilos-index.css">
-    <link rel="icon" type="image/x-icon" href="nova_favicon.png">
+        <!-- HOJAS DE ESTILO TEMÃTICAS MODULARES -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/catalogo.css">
+    <link rel="stylesheet" href="css/quickview.css">
+    <link rel="stylesheet" href="css/carrito.css">
+    <link rel="stylesheet" href="css/factura.css">
+    <link rel="stylesheet" href="css/alertas.css">
+    <link rel="icon" type="image/x-icon" href="assets/nova_favicon.png">
 </head>
 
 <body>
@@ -25,7 +31,7 @@
     <header>
         <div class="logo-container">
             <a href="carrusel.html" title="Ver Equipos Destacados">
-                <img src="nova-logo-color.png" alt="Logo Nova RefriMotors"
+                <img src="assets/nova-logo-color.png" alt="Logo Nova RefriMotors"
                     style="transition: transform 0.3s; cursor: pointer;"
                     onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             </a>
@@ -166,7 +172,7 @@
                         id="cart-total-nova">$0.00</span></div>
             </div>
             <button class="whatsapp-btn" onclick="sendWhatsApp()" style="margin-bottom: 8px;">
-                <img src="whatsapp-icono.png" alt="Icono WhatsApp">
+                <img src="assets/whatsapp-icono.png" alt="Icono WhatsApp">
                 Enviar Pedido
             </button>
             <button class="invoice-preview-btn" onclick="previewInvoice()">
@@ -179,7 +185,7 @@
     <footer class="site-footer">
         <div class="footer-content">
             <div class="footer-col">
-                <img src="nova_footer2.png" alt="Logo NOVA RefriMotors"
+                <img src="assets/nova_footer2.png" alt="Logo NOVA RefriMotors"
                     style="max-height: 71px; width: auto; margin-bottom: 15px; filter: brightness(0) invert(1);">
                 <p>Tu aliado estratégico en repuestos para sistemas de refrigeración y aires acondicionados comerciales
                     e industriales en Cabimas.</p>
@@ -206,21 +212,6 @@
             <p>Precios sujetos a cambio según tasa BCV del día.</p>
         </div>
     </footer>
-
-    <!-- ==========================================
-         PLANTILLA DE FACTURA DIGITAL (OCULTA)
-    =========================================== -->
-    <div id="invoice-wrapper" style="position: absolute; left: -9999px; top: -9999px;">
-        <div id="invoice-container" class="invoice-container">
-            <div class="invoice-header">
-                <img src="nova-factura.png" alt="Nova Factura"
-                    style="max-width: 100%; height: auto; display: block; margin: 0 auto 10px auto;">
-            </div>
-            <div class="invoice-client-info">
-                <div>NOMBRE: <span id="inv-nombre"></span></div>
-                <div>RIF: <span id="inv-rif"></span></div>
-                <div>TELÉFONO: <span id="inv-telefono"></span></div>
-            </div>
             <div class="invoice-meta">
                 <div>FECHA: <span id="inv-fecha"></span> &nbsp;&nbsp;&nbsp;HORA: <span id="inv-hora"></span></div>
             </div>
@@ -297,8 +288,12 @@
         </div>
     </div>
 
-    <!-- LÓGICA DE PROGRAMACIÓN (incluye generador de factura nativo Canvas 2D) -->
-    <script src="logica-index.js"></script>
+    <!-- BASE DE DATOS CENTRALIZADA DE PRODUCTOS -->
+    <script src="js/productos.js"></script>
+    <!-- LÃ“GICA DE PROGRAMACIÃ“N Y ESTADO DE APLICACIÃ“N -->
+    <script src="js/logica-index.js"></script>
+    <!-- GENERADOR DE FACTURAS EN CANVAS 2D Y SISTEMA DE ALERTAS NOVA -->
+    <script src="js/factura-canvas.js"></script>
 </body>
 
 </html>
