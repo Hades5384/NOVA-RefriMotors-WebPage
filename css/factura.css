@@ -269,3 +269,11 @@
         width: 100%;
     }
 }
+@keyframes novaSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.nova-spin {
+    animation: novaSpin 1s linear infinite;
+    display: inline-block;
+}

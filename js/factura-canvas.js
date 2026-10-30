@@ -370,10 +370,10 @@ function openInvoicePreviewModal(imgUrl, options = {}) {
     if (img) img.src = imgUrl;
     if (notice) {
         if (options.isFallback) {
-            notice.innerHTML = '📱 <strong>Factura generada con éxito:</strong> En iPhone o navegadores móviles, mantén presionada la imagen para <em>"Copiar"</em> o <em>"Compartir"</em> directamente, o usa el botón <strong>Descargar</strong>.';
+            notice.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg><strong>Factura generada con &eacute;xito:</strong> En iPhone o navegadores m&oacute;viles, mant&eacute;n presionada la imagen para <em>"Copiar"</em> o <em>"Compartir"</em> directamente, o usa el bot&oacute;n <strong>Descargar</strong>.';
             notice.className = 'nova-preview-tip nova-preview-tip-alert';
         } else {
-            notice.innerHTML = '💡 <strong>Vista previa lista:</strong> Revisa el detalle o usa los botones inferiores para copiar la imagen o descargarla en tu dispositivo.';
+            notice.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:5px;" aria-hidden="true"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 6h8c1.5-1.5 3-3.5 3-6a7 7 0 0 0-7-7z"></path></svg><strong>Vista previa lista:</strong> Revisa el detalle o usa los botones inferiores para copiar la imagen o descargarla en tu dispositivo.';
             notice.className = 'nova-preview-tip';
         }
     }
@@ -401,14 +401,14 @@ async function copyInvoiceFromPreview() {
     const originalText = btn ? btn.innerHTML : '';
 
     try {
-        if (btn) btn.innerHTML = '⏳ Copiando...';
+        if (btn) btn.innerHTML = '<svg class="nova-spin" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg><span>Copiando...</span>';
         const fetchRes = await fetch(_currentInvoiceImgUrl);
         const blob = await fetchRes.blob();
         const clipItem = new ClipboardItem({ "image/png": blob });
         await navigator.clipboard.write([clipItem]);
 
         if (btn) {
-            btn.innerHTML = '✅ ¡Copiado!';
+            btn.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:6px;" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg><span>&iexcl;Copiado!</span>';
             btn.classList.add('btn-success-state');
             setTimeout(() => {
                 if (btn) {
