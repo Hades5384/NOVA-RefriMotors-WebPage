@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ==============================================================================
  * NOVA REFRIMOTORS - MOTOR DE FACTURACIÓN CANVAS 2D Y SISTEMA DE ALERTAS
  * Archivo: factura-canvas.js
@@ -333,11 +333,11 @@ async function previewInvoice() {
 
     const btn = document.querySelector('.invoice-preview-btn');
     if (btn && btn.dataset.generating === 'true') return;
-    const originalBtnText = btn ? btn.innerText : '';
+    const originalBtnHtml = btn ? btn.innerHTML : '';
 
     try {
         if (btn) {
-            btn.innerText = "Generando vista...";
+            btn.innerHTML = '<svg class="nova-spin" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg><span>Generando factura...</span>';
             btn.dataset.generating = 'true';
         }
         await new Promise(r => setTimeout(r, 60));
@@ -355,7 +355,7 @@ async function previewInvoice() {
         });
     } finally {
         if (btn) {
-            btn.innerText = originalBtnText;
+            btn.innerHTML = originalBtnHtml;
             btn.dataset.generating = 'false';
         }
     }

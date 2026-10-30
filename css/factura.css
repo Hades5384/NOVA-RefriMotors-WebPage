@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ==============================================================================
  * NOVA REFRIMOTORS - MODAL DE VISTA PREVIA DE FACTURA DIGITAL
  * Archivo: css/factura.css
@@ -9,30 +9,29 @@
  */
 
 /* ==========================================
-   BOTON GENERADOR EN CARRITO
+   BOTON GENERADOR EN CARRITO (ACCION PRINCIPAL POS)
 ========================================== */
 .invoice-preview-btn {
     width: 100%;
-    padding: 12px 14px;
-    background: #e8f0fe;
-    color: var(--nova-blue);
-    border: 1.5px solid var(--nova-blue);
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--nova-blue), #00366b);
+    color: #ffffff;
+    border: none;
     border-radius: 12px;
-    font-size: 13.5px;
+    font-size: 15px;
     font-weight: 800;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 6px rgba(0, 69, 138, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 69, 138, 0.28);
 }
 .invoice-preview-btn:hover {
-    background: var(--nova-blue);
-    color: #ffffff;
+    background: linear-gradient(135deg, #0284c7, var(--nova-blue));
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 69, 138, 0.25);
+    box-shadow: 0 8px 22px rgba(0, 69, 138, 0.4);
 }
 .invoice-preview-btn:active {
     transform: translateY(0);
