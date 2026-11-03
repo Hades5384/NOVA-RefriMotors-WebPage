@@ -276,3 +276,8 @@
     animation: novaSpin 1s linear infinite;
     display: inline-block;
 }
+
+/* Ocultar barra de promocion de delivery en facturacion */
+.top-announcement-bar {
+    display: none !important;
+}
