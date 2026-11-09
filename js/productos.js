@@ -192,6 +192,11 @@ const products = [
     // ============================================================== //
     // ============================================================== //
 
+    // ==========================================
+
+    // SECCIÓN: CAMISAS Y EJES DE TRANSMISIÓN PARA LAVADORAS
+    // ==========================================
+
     {
         id: "CMS-AMAZONAS-VAR",
         name: "Camisa (Tubo de Centrifugado) para Lavadora Amazonas / Mabe",
