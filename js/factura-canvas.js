@@ -30,74 +30,75 @@ let _invoiceLogoImg = null;
 
 // ==========================================
 // SISTEMA DE ALERTAS Y AVISOS NOVA
+// (Fallback modular si no se definió previamente)
 // ==========================================
-let _novaAlertCallback = null;
+if (typeof showNovaAlert === 'undefined') {
+    let _localAlertCallback = null;
+    window.showNovaAlert = function ({ title, message, type = 'info', confirmText = 'Entendido', onConfirm = null }) {
+        _localAlertCallback = onConfirm;
+        const modal = document.getElementById('novaAlertModal');
+        const titleEl = document.getElementById('novaAlertTitle');
+        const msgEl = document.getElementById('novaAlertMessage');
+        const iconEl = document.getElementById('novaAlertIcon');
+        const btnEl = document.getElementById('novaAlertConfirmBtn');
 
-function showNovaAlert({ title, message, type = 'info', confirmText = 'Entendido', onConfirm = null }) {
-    _novaAlertCallback = onConfirm;
-    const modal = document.getElementById('novaAlertModal');
-    const titleEl = document.getElementById('novaAlertTitle');
-    const msgEl = document.getElementById('novaAlertMessage');
-    const iconEl = document.getElementById('novaAlertIcon');
-    const btnEl = document.getElementById('novaAlertConfirmBtn');
-
-    if (!modal) {
-        alert(message);
-        if (onConfirm) onConfirm();
-        return;
-    }
-
-    if (titleEl) titleEl.innerText = title;
-    if (msgEl) msgEl.innerText = message;
-    if (btnEl) btnEl.innerText = confirmText;
-
-    if (iconEl) {
-        iconEl.className = 'nova-alert-icon ' + type;
-        if (type === 'warning') {
-            iconEl.innerHTML = `
-                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>`;
-        } else if (type === 'success') {
-            iconEl.innerHTML = `
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>`;
-        } else if (type === 'error') {
-            iconEl.innerHTML = `
-                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>`;
-        } else {
-            // info
-            iconEl.innerHTML = `
-                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                </svg>`;
+        if (!modal) {
+            alert(message);
+            if (onConfirm) onConfirm();
+            return;
         }
-    }
 
-    modal.classList.add('active');
-    if (btnEl) btnEl.focus();
-}
+        if (titleEl) titleEl.innerText = title;
+        if (msgEl) msgEl.innerText = message;
+        if (btnEl) btnEl.innerText = confirmText;
 
-function closeNovaAlert(event) {
-    if (event && event.target !== event.currentTarget && !event.target.classList.contains('nova-alert-btn')) {
-        return;
-    }
-    const modal = document.getElementById('novaAlertModal');
-    if (modal) modal.classList.remove('active');
-    if (_novaAlertCallback) {
-        const cb = _novaAlertCallback;
-        _novaAlertCallback = null;
-        try { cb(); } catch (err) { console.error(err); }
-    }
+        if (iconEl) {
+            iconEl.className = 'nova-alert-icon ' + type;
+            if (type === 'warning') {
+                iconEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>`;
+            } else if (type === 'success') {
+                iconEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>`;
+            } else if (type === 'error') {
+                iconEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>`;
+            } else {
+                iconEl.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>`;
+            }
+        }
+
+        modal.classList.add('active');
+        if (btnEl) btnEl.focus();
+    };
+
+    window.closeNovaAlert = function (event) {
+        if (event && event.target !== event.currentTarget && !event.target.classList.contains('nova-alert-btn')) {
+            return;
+        }
+        const modal = document.getElementById('novaAlertModal');
+        if (modal) modal.classList.remove('active');
+        if (_localAlertCallback) {
+            const cb = _localAlertCallback;
+            _localAlertCallback = null;
+            try { cb(); } catch (err) { console.error(err); }
+        }
+    };
 }
 
 // ==========================================
@@ -108,10 +109,10 @@ async function buildInvoiceCanvas() {
     if (typeof cart === 'undefined' || cart.length === 0) return null;
 
     // --- Datos del cliente ---
-    const clientName = document.getElementById('customerName').value.trim() || 'Cliente No Registrado';
-    const clientRif = document.getElementById('customerRif').value.trim() || 'J-000000000';
-    const clientPhone = document.getElementById('customerPhone').value.trim() || 'No especificado';
-    const method = document.getElementById('paymentMethod').value;
+    const clientName = document.getElementById('customerName')?.value?.trim() || 'Cliente No Registrado';
+    const clientRif = document.getElementById('customerRif')?.value?.trim() || 'J-000000000';
+    const clientPhone = document.getElementById('customerPhone')?.value?.trim() || 'No especificado';
+    const method = document.getElementById('paymentMethod')?.value || 'EFECTIVO_USD';
 
     // --- Fecha y Hora ---
     const now = new Date();
@@ -395,6 +396,22 @@ function closeInvoicePreview(event) {
     }
 }
 
+function dataURLtoBlob(dataUrl) {
+    try {
+        const parts = dataUrl.split(',');
+        const mime = parts[0].match(/:(.*?);/)[1];
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    } catch (e) {
+        return null;
+    }
+}
+
 async function copyInvoiceFromPreview() {
     if (!_currentInvoiceImgUrl) return;
     const btn = document.getElementById('btnCopyFromPreview');
@@ -402,8 +419,12 @@ async function copyInvoiceFromPreview() {
 
     try {
         if (btn) btn.innerHTML = '<svg class="nova-spin" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg><span>Copiando...</span>';
-        const fetchRes = await fetch(_currentInvoiceImgUrl);
-        const blob = await fetchRes.blob();
+        
+        let blob = dataURLtoBlob(_currentInvoiceImgUrl);
+        if (!blob) {
+            const fetchRes = await fetch(_currentInvoiceImgUrl);
+            blob = await fetchRes.blob();
+        }
         const clipItem = new ClipboardItem({ "image/png": blob });
         await navigator.clipboard.write([clipItem]);
 

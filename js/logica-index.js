@@ -8,8 +8,11 @@ const PORCENTAJE_UTILIDAD = 1.30;
 const PORCENTAJE_IVA = 1.16;
 const TASA_INTERNA = 1050;
 
-// Mostrar tasa BCV en el encabezado
-document.getElementById('bcv-display').innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
+// Mostrar tasa BCV en el encabezado de forma segura
+const bcvEl = document.getElementById('bcv-display');
+if (bcvEl) {
+    bcvEl.innerText = `Bs. ${TASA_BCV.toFixed(2)}`;
+}
 
 
 // ==========================================
@@ -43,6 +46,7 @@ function handleSearchKey(event) {
 }
 
 function resetPaginationAndFilter() {
+    clearTimeout(_searchDebounceTimer);
     currentPage = 1;
     filterProducts();
     updateHash();
@@ -83,7 +87,10 @@ function filterProducts() {
             const matchesCategory = (currentCategory === 'Todos') || (prod.category === currentCategory);
             if (!matchesCategory) return false;
 
-            if (!query) return true;
+            if (!query) {
+                prod._matchedVariantIndex = -1;
+                return true;
+            }
 
             const nameMatch = prod.name && prod.name.toLowerCase().includes(query);
             const idMatch = prod.id && prod.id.toLowerCase().includes(query);
@@ -503,7 +510,15 @@ function updateCartUI() {
         totalNovaUSD += preciosItem.novaClientesUSD * item.quantity;
         totalItems += item.quantity;
 
-        const imgSource = (item.images && item.images.length > 0) ? item.images[0] : 'productos/NO_PHOTO.webp';
+        let imgSource = 'productos/NO_PHOTO.webp';
+        if (item.images && item.images.length > 0) {
+            const cleanCode = (item.id || '').toUpperCase();
+            const matchedVariant = item.images.find(imgUrl => {
+                const fn = imgUrl.split('/').pop().toUpperCase().replace(/\.[^/.]+$/, "");
+                return fn === cleanCode || fn.includes(cleanCode);
+            });
+            imgSource = matchedVariant || item.images[0];
+        }
 
         htmlContent += `
             <div class="cart-item">
@@ -542,6 +557,77 @@ function removeFromCart(index) {
 
 function toggleCart() {
     document.getElementById('cartModal').classList.toggle('active');
+}
+
+// ==========================================
+// SISTEMA DE ALERTAS Y AVISOS NOVA
+// ==========================================
+let _novaAlertCallback = null;
+
+function showNovaAlert({ title, message, type = 'info', confirmText = 'Entendido', onConfirm = null }) {
+    _novaAlertCallback = onConfirm;
+    const modal = document.getElementById('novaAlertModal');
+    const titleEl = document.getElementById('novaAlertTitle');
+    const msgEl = document.getElementById('novaAlertMessage');
+    const iconEl = document.getElementById('novaAlertIcon');
+    const btnEl = document.getElementById('novaAlertConfirmBtn');
+
+    if (!modal) {
+        alert(message);
+        if (onConfirm) onConfirm();
+        return;
+    }
+
+    if (titleEl) titleEl.innerText = title;
+    if (msgEl) msgEl.innerText = message;
+    if (btnEl) btnEl.innerText = confirmText;
+
+    if (iconEl) {
+        iconEl.className = 'nova-alert-icon ' + type;
+        if (type === 'warning') {
+            iconEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>`;
+        } else if (type === 'success') {
+            iconEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>`;
+        } else if (type === 'error') {
+            iconEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>`;
+        } else {
+            iconEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>`;
+        }
+    }
+
+    modal.classList.add('active');
+    if (btnEl) btnEl.focus();
+}
+
+function closeNovaAlert(event) {
+    if (event && event.target !== event.currentTarget && !event.target.classList.contains('nova-alert-btn')) {
+        return;
+    }
+    const modal = document.getElementById('novaAlertModal');
+    if (modal) modal.classList.remove('active');
+    if (_novaAlertCallback) {
+        const cb = _novaAlertCallback;
+        _novaAlertCallback = null;
+        try { cb(); } catch (err) { console.error(err); }
+    }
 }
 
 
