@@ -1241,6 +1241,62 @@ function handleBackupFileSelect(event) {
 }
 
 // ==========================================
+// INTEGRACIÓN NUBE SUPABASE (CONTROLADORES)
+// ==========================================
+async function triggerManualSync() {
+    if (typeof NovaSupabase === 'undefined') return;
+    showNovaAlert({
+        title: "Sincronizando...",
+        message: "Enviando registros locales a la base de datos en la nube.",
+        type: "success"
+    });
+    await NovaSupabase.processQueue();
+    const queue = NovaSupabase.getQueue();
+    if (queue.length === 0) {
+        showNovaAlert({
+            title: "Nube Actualizada",
+            message: "Todos los datos locales están 100% sincronizados con Supabase.",
+            type: "success"
+        });
+    } else {
+        showNovaAlert({
+            title: "Sincronización Parcial",
+            message: `Quedan ${queue.length} registros pendientes por enviar.`,
+            type: "warning"
+        });
+    }
+}
+
+async function triggerSeedCatalog() {
+    if (typeof NovaSupabase === 'undefined') return;
+    const confirmSeed = confirm("¿Deseas sincronizar los 460 repuestos y existencias hacia la base de datos de Supabase?");
+    if (!confirmSeed) return;
+
+    showNovaAlert({
+        title: "Subiendo Catálogo...",
+        message: "Subiendo los 460 repuestos y especificaciones a la nube de Supabase. Esto tomará solo unos segundos...",
+        type: "success"
+    });
+
+    try {
+        const res = await NovaSupabase.seedFullCatalog((inserted, total) => {
+            console.log(`Progreso: ${inserted}/${total}`);
+        });
+        showNovaAlert({
+            title: "¡Catálogo en la Nube!",
+            message: `Se han sincronizado ${res.count} repuestos y sus existencias en Supabase exitosamente.`,
+            type: "success"
+        });
+    } catch (err) {
+        showNovaAlert({
+            title: "Error al Cargar",
+            message: "No se pudo completar la carga: " + (err.message || err),
+            type: "error"
+        });
+    }
+}
+
+// ==========================================
 // UTILIDADES GENERALES DE MODALES
 // ==========================================
 function openModal(modalId) {

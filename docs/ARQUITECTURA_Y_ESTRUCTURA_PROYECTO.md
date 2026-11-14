@@ -13,6 +13,10 @@ El ecosistema digital de **NOVA RefriMotors** está estructurado bajo una **arqu
 
 ```mermaid
 flowchart TD
+    subgraph CLOUD["BASE DE DATOS EN LA NUBE (SUPABASE)"]
+        S_DB["PostgreSQL en la Nube<br/>(productos, ventas, clientes, caja, compras)"]
+    end
+
     subgraph BBDD["BASE DE DATOS MAESTRA CENTRALIZADA"]
         DB["js/productos.js<br/>(460 Repuestos, SKUs, Costos y Specs)"]
         IMG["productos/*.webp<br/>(Banco de Imágenes Técnicas)"]
@@ -21,6 +25,7 @@ flowchart TD
     subgraph REPO_ADMIN["REPOSITORIO ADMINISTRATIVO (NOVA-RefriMotors-WebPage)"]
         SPA["index.html<br/>(Single Page Application)"]
         ADB["js/admin-db.js<br/>(Motor Local-First: Inventario, Caja, CRM)"]
+        ASB["js/admin-supabase.js<br/>(Conector Híbrido y Cola Offline)"]
         APP["js/admin-app.js<br/>(Controlador POS, Atajos F2/F4/F8, Canvas)"]
         CSSA["css/admin-theme.css<br/>(Diseño ERP y Recibos Térmicos)"]
         PROMO["promo.html<br/>(Suite Motion Graphics y Pantalla)"]
@@ -32,6 +37,7 @@ flowchart TD
         PUB_CAR["carrusel.html<br/>(Carrusel Visual de Ofertas)"]
     end
 
+    ASB <-->|Sincronización Automática / Cola Offline| S_DB
     DB -.->|Sincronizado / Hardlink NTFS| REPO_ADMIN
     DB -.->|Sincronizado / Hardlink NTFS| REPO_PUBLIC
     IMG -.->|Recursos Compartidos| REPO_ADMIN
@@ -75,8 +81,9 @@ A continuación se detalla la función precisa de cada archivo y carpeta existen
 ### 2.2. Directorio `js/` (Motores Lógicos y Datos)
 | Archivo | Rol en el Sistema |
 | :--- | :--- |
-| **[admin-db.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/admin-db.js)** | **Motor de Datos Local-First (Base de Datos Local)**.<br>• Gestiona el almacenamiento reactivo en `localStorage`.<br>• Controla existencias dinámicas de inventario.<br>• Registra ventas, cortes de caja X/Z, egresos y turnos activos.<br>• Mantiene el directorio de clientes (CRM) y proveedores.<br>• Permite generar y restaurar copias de seguridad completas en formato JSON. |
-| **[admin-app.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/admin-app.js)** | **Controlador de la Aplicación y Punto de Venta (POS)**.<br>• Enrutador SPA (navegación entre los 7 módulos sin recarga).<br>• Manejador de atajos de teclado (`F2` buscar, `F4` cobrar, `F8` pausar ticket).<br>• Lógica del carrito de mostrador y cálculo de totales en USD/Bs.<br>• **Generador de Tickets en Canvas 2D**: Dibuja el recibo térmico con tipografía nítida, datos fiscales (RIF J-504401994), desglose de ítems y código QR. |
+| **[admin-db.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-db.js)** | **Motor de Datos Local-First (Base de Datos Local)**.<br>• Gestiona el almacenamiento reactivo en `localStorage`.<br>• Controla existencias dinámicas de inventario.<br>• Registra ventas, cortes de caja X/Z, egresos y turnos activos.<br>• Mantiene el directorio de clientes (CRM) y proveedores.<br>• Permite generar y restaurar copias de seguridad completas en formato JSON. |
+| **[admin-supabase.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-supabase.js)** | **Conector y Sincronizador en la Nube (Supabase / PostgreSQL)**.<br>• Gestiona la réplica automática de datos entre el navegador y la nube.<br>• Maneja la cola de contingencia fuera de línea (offline queue) para facturar sin internet.<br>• Carga y actualiza los 460 productos y variantes en tiempo real.<br>• Controla el widget visual de estado de sincronización. |
+| **[admin-app.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-app.js)** | **Controlador de la Aplicación y Punto de Venta (POS)**.<br>• Enrutador SPA (navegación entre los 7 módulos sin recarga).<br>• Manejador de atajos de teclado (`F2` buscar, `F4` cobrar, `F8` pausar ticket).<br>• Lógica del carrito de mostrador y cálculo de totales en USD/Bs.<br>• **Generador de Tickets en Canvas 2D**: Dibuja el recibo térmico con tipografía nítida, datos fiscales (RIF J-504401994), desglose de ítems y código QR. |
 | **[productos.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/productos.js)** | **Base de Datos Maestra de Productos (460 Repuestos)**.<br>Contiene el arreglo `products` con el catálogo oficial: SKUs (`GAS002`, `CAP001`, `FIL143`), nombres técnicos, categorías (Refrigeración, Electricidad, Herramientas, etc.), costo de compra base (`costoCompra`), rutas de imágenes y especificaciones técnicas detalladas. |
 | **[factura-canvas.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/factura-canvas.js)** | Módulo auxiliar de apoyo para renderizado avanzado de comprobantes y cotizaciones en Canvas. |
 | **[logica-index.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/logica-index.js)** | Biblioteca común de utilidades de conversión de divisas, cálculo de precios y filtrado técnico. |

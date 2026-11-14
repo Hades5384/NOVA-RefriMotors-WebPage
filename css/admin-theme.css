@@ -1283,3 +1283,65 @@ html, body {
     }
 }
 
+/* ==============================================================================
+   WIDGET INDICADOR DE ESTADO EN NUBE (SUPABASE)
+   ============================================================================== */
+.cloud-sync-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+}
+
+.cloud-sync-pill:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.cloud-sync-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.cloud-sync-dot.online {
+    background-color: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.cloud-sync-dot.syncing {
+    background-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+    animation: pulseSync 1s infinite alternate;
+}
+
+.cloud-sync-dot.pending {
+    background-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+.cloud-sync-dot.offline {
+    background-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.cloud-sync-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-main);
+    letter-spacing: 0.2px;
+}
+
+@keyframes pulseSync {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    100% { transform: scale(1.2); opacity: 1; }
+}
+
+

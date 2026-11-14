@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="css/admin-theme.css">
     <link rel="stylesheet" href="css/alertas.css">
     <link rel="icon" type="image/x-icon" href="assets/nova_favicon.png">
+    <!-- Cliente oficial de Supabase para sincronización en la nube -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -154,6 +156,12 @@
                 </div>
 
                 <div class="header-right">
+                    <!-- WIDGET ESTADO NUBE SUPABASE -->
+                    <div class="cloud-sync-pill" id="cloudSyncPill" onclick="navigateTo('settings')" title="Estado de la Base de Datos en la Nube (Supabase)">
+                        <span class="cloud-sync-dot online" id="cloudSyncDot"></span>
+                        <span class="cloud-sync-label" id="cloudSyncLabel">Nube Conectada</span>
+                    </div>
+
                     <!-- BOTÓN DE VENTAS EN ESPERA -->
                     <button class="header-action-btn btn-secondary-action" id="btnHeldSales" onclick="openHeldSalesModal()">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -533,7 +541,7 @@
                      VISTA 7: CONFIGURACIÓN Y RESPALDOS
                      ========================================================== -->
                 <section class="erp-view" id="view-settings">
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:20px;">
                         <!-- CONFIGURACIÓN DE EMPRESA Y TASAS -->
                         <div class="table-card" style="padding: 24px;">
                             <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Parámetros Fiscales y Tasas</h3>
@@ -564,6 +572,40 @@
                             <button class="header-action-btn btn-primary-action" onclick="saveCompanySettings()">
                                 Guardar Parámetros
                             </button>
+                        </div>
+
+                        <!-- BASE DE DATOS EN LA NUBE (SUPABASE) -->
+                        <div class="table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                                    <h3 style="font-size: 16px; font-weight: 800; margin:0;">Base de Datos en la Nube (Supabase)</h3>
+                                    <span class="stock-badge in-stock" id="cfgCloudBadge" style="font-size:11px;">🟢 Conectado</span>
+                                </div>
+                                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
+                                    Conexión activa con PostgreSQL en Supabase. Si internet se desconecta en Cabimas, el mostrador sigue facturando en local y sincroniza automáticamente al recuperar la red.
+                                </p>
+                                <div class="form-group" style="margin-bottom: 10px;">
+                                    <label style="font-size:11px; font-weight:700;">Project URL:</label>
+                                    <input type="text" id="cfgSupabaseUrl" class="form-input" style="font-size:12px; background:#f8fafc;" readonly value="https://krsahhdkxfeehyernwmf.supabase.co">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 14px;">
+                                    <label style="font-size:11px; font-weight:700;">Publishable / Anon Key:</label>
+                                    <input type="password" id="cfgSupabaseKey" class="form-input" style="font-size:12px; background:#f8fafc;" readonly value="sb_publishable_4dLnKHj89ri1Z9qV0JE3mw_nRGLhxbE">
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                    <button class="header-action-btn btn-primary-action" onclick="triggerManualSync()" style="justify-content:center; padding:10px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                                        Sincronizar Pendientes Ahora
+                                    </button>
+                                    <button class="header-action-btn btn-secondary-action" onclick="triggerSeedCatalog()" id="btnSeedCatalog" style="justify-content:center; padding:10px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                        Sincronizar Catálogo (460 repuestos)
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px; font-size:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-md); color:#166534;" id="cfgCloudStatusMsg">
+                                ☁️ <b>Estado:</b> Nube conectada. Modo Híbrido activo.
+                            </div>
                         </div>
 
                         <!-- COPIAS DE SEGURIDAD (BACKUP) -->
@@ -906,6 +948,8 @@
     <script src="js/productos.js"></script>
     <!-- Motor de persistencia Local-First del ERP (Inventario dinámico, Caja, Ventas, CRM) -->
     <script src="js/admin-db.js"></script>
+    <!-- Conector y sincronizador con Supabase Cloud (PostgreSQL Híbrido) -->
+    <script src="js/admin-supabase.js"></script>
     <!-- Controlador principal SPA y Punto de Venta -->
     <script src="js/admin-app.js"></script>
 </body>

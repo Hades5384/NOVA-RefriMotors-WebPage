@@ -142,10 +142,30 @@ sequenceDiagram
 
 ---
 
+## 6. INTEGRACIÓN CON BASE DE DATOS EN LA NUBE (SUPABASE POSTGRESQL HÍBRIDO)
+
+Para garantizar que los datos de facturación, existencias de repuestos, arqueos de caja y clientes no dependan exclusivamente de una sola computadora física ni del almacenamiento del navegador, el sistema ha sido conectado exitosamente a una **Base de Datos Relacional en la Nube sobre Supabase (PostgreSQL)**:
+
+1. **Modelo Híbrido Anti-Apagones:**
+   - La caja y el mostrador operan a velocidad instantánea local (`localStorage`), permitiendo seguir cobrando y despachando incluso si no hay conexión a internet en la tienda.
+   - Tan pronto como la computadora detecta red, sincroniza automáticamente todas las ventas, movimientos de stock y egresos con la nube.
+2. **550 Productos y Variantes Cargados en la Nube:**
+   - Todo el catálogo maestro de 460 productos y sus variantes técnicas ha sido estructurado y migrado a la tabla `productos` en Supabase con sus costos de compra, precios de cálculo y especificaciones.
+3. **Monitoreo en Tiempo Real:**
+   - El encabezado del ERP incluye el indicador visual interactivo `cloud-sync-pill`:
+     - 🟢 **Nube Conectada**: Todo sincronizado con Supabase.
+     - 🔵 **Sincronizando...**: Transmitiendo operaciones locales a la nube.
+     - 🟡 **Modo Local (X pendientes)**: Operando fuera de línea; enviará las ventas en cuanto retorne la red.
+4. **Acceso Multi-Computadora:**
+   - Permite que gerencia o almacén consulten inventarios y ventas en tiempo real sin interferir con la caja de mostrador.
+
+---
+
 **Elaborado para:** Dirección y Jefaturas de NOVA RefriMotors  
 **Archivos relacionados:**
-- Interfaz Principal ERP: [index.html](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/index.html)
-- Motor Local-First: [admin-db.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/admin-db.js)
-- Controlador de Ventas: [admin-app.js](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/js/admin-app.js)
-- Estilos Corporativos: [admin-theme.css](file:///c:/Users/ELITEDESK/Desktop/vs%20code%20web%20projects/github/NOVA-RefriMotors-WebPage/css/admin-theme.css)
+- Interfaz Principal ERP: [index.html](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/index.html)
+- Motor Local-First: [admin-db.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-db.js)
+- Conector y Sincronizador en la Nube: [admin-supabase.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-supabase.js)
+- Controlador de Ventas: [admin-app.js](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/js/admin-app.js)
+- Estilos Corporativos: [admin-theme.css](file:///c:/Users/GERENCIA/Desktop/github/NOVA-RefriMotors-WebPage/css/admin-theme.css)
 
