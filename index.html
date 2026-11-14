@@ -4,225 +4,889 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facturación y Catálogo | NOVA RefriMotors</title>
+    <title>NOVA Admin ERP | Sistema de Gestión y Facturación</title>
     <!-- Fuente moderna: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <!-- HOJAS DE ESTILO TEMATICAS MODULARES -->
+    <!-- Estilos del Sistema Administrativo ERP -->
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/catalogo.css">
-    <link rel="stylesheet" href="css/quickview.css">
-    <link rel="stylesheet" href="css/carrito.css">
-    <link rel="stylesheet" href="css/factura.css">
+    <link rel="stylesheet" href="css/admin-theme.css">
     <link rel="stylesheet" href="css/alertas.css">
     <link rel="icon" type="image/x-icon" href="assets/nova_favicon.png">
 </head>
 
 <body>
-
-    <!-- ENCABEZADO Y BUSCADOR -->
-    <header>
-        <div class="logo-container">
-            <a href="carrusel.html" title="Ver Equipos Destacados">
-                <img src="assets/nova-logo-color.png" alt="Logo Nova RefriMotors"
-                    style="transition: transform 0.3s; cursor: pointer;"
-                    onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            </a>
-        </div>
-
-        <div class="search-container">
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Buscar repuestos, código o modelo..."
-                    oninput="debouncedSearch()" onkeydown="handleSearchKey(event)">
-            </div>
-            <!-- WIDGET TASA BCV -->
-            <div class="bcv-widget" title="Tasa Oficial del Banco Central de Venezuela">
-                <div class="bcv-header">
-                    <span class="bcv-live-dot"></span>
-                    <span class="bcv-label">TASA OFICIAL BCV</span>
-                </div>
-                <div class="bcv-rate-row">
-                    <svg class="bcv-trend-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                    <span id="bcv-display">Bs. 897.54</span>
-                </div>
-            </div>
-        </div>
-        <button class="cart-btn" onclick="toggleCart()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><span>Mi Pedido (<span id="cart-count">0</span>)</span></button>
-    </header>
-
-    <!-- CATEGORÍAS CON NAVEGACIÓN DESLIZABLE -->
-    <div class="category-nav-wrapper" id="categoryNavWrapper">
-        <button class="cat-nav-arrow cat-nav-prev" id="catNavPrev" onclick="scrollCategories(-1)" aria-label="Categorías anteriores" title="Categorías anteriores">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-
-        <nav class="category-menu" id="categoryMenu" aria-label="Categorías de repuestos">
-            <button class="cat-btn active" onclick="setCategory('Todos', this)">Todos</button>
-            <button class="cat-btn" onclick="setCategory('Aires Acondicionados', this)">Aires Acondicionados</button>
-            <button class="cat-btn" onclick="setCategory('Neveras / Cavas', this)">Neveras / Cavas</button>
-            <button class="cat-btn" onclick="setCategory('Refrigeración', this)">Refrigeración</button>
-            <button class="cat-btn" onclick="setCategory('Motores', this)">Motores</button>
-            <button class="cat-btn" onclick="setCategory('Bombas de Agua', this)">Bombas de Agua</button>
-            <button class="cat-btn" onclick="setCategory('Protectores', this)">Protectores</button>
-            <button class="cat-btn" onclick="setCategory('Eléctrico', this)">Eléctrico</button>
-            <button class="cat-btn" onclick="setCategory('Licuadoras', this)">Licuadoras</button>
-            <button class="cat-btn" onclick="setCategory('Lavadoras', this)">Lavadoras</button>
-            <button class="cat-btn" onclick="setCategory('Químicos', this)">Químicos</button>
-            <button class="cat-btn" onclick="setCategory('Automotriz', this)">Automotriz</button>
-            <button class="cat-btn" onclick="setCategory('Capacitores', this)">Capacitores</button>
-            <button class="cat-btn" onclick="setCategory('Herramientas', this)">Herramientas</button>
-        </nav>
-
-        <button class="cat-nav-arrow cat-nav-next" id="catNavNext" onclick="scrollCategories(1)" aria-label="Categorías siguientes" title="Ver más categorías">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
-    </div>
-
-
-    <!-- CONTENEDOR DE PRODUCTOS -->
-    <main class="products-grid" id="products-container"></main>
-
-    <!-- PAGINACIÓN -->
-    <div class="pagination" id="pagination-container"></div>
-
-    <!-- ==========================================
-         MODAL DE VISTA RÁPIDA (QUICK VIEW)
-    =========================================== -->
-    <div class="quick-view-overlay" id="quickViewModal" onclick="closeQuickView(event)">
-        <div class="quick-view-box" onclick="event.stopPropagation()">
-            <span class="close-qv" onclick="event.stopPropagation(); closeQuickView();" title="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></span>
-
-            <div class="qv-gallery">
-                <img id="qvMainImg" class="qv-main-img" src="" alt="Producto" onclick="openZoom()"
-                    title="Haz clic para ampliar">
-                <div class="qv-thumbnails" id="qvThumbnails"></div>
+    <div class="erp-layout">
+        <!-- ==========================================================
+             SIDEBAR DE NAVEGACIÓN CORPORATIVO
+             ========================================================== -->
+        <aside class="erp-sidebar" id="erpSidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-brand">
+                    <img src="assets/nova-logo-color.png" alt="Logo NOVA" class="sidebar-brand-logo">
+                    <div class="sidebar-brand-info">
+                        <span class="sidebar-brand-title">NOVA Motors</span>
+                        <span class="sidebar-brand-badge">ADMIN ERP 1.0</span>
+                    </div>
+                </a>
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar / Expandir menú">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
             </div>
 
-            <div class="qv-info">
-                <div class="qv-category" id="qvCategory">Categoría</div>
-                <h2 class="qv-title" id="qvTitle">Nombre</h2>
-                <div class="qv-code" id="qvCode">CÓDIGO: XXXX</div>
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Operaciones Diarias</div>
 
-                <!-- SELECTOR DE VARIANTES (MEDIDAS) OCULTO POR DEFECTO -->
-                <div id="qvVariantContainer"
-                    style="display: none; margin-bottom: 20px; padding-top: 10px; border-top: 1px solid var(--border-light);">
-                    <label for="qvVariantSelect"
-                        style="font-size: 11px; font-weight: 800; color: var(--text-light); margin-bottom: 8px; display: block; text-transform: uppercase;">Selecciona
-                        una medida:</label>
-                    <select id="qvVariantSelect"
-                        style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-light); border-radius: 8px; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; background: #f8f9fa; cursor: pointer; transition: 0.3s;"></select>
+                <div class="nav-item active" data-view="pos" onclick="navigateTo('pos')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Punto de Venta (POS)</span>
+                    <span class="nav-item-badge" id="posCartCountBadge">0</span>
                 </div>
 
-                <div class="qv-desc-container">
-                    <p class="qv-desc" id="qvDesc">Descripción...</p>
-                    <button class="read-more-btn" id="qvReadMoreBtn" onclick="toggleDescription()">Leer más</button>
+                <div class="nav-item" data-view="cash" onclick="navigateTo('cash')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                            <line x1="6" y1="12" x2="18" y2="12"></line>
+                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Caja y Arqueo</span>
                 </div>
 
-                <table class="qv-specs" id="qvSpecsTable"></table>
+                <div class="nav-section-title">Almacén y Gestión</div>
 
-                <div class="qv-price-box">
-                    <div class="price-public-usd" id="qvPrice">Precio: $0.00</div>
-                    <div class="price-public-bs" id="qvPriceVes">Ref: Bs. 0.00</div>
-                    <div class="price-nova-badge" style="margin-top: 10px; width: fit-content; gap: 15px;">
-                        Descuento NovaClientes: <span id="qvPriceNova">$0.00</span>
+                <div class="nav-item" data-view="inventory" onclick="navigateTo('inventory')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Inventario</span>
+                </div>
+
+                <div class="nav-item" data-view="purchases" onclick="navigateTo('purchases')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Compras y Proveedores</span>
+                </div>
+
+                <div class="nav-item" data-view="customers" onclick="navigateTo('customers')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Clientes (CRM)</span>
+                </div>
+
+                <div class="nav-section-title">Comercial y Sistema</div>
+
+                <div class="nav-item" data-view="marketing" onclick="navigateTo('marketing')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Marketing y Combos</span>
+                </div>
+
+                <div class="nav-item" data-view="settings" onclick="navigateTo('settings')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Configuración</span>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="cash-status-indicator">
+                    <span class="cash-dot"></span>
+                    <div class="cash-info">
+                        <span class="cash-info-title">Caja Activa</span>
+                        <span class="cash-info-sub">Turno Abierto</span>
                     </div>
                 </div>
-                <button class="add-btn" id="qvAddBtn">Agregar al Pedido</button>
+                <a href="promo.html" class="nav-item" style="padding: 8px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.1); color: #38bdf8;" target="_blank">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <span class="nav-item-text">Suite Motion Graphics</span>
+                </a>
             </div>
-        </div>
+        </aside>
+
+        <!-- ==========================================================
+             ÁREA DE TRABAJO PRINCIPAL
+             ========================================================== -->
+        <main class="erp-main">
+            <!-- HEADER SUPERIOR DE CONTROL -->
+            <header class="erp-header">
+                <div class="header-left">
+                    <div class="header-title-box">
+                        <h1 id="viewHeaderTitle">Punto de Venta y Facturación</h1>
+                        <p id="viewHeaderSubtitle">Mostrador rápido multimoneda, emisión de tickets y presupuestos</p>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <!-- BOTÓN DE VENTAS EN ESPERA -->
+                    <button class="header-action-btn btn-secondary-action" id="btnHeldSales" onclick="openHeldSalesModal()">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        En Espera (0)
+                    </button>
+
+                    <!-- WIDGET TASA BCV INTERACTIVO -->
+                    <div class="bcv-rate-pill" onclick="promptEditBCV()" title="Haz clic para modificar la Tasa Oficial BCV">
+                        <div class="bcv-pill-icon">Bs</div>
+                        <div class="bcv-pill-data">
+                            <span class="bcv-pill-label">TASA OFICIAL BCV</span>
+                            <span class="bcv-pill-val" id="bcvRateVal">Bs. 897.54</span>
+                        </div>
+                    </div>
+
+                    <!-- RELOJ DIGITAL EN VIVO -->
+                    <div class="live-clock-box">
+                        <span class="live-clock-time" id="liveClockTime">10:00:00 AM</span>
+                        <span class="live-clock-date" id="liveClockDate">Hoy</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTENEDOR DE VISTAS (SPA) -->
+            <div class="erp-content">
+
+                <!-- ==========================================================
+                     VISTA 1: PUNTO DE VENTA (POS / MOSTRADOR)
+                     ========================================================== -->
+                <section class="erp-view active" id="view-pos">
+                    <div class="pos-container">
+                        <!-- PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS -->
+                        <div class="pos-catalog-panel">
+                            <div class="pos-search-bar">
+                                <div class="search-input-wrap">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                    <input type="text" id="posSearchInput" class="pos-search-input" placeholder="Buscar por código, nombre o modelo... [Tecla F2]" oninput="filterPOS()">
+                                </div>
+                            </div>
+
+                            <div class="pos-category-tabs" id="posCatTabs">
+                                <!-- Generado dinámicamente -->
+                            </div>
+
+                            <div class="pos-items-grid" id="posItemsGrid">
+                                <!-- Ítems del catálogo generados por JS -->
+                            </div>
+                        </div>
+
+                        <!-- PANEL DERECHO: TICKET Y COBRO -->
+                        <div class="pos-ticket-panel">
+                            <div class="ticket-header">
+                                <span class="ticket-title">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                                    Ticket Actual
+                                </span>
+                                <div class="ticket-controls">
+                                    <button class="ticket-btn-sm" onclick="holdPOSSale()" title="Pausar venta actual (F8)">Pausar (F8)</button>
+                                    <button class="ticket-btn-sm" onclick="clearPOSCart()" title="Limpiar ticket">Vaciar</button>
+                                </div>
+                            </div>
+
+                            <div class="ticket-customer-box">
+                                <div class="customer-row">
+                                    <select id="posCustomerSelect" class="customer-input" onchange="onPOSCustomerChange(this.value)">
+                                        <!-- Precargado dinámicamente -->
+                                    </select>
+                                    <button class="ticket-btn-sm" onclick="openAddCustomerModal()" title="Registrar nuevo cliente">+</button>
+                                </div>
+                                <div class="client-tier-toggle">
+                                    <button class="tier-btn active" id="btnTierPublic" onclick="setPOSTier('publico')">Precio Público</button>
+                                    <button class="tier-btn" id="btnTierNova" onclick="setPOSTier('novacliente')">★ NovaCliente</button>
+                                </div>
+                            </div>
+
+                            <div class="ticket-items-list" id="posTicketItems">
+                                <!-- Ítems del carrito -->
+                            </div>
+
+                            <div class="ticket-summary">
+                                <div class="summary-line">
+                                    <span>Subtotal:</span>
+                                    <span id="posSubtotalUSD">$0.00</span>
+                                </div>
+                                <div class="summary-line total-line">
+                                    <span>TOTAL USD:</span>
+                                    <span id="posTotalUSD">$0.00</span>
+                                </div>
+                                <div class="summary-line bs-line">
+                                    <span>TOTAL BS:</span>
+                                    <span id="posTotalBs">Bs. 0.00</span>
+                                </div>
+                                <button class="btn-checkout" id="btnPOSCheckout" onclick="openCheckoutModal()" disabled>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    COBRAR E IMPRIMIR [F4]
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 2: INVENTARIO Y ALMACÉN
+                     ========================================================== -->
+                <section class="erp-view" id="view-inventory">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Total Productos</span>
+                                <span class="kpi-value" id="invKpiTotal">460</span>
+                                <span class="kpi-sub">Catálogo centralizado</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-blue">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Valorización Inventario</span>
+                                <span class="kpi-value" id="invKpiValuation">$0.00</span>
+                                <span class="kpi-sub">A costo de reposición</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-green">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Stock Bajo</span>
+                                <span class="kpi-value" id="invKpiLow" style="color:var(--warning);">0</span>
+                                <span class="kpi-sub">Requieren reposición</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-amber">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Agotados</span>
+                                <span class="kpi-value" id="invKpiOut" style="color:var(--danger);">0</span>
+                                <span class="kpi-sub">Existencia en cero</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-red">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-card">
+                        <div class="table-toolbar">
+                            <div class="table-toolbar-left">
+                                <input type="text" id="invSearchInput" class="form-input" placeholder="Buscar por código o descripción..." oninput="renderInventoryTable()">
+                                <select id="invCatFilter" class="form-select" onchange="renderInventoryTable()">
+                                    <option value="Todos">Todas las Categorías</option>
+                                    <option value="Refrigeración">Refrigeración</option>
+                                    <option value="Aires Acondicionados">Aires Acondicionados</option>
+                                    <option value="Lavadoras">Lavadoras</option>
+                                    <option value="Licuadoras">Licuadoras</option>
+                                    <option value="Motores">Motores</option>
+                                    <option value="Protectores">Protectores</option>
+                                    <option value="Capacitores">Capacitores</option>
+                                    <option value="Herramientas">Herramientas</option>
+                                    <option value="Químicos">Químicos</option>
+                                </select>
+                                <select id="invStatusFilter" class="form-select" onchange="renderInventoryTable()">
+                                    <option value="Todos">Todos los Estados</option>
+                                    <option value="optimal">Óptimo</option>
+                                    <option value="low">Bajo Stock</option>
+                                    <option value="out">Agotado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Descripción del Repuesto</th>
+                                        <th>Categoría</th>
+                                        <th>Costo ($)</th>
+                                        <th>P. Público ($)</th>
+                                        <th>P. Nova ($)</th>
+                                        <th>Existencias</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventoryTableBody">
+                                    <!-- Renderizado interactivo -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 3: CAJA Y FINANZAS
+                     ========================================================== -->
+                <section class="erp-view" id="view-cash">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Ventas del Turno</span>
+                                <span class="kpi-value" id="cashKpiVentas">$0.00</span>
+                                <span class="kpi-sub" id="cashKpiVentasBs">Bs. 0.00</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-green">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Egresos / Gastos</span>
+                                <span class="kpi-value" id="cashKpiEgresos" style="color:var(--danger);">$0.00</span>
+                                <span class="kpi-sub">Gastos menores de caja</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-red">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Utilidad Neta del Turno</span>
+                                <span class="kpi-value" id="cashKpiNeto" style="color:var(--primary);">$0.00</span>
+                                <span class="kpi-sub">Ingresos - Egresos</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-blue">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 14px; margin-top: 10px;">
+                        <button class="header-action-btn btn-primary-action" onclick="openCashReconciliationModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+                            Realizar Arqueo y Cierre de Caja (Corte Z)
+                        </button>
+                        <button class="header-action-btn btn-secondary-action" onclick="openAddExpenseModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Registrar Gasto / Egreso de Caja
+                        </button>
+                    </div>
+
+                    <div class="table-card" style="margin-top: 14px;">
+                        <div class="table-toolbar">
+                            <span style="font-weight: 800; font-size: 14px;">Libro de Gastos del Turno Activo</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Concepto</th>
+                                        <th>Categoría</th>
+                                        <th>Método</th>
+                                        <th>Monto ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expensesTableBody">
+                                    <!-- Egresos -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 4: COMPRAS Y PROVEEDORES
+                     ========================================================== -->
+                <section class="erp-view" id="view-purchases">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="font-size: 16px; font-weight: 800;">Historial de Recepción de Mercancía</h3>
+                        <button class="header-action-btn btn-primary-action" onclick="openAddPurchaseModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Registrar Entrada de Mercancía
+                        </button>
+                    </div>
+
+                    <div class="table-card" style="margin-top: 16px;">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nro. Compra</th>
+                                        <th>Fecha</th>
+                                        <th>Proveedor</th>
+                                        <th>Detalle Ítems</th>
+                                        <th>Monto Total ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchasesTableBody">
+                                    <!-- Compras -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 5: CLIENTES (CRM)
+                     ========================================================== -->
+                <section class="erp-view" id="view-customers">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="font-size: 16px; font-weight: 800;">Directorio de Clientes y Técnicos</h3>
+                        <button class="header-action-btn btn-primary-action" onclick="openAddCustomerModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Registrar Nuevo Cliente
+                        </button>
+                    </div>
+
+                    <div class="table-card" style="margin-top: 16px;">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre / Razón Social</th>
+                                        <th>RIF / Cédula</th>
+                                        <th>Teléfono WhatsApp</th>
+                                        <th>Nivel de Precio</th>
+                                        <th>Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customersTableBody">
+                                    <!-- Clientes -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 6: MARKETING Y COMBOS
+                     ========================================================== -->
+                <section class="erp-view" id="view-marketing">
+                    <div class="kpi-grid">
+                        <div class="kpi-card" style="cursor:pointer;" onclick="sendMarketingWhatsApp('gas')">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Campaña WhatsApp</span>
+                                <span class="kpi-value" style="font-size:18px;">Gases Refrigerantes</span>
+                                <span class="kpi-sub">Difundir disponibilidad de recargas</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-blue">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card" style="cursor:pointer;" onclick="sendMarketingWhatsApp('capacitores')">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Campaña WhatsApp</span>
+                                <span class="kpi-value" style="font-size:18px;">Capacitores y Relés</span>
+                                <span class="kpi-sub">Oferta especial para técnicos</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-green">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card" style="cursor:pointer;" onclick="window.open('promo.html', '_blank')">
+                            <div class="kpi-data">
+                                <span class="kpi-label">Estudio Gráfico</span>
+                                <span class="kpi-value" style="font-size:18px;">Motion Graphics</span>
+                                <span class="kpi-sub">Crear videos y locuciones</span>
+                            </div>
+                            <div class="kpi-icon-wrap kpi-amber">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     VISTA 7: CONFIGURACIÓN Y RESPALDOS
+                     ========================================================== -->
+                <section class="erp-view" id="view-settings">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                        <!-- CONFIGURACIÓN DE EMPRESA Y TASAS -->
+                        <div class="table-card" style="padding: 24px;">
+                            <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 16px;">Parámetros Fiscales y Tasas</h3>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Tasa Oficial BCV (Bs. / USD):</label>
+                                <input type="number" step="0.01" id="cfgTasaBCV" class="form-input">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Tasa Interna de Mostrador:</label>
+                                <input type="number" step="0.01" id="cfgTasaInterna" class="form-input">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Razón Social:</label>
+                                <input type="text" id="cfgNombreEmpresa" class="form-input">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>RIF Fiscal:</label>
+                                <input type="text" id="cfgRifEmpresa" class="form-input">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label>Teléfono de Contacto:</label>
+                                <input type="text" id="cfgTelefonoEmpresa" class="form-input">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label>Dirección Fiscal:</label>
+                                <input type="text" id="cfgDireccionEmpresa" class="form-input">
+                            </div>
+                            <button class="header-action-btn btn-primary-action" onclick="saveCompanySettings()">
+                                Guardar Parámetros
+                            </button>
+                        </div>
+
+                        <!-- COPIAS DE SEGURIDAD (BACKUP) -->
+                        <div class="table-card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <h3 style="font-size: 16px; font-weight: 800; margin-bottom: 8px;">Copias de Seguridad (Backup)</h3>
+                                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+                                    El sistema funciona en modo Local-First. Puedes descargar en cualquier momento una copia íntegra de toda la base de datos (inventario, ventas, clientes, compras y cierres de caja) o restaurarla en otra computadora.
+                                </p>
+                                <div style="display:flex; flex-direction:column; gap:12px;">
+                                    <button class="header-action-btn btn-primary-action" onclick="exportERPBackup()" style="justify-content:center; padding:12px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        Exportar Respaldo Completo (.json)
+                                    </button>
+                                    <button class="header-action-btn btn-secondary-action" onclick="triggerImportBackup()" style="justify-content:center; padding:12px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        Restaurar Copia de Seguridad
+                                    </button>
+                                    <input type="file" id="backupFileInput" style="display:none;" accept=".json" onchange="handleBackupFileSelect(event)">
+                                </div>
+                            </div>
+                            <div style="margin-top:20px; font-size:12px; color:var(--text-muted); padding:12px; background:#f8fafc; border-radius:var(--radius-md);">
+                                <b>Nota de Seguridad:</b> Se recomienda exportar un respaldo al finalizar la jornada después de realizar el cierre de caja diario.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
     </div>
 
-    <!-- MODAL PARA ZOOM DE IMAGEN -->
-    <div class="zoom-overlay" id="zoomOverlay" onclick="closeZoom(event)">
-        <span class="close-zoom" onclick="event.stopPropagation(); closeZoom();" title="Cerrar"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></span>
-        <img class="zoom-img" id="zoomImg" src="" alt="Imagen Expandida" onclick="event.stopPropagation()">
-    </div>
-
-    <!-- ==========================================
-         MODAL DEL CARRITO DE COMPRAS
-    =========================================== -->
-    <div class="cart-modal" id="cartModal">
-        <div class="cart-header">
-            <h2>Carrito de Compras</h2>
-            <div class="close-btn" style="cursor:pointer;" onclick="toggleCart()" title="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
-        </div>
-        <div class="cart-items" id="cart-items"></div>
-        <div class="cart-footer">
-            <div class="customer-form">
-                <label for="customerName">Nombre del Cliente:</label>
-                <input type="text" id="customerName" placeholder="Ingresa Nombre del Cliente" required>
+    <!-- ==========================================================
+         MODAL 1: COBRO MULTIMONEDA DEL POS
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="checkoutModal">
+        <div class="erp-modal-card">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Cobrar Ticket de Mostrador</span>
+                <button class="erp-modal-close" onclick="closeModal('checkoutModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:14px; background:var(--primary-light); border-radius:var(--radius-md);">
+                    <div>
+                        <span style="font-size:11px; font-weight:800; color:var(--primary); text-transform:uppercase;">TOTAL A COBRAR:</span>
+                        <div style="font-size:26px; font-weight:900; color:var(--primary);" id="checkoutTotalUSD">$0.00</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:11px; font-weight:700; color:var(--text-muted);">MONTO EN BS:</span>
+                        <div style="font-size:18px; font-weight:800; color:var(--text-main);" id="checkoutTotalBs">Bs. 0.00</div>
+                    </div>
+                </div>
 
                 <div class="form-row-2">
                     <div class="form-group">
-                        <label for="customerRif">RIF / Cédula:</label>
-                        <input type="text" id="customerRif" placeholder="V-12345678 / J-123456789"
-                            oninput="this.value = this.value.replace(/[^vjgeVJGE0-9-]/g, '')" required>
+                        <label>Nombre del Cliente:</label>
+                        <input type="text" id="coCustName" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label for="customerPhone">Tel&eacute;fono de Contacto:</label>
-                        <input type="tel" id="customerPhone" placeholder="0414-1234567"
-                            oninput="this.value = this.value.replace(/[^0-9+\s-]/g, '')" required>
+                        <label>RIF / Cédula:</label>
+                        <input type="text" id="coCustRif" class="form-input">
                     </div>
                 </div>
 
-                <label for="paymentMethod">Método de Pago:</label>
-                <select id="paymentMethod" class="customer-select">
-                    <option value="EFECTIVO_USD">Efectivo USD</option>
-                    <option value="EFECTIVO_BS">Efectivo Bs</option>
-                    <option value="DEBITO">Débito</option>
-                    <option value="TRANSFERENCIA">Transferencia</option>
-                    <option value="BIOPAGO">Biopago</option>
-                    <option value="OTRAS FORMAS DE PAGO">Otras formas de pago (Binance/Zelle)</option>
-                </select>
-            </div>
-            <div class="cart-total">
-                <div style="font-size: 13px; color: var(--text-light);">Total: <span id="cart-total-public">$0.00</span>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Teléfono WhatsApp:</label>
+                        <input type="text" id="coCustPhone" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Documento:</label>
+                        <select id="coDocType" class="form-select">
+                            <option value="factura">Factura / Ticket Digital</option>
+                            <option value="presupuesto">Presupuesto / Cotización</option>
+                            <option value="nota_entrega">Nota de Entrega</option>
+                        </select>
+                    </div>
                 </div>
-                <div style="font-size: 16px; color: var(--nova-blue); font-weight: 900;">Descuento NovaClientes: <span
-                        id="cart-total-nova">$0.00</span></div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Método de Pago Principal:</label>
+                        <select id="coPaymentMethod" class="form-select">
+                            <option value="Efectivo USD">Efectivo USD ($)</option>
+                            <option value="Efectivo Bs">Efectivo Bolívares</option>
+                            <option value="Punto de Venta">Punto de Venta (Tarjeta)</option>
+                            <option value="Pago Móvil">Pago Móvil</option>
+                            <option value="Transferencia">Transferencia Bancaria</option>
+                            <option value="Zelle">Zelle</option>
+                            <option value="Binance">Binance Pay</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Número de Referencia / Comprobante:</label>
+                        <input type="text" id="coPaymentRef" class="form-input" placeholder="Opcional">
+                    </div>
+                </div>
+
+                <div style="padding:14px; background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+                    <span style="font-size:12px; font-weight:800; display:block; margin-bottom:8px;">DESGLOSE DE PAGO Y VUELTO:</span>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label>Entregado en Dólares ($):</label>
+                            <input type="number" step="0.01" id="payAmountUSD" class="form-input" oninput="calculateChange()">
+                        </div>
+                        <div class="form-group">
+                            <label>Entregado en Bolívares (Bs):</label>
+                            <input type="number" step="0.01" id="payAmountBs" class="form-input" oninput="calculateChange()">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                        <span style="font-size:12px; font-weight:700;">Vuelto / Cambio:</span>
+                        <div style="text-align:right;">
+                            <b id="changeUSDDisplay" style="font-size:15px; font-weight:900; color:var(--success);">$0.00</b>
+                            <span id="changeBsDisplay" style="font-size:12px; color:var(--text-muted); margin-left:6px;">(Bs. 0.00)</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <button class="invoice-preview-btn" onclick="previewInvoice()">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                Generar Factura Digital
-            </button>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('checkoutModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="finalizeSale()">
+                    Emitir y Concluir Venta
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- PIE DE PÁGINA PROFESIONAL -->
-    <footer class="site-footer">
-        <div class="footer-content">
-            <div class="footer-col">
-                <img src="assets/nova_footer2.png" alt="Logo NOVA RefriMotors"
-                    style="max-height: 71px; width: auto; margin-bottom: 15px; filter: brightness(0) invert(1);">
-                <p>Tu aliado estrat&eacute;gico en repuestos para sistemas de refrigeraci&oacute;n y aires acondicionados comerciales e industriales en Cabimas.</p>
+    <!-- ==========================================================
+         MODAL 2: VISUALIZADOR DE TICKET / DOCUMENTO GENERADO
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="invoiceDocModal">
+        <div class="erp-modal-card" style="max-width: 440px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title" id="docModalBadge">TICKET DE VENTA</span>
+                <button class="erp-modal-close" onclick="closeModal('invoiceDocModal')">✕</button>
             </div>
-            <div class="footer-col">
-                <h3>Contacto Directo</h3>
-                <ul>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>+58 424-6192394</li>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Soporte por WhatsApp</li>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> <span>Galp&oacute;n al lado del Estacionamiento Centro Cl&iacute;nico, Av. Carabobo, Cabimas 4013, Zulia</span></li>
-                </ul>
+            <div class="erp-modal-body" style="align-items:center; background:#f1f5f9; padding:16px;">
+                <img id="invoiceDocImg" src="" alt="Documento NOVA" style="max-width:100%; box-shadow:var(--shadow-md); border-radius:4px; background:#ffffff;">
             </div>
-            <div class="footer-col">
-                <h3>Informaci&oacute;n de Utilidad</h3>
-                <ul>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Lun - S&aacute;b: 8:00 AM - 5:00 PM</li>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> Env&iacute;os locales seguros</li>
-                    <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Garant&iacute;a directa en equipos de refrigeraci&oacute;n</li>
-                </ul>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="printCurrentDocument()">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Imprimir Ticket
+                </button>
+                <button class="header-action-btn btn-primary-action" onclick="downloadCurrentDocument()">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Descargar Imagen
+                </button>
             </div>
         </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 NOVA RefriMotors (RIF: J504401994). Todos los derechos reservados.</p>
-            <p>Precios sujetos a cambio seg&uacute;n tasa BCV del d&iacute;a.</p>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 3: VENTAS EN ESPERA
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="heldSalesModal">
+        <div class="erp-modal-card">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Tickets de Venta en Espera</span>
+                <button class="erp-modal-close" onclick="closeModal('heldSalesModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" id="heldSalesListContainer">
+                <!-- Lista de ventas retenidas -->
+            </div>
         </div>
-    </footer>
-<!-- ==========================================
-         MODAL DE AVISOS Y ALERTAS ATRACTIVAS
-    =========================================== -->
+    </div>
+
+    <!-- ==========================================================
+         MODAL 4: REGISTRAR GASTO / EGRESO
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="addExpenseModal">
+        <div class="erp-modal-card" style="max-width: 480px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Registrar Gasto de Caja</span>
+                <button class="erp-modal-close" onclick="closeModal('addExpenseModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div class="form-group">
+                    <label>Concepto del Gasto:</label>
+                    <input type="text" id="expConcepto" class="form-input" placeholder="Ej: Flete de encomienda / Compra de bolsas">
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Categoría:</label>
+                        <select id="expCategoria" class="form-select">
+                            <option value="Operativo">Operativo / Caja Chica</option>
+                            <option value="Fletes">Fletes y Logística</option>
+                            <option value="Suministros">Suministros y Empaque</option>
+                            <option value="Alquiler / Servicios">Servicios / Alquiler</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto en USD ($):</label>
+                        <input type="number" step="0.01" id="expMonto" class="form-input" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Forma de Salida de Dinero:</label>
+                    <select id="expMetodo" class="form-select">
+                        <option value="Efectivo USD">Efectivo USD (Gaveta)</option>
+                        <option value="Efectivo Bs">Efectivo Bolívares</option>
+                        <option value="Pago Móvil">Pago Móvil</option>
+                    </select>
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('addExpenseModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitNewExpense()">Guardar Gasto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 5: ARQUEO Y CIERRE DE CAJA (CORTE Z)
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="reconciliationModal">
+        <div class="erp-modal-card" style="max-width: 480px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Cierre de Caja y Arqueo Diario</span>
+                <button class="erp-modal-close" onclick="closeModal('reconciliationModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div style="padding:12px; background:#f8fafc; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span>Ventas registradas en sistema:</span>
+                        <b id="recExpectedUSD">$0.00</b>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Efectivo Físico en Gaveta ($ USD):</label>
+                    <input type="number" step="0.01" id="recCountedUSD" class="form-input" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Fondo Base para el Próximo Turno ($ USD):</label>
+                    <input type="number" step="0.01" id="recNextShiftUSD" class="form-input" value="50.00">
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('reconciliationModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitCashReconciliation()">Confirmar Cierre de Turno</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 6: REGISTRAR COMPRA DE MERCANCÍA
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="addPurchaseModal">
+        <div class="erp-modal-card" style="max-width: 520px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Entrada de Mercancía / Compra</span>
+                <button class="erp-modal-close" onclick="closeModal('addPurchaseModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div class="form-group">
+                    <label>Proveedor Distribuidor:</label>
+                    <select id="purSupplierSelect" class="form-select"></select>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Código del Repuesto (SKU):</label>
+                        <input type="text" id="purItemCode" class="form-input" placeholder="Ej: GAS002, FIL143">
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad Recibida:</label>
+                        <input type="number" id="purItemQty" class="form-input" placeholder="Unidades">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Costo Unitario de Compra ($ USD):</label>
+                    <input type="number" step="0.01" id="purItemCost" class="form-input" placeholder="0.00">
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('addPurchaseModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitNewPurchase()">Cargar al Inventario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 7: REGISTRAR NUEVO CLIENTE
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="addCustomerModal">
+        <div class="erp-modal-card" style="max-width: 480px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Registrar Cliente / Taller</span>
+                <button class="erp-modal-close" onclick="closeModal('addCustomerModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div class="form-group">
+                    <label>Nombre / Razón Social:</label>
+                    <input type="text" id="custNombre" class="form-input" placeholder="Ej: Taller Refrigeración Frío C.A.">
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>RIF / Cédula:</label>
+                        <input type="text" id="custRif" class="form-input" placeholder="V-12345678 / J-123456789">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono WhatsApp:</label>
+                        <input type="text" id="custTelefono" class="form-input" placeholder="0414-1234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Clasificación de Precio:</label>
+                    <select id="custTipo" class="form-select">
+                        <option value="novacliente">★ NovaCliente (Técnico / Aliado con descuento)</option>
+                        <option value="publico">Público General (Precio de mostrador)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('addCustomerModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitNewCustomer()">Guardar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 8: AVISOS Y ALERTAS DEL SISTEMA NOVA
+         ========================================================== -->
     <div class="nova-alert-overlay" id="novaAlertModal" role="dialog" aria-modal="true" aria-hidden="true"
         onclick="closeNovaAlert(event)">
         <div class="nova-alert-card" onclick="event.stopPropagation()">
@@ -235,51 +899,15 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         MODAL DE VISTA PREVIA DE FACTURA DIGITAL
-    =========================================== -->
-    <div class="nova-preview-overlay" id="invoicePreviewModal" role="dialog" aria-modal="true" aria-hidden="true"
-        onclick="closeInvoicePreview(event)">
-        <div class="nova-preview-card" onclick="event.stopPropagation()">
-            <div class="nova-preview-header">
-                <div class="nova-preview-title-group">
-                    <span class="nova-preview-badge">TICKET DIGITAL</span>
-                    <h3 class="nova-preview-title">Vista Previa de la Factura</h3>
-                </div>
-                <button class="nova-preview-close" onclick="closeInvoicePreview()" aria-label="Cerrar vista previa"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-
-            <div id="invoicePreviewNotice" class="nova-preview-tip">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><strong>Vista previa lista:</strong> Revisa el detalle o usa los botones inferiores para copiar o
-                descargar la factura.
-            </div>
-
-            <div class="nova-preview-body">
-                <div class="nova-preview-img-box">
-                    <img id="invoicePreviewImg" class="nova-preview-img" src="" alt="Factura Nova RefriMotors">
-                </div>
-            </div>
-
-            <div class="nova-preview-footer">
-                <button class="nova-preview-btn nova-preview-btn-copy" id="btnCopyFromPreview" onclick="copyInvoiceFromPreview()">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copiar Imagen
-                </button>
-                <button class="nova-preview-btn nova-preview-btn-download" onclick="downloadInvoiceFromPreview()">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Descargar
-                </button>
-                <button class="nova-preview-btn nova-preview-btn-close" onclick="closeInvoicePreview()">
-                    Cerrar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- BASE DE DATOS CENTRALIZADA DE PRODUCTOS -->
+    <!-- ==========================================================
+         SCRIPTS Y MOTORES DE PROCESAMIENTO
+         ========================================================== -->
+    <!-- Base de datos maestra sincronizada (460 repuestos y especificaciones) -->
     <script src="js/productos.js"></script>
-    <!-- LÓGICA DE PROGRAMACIÓN Y ESTADO DE APLICACIÓN -->
-    <script src="js/logica-index.js"></script>
-    <!-- GENERADOR DE FACTURAS EN CANVAS 2D Y SISTEMA DE ALERTAS NOVA -->
-    <script src="js/factura-canvas.js"></script>
+    <!-- Motor de persistencia Local-First del ERP (Inventario dinámico, Caja, Ventas, CRM) -->
+    <script src="js/admin-db.js"></script>
+    <!-- Controlador principal SPA y Punto de Venta -->
+    <script src="js/admin-app.js"></script>
 </body>
 
 </html>
