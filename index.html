@@ -11,7 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <!-- Estilos del Sistema Administrativo ERP -->
-    <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/admin-theme.css">
     <link rel="stylesheet" href="css/alertas.css">
     <link rel="icon" type="image/x-icon" href="assets/nova_favicon.png">
@@ -26,12 +25,8 @@
              ========================================================== -->
         <aside class="erp-sidebar" id="erpSidebar">
             <div class="sidebar-header">
-                <a href="index.html" class="sidebar-brand">
-                    <img src="assets/nova-logo-color.png" alt="Logo NOVA" class="sidebar-brand-logo">
-                    <div class="sidebar-brand-info">
-                        <span class="sidebar-brand-title">NOVA Motors</span>
-                        <span class="sidebar-brand-badge">ADMIN ERP 1.0</span>
-                    </div>
+                <a href="index.html" class="sidebar-brand" title="NOVA RefriMotors">
+                    <img src="assets/nova-logo-color.png" alt="Logo NOVA RefriMotors" class="sidebar-brand-logo">
                 </a>
                 <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar / Expandir menú">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -128,17 +123,7 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div class="cash-status-indicator">
-                    <span class="cash-dot"></span>
-                    <div class="cash-info">
-                        <span class="cash-info-title">Caja Activa</span>
-                        <span class="cash-info-sub">Turno Abierto</span>
-                    </div>
-                </div>
-                <a href="promo.html" class="nav-item" style="padding: 8px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.1); color: #38bdf8;" target="_blank">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                    <span class="nav-item-text">Suite Motion Graphics</span>
-                </a>
+                <div id="sidebarUserStatus"></div>
             </div>
         </aside>
 
@@ -173,14 +158,8 @@
                         <div class="bcv-pill-icon">Bs</div>
                         <div class="bcv-pill-data">
                             <span class="bcv-pill-label">TASA OFICIAL BCV</span>
-                            <span class="bcv-pill-val" id="bcvRateVal">Bs. 897.54</span>
+                            <span class="bcv-pill-val" id="bcvRateVal">Bs. 914.02</span>
                         </div>
-                    </div>
-
-                    <!-- RELOJ DIGITAL EN VIVO -->
-                    <div class="live-clock-box">
-                        <span class="live-clock-time" id="liveClockTime">10:00:00 AM</span>
-                        <span class="live-clock-date" id="liveClockDate">Hoy</span>
                     </div>
                 </div>
             </header>
@@ -226,14 +205,21 @@
 
                             <div class="ticket-customer-box">
                                 <div class="customer-row">
-                                    <select id="posCustomerSelect" class="customer-input" onchange="onPOSCustomerChange(this.value)">
-                                        <!-- Precargado dinámicamente -->
-                                    </select>
-                                    <button class="ticket-btn-sm" onclick="openAddCustomerModal()" title="Registrar nuevo cliente">+</button>
-                                </div>
-                                <div class="client-tier-toggle">
-                                    <button class="tier-btn active" id="btnTierPublic" onclick="setPOSTier('publico')">Precio Público</button>
-                                    <button class="tier-btn" id="btnTierNova" onclick="setPOSTier('novacliente')">★ NovaCliente</button>
+                                    <div class="customer-select-wrap">
+                                        <svg class="customer-select-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        </svg>
+                                        <select id="posCustomerSelect" class="customer-input" onchange="onPOSCustomerChange(this.value)">
+                                            <!-- Precargado dinámicamente -->
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn-add-customer-pos" onclick="openAddCustomerModal()" title="Registrar nuevo cliente en la base de datos">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
 
@@ -254,10 +240,12 @@
                                     <span>TOTAL BS:</span>
                                     <span id="posTotalBs">Bs. 0.00</span>
                                 </div>
-                                <button class="btn-checkout" id="btnPOSCheckout" onclick="openCheckoutModal()" disabled>
-                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                    COBRAR E IMPRIMIR [F4]
-                                </button>
+                                <div id="posCheckoutActionsWrap">
+                                    <button class="btn-checkout btn-master-checkout" id="btnPOSCheckout" onclick="openCheckoutModal()" disabled>
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                        COBRAR E IMPRIMIR [F4]
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -336,6 +324,12 @@
                                     <option value="out">Agotado</option>
                                 </select>
                             </div>
+                            <div class="table-toolbar-right" id="invMasterToolbarActions">
+                                <button class="header-action-btn btn-primary-action" onclick="openAddNewProductModal()">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    + Nuevo Producto
+                                </button>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
@@ -347,9 +341,10 @@
                                         <th>Categoría</th>
                                         <th>Costo ($)</th>
                                         <th>P. Público ($)</th>
-                                        <th>P. Nova ($)</th>
+                                        <th>P. Divisas ($)</th>
                                         <th>Existencias</th>
                                         <th>Estado</th>
+                                        <th style="text-align:right;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="inventoryTableBody">
@@ -485,8 +480,10 @@
                                         <th>Nombre / Razón Social</th>
                                         <th>RIF / Cédula</th>
                                         <th>Teléfono WhatsApp</th>
+                                        <th>Dirección</th>
                                         <th>Nivel de Precio</th>
                                         <th>Notas</th>
+                                        <th style="text-align:right;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="customersTableBody">
@@ -521,17 +518,6 @@
                             </div>
                             <div class="kpi-icon-wrap kpi-green">
                                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                            </div>
-                        </div>
-
-                        <div class="kpi-card" style="cursor:pointer;" onclick="window.open('promo.html', '_blank')">
-                            <div class="kpi-data">
-                                <span class="kpi-label">Estudio Gráfico</span>
-                                <span class="kpi-value" style="font-size:18px;">Motion Graphics</span>
-                                <span class="kpi-sub">Crear videos y locuciones</span>
-                            </div>
-                            <div class="kpi-icon-wrap kpi-amber">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                             </div>
                         </div>
                     </div>
@@ -579,7 +565,10 @@
                             <div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
                                     <h3 style="font-size: 16px; font-weight: 800; margin:0;">Base de Datos en la Nube (Supabase)</h3>
-                                    <span class="stock-badge in-stock" id="cfgCloudBadge" style="font-size:11px;">🟢 Conectado</span>
+                                    <span class="stock-badge in-stock" id="cfgCloudBadge" style="font-size:11px; display:inline-flex; align-items:center; gap:5px;">
+                                        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#16a34a;"></span>
+                                        Conectado
+                                    </span>
                                 </div>
                                 <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
                                     Conexión activa con PostgreSQL en Supabase. Si internet se desconecta en Cabimas, el mostrador sigue facturando en local y sincroniza automáticamente al recuperar la red.
@@ -597,14 +586,21 @@
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                                         Sincronizar Pendientes Ahora
                                     </button>
-                                    <button class="header-action-btn btn-secondary-action" onclick="triggerSeedCatalog()" id="btnSeedCatalog" style="justify-content:center; padding:10px;">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                                        Sincronizar Catálogo (460 repuestos)
-                                    </button>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                        <button class="header-action-btn btn-secondary-action" onclick="triggerSeedCatalog()" id="btnSeedCatalog" style="justify-content:center; padding:10px; font-size:12px;">
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                            Subir Catálogo (460)
+                                        </button>
+                                        <button class="header-action-btn btn-secondary-action" onclick="triggerClearQueue()" style="justify-content:center; padding:10px; font-size:12px; color:var(--text-muted);" title="Descarta los registros en cola si alguno quedó atascado">
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                            Limpiar Cola Atascada
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div style="margin-top:16px; font-size:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-md); color:#166534;" id="cfgCloudStatusMsg">
-                                ☁️ <b>Estado:</b> Nube conectada. Modo Híbrido activo.
+                            <div style="margin-top:16px; font-size:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-md); color:#166534; display:flex; align-items:center; gap:6px;" id="cfgCloudStatusMsg">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                                <span><b>Estado:</b> Nube conectada. Modo Híbrido activo.</span>
                             </div>
                         </div>
 
@@ -650,7 +646,12 @@
             <div class="erp-modal-body">
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:14px; background:var(--primary-light); border-radius:var(--radius-md);">
                     <div>
-                        <span style="font-size:11px; font-weight:800; color:var(--primary); text-transform:uppercase;">TOTAL A COBRAR:</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:11px; font-weight:800; color:var(--primary); text-transform:uppercase;">TOTAL A COBRAR:</span>
+                            <span id="checkoutDiscountBadge" style="display:none; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d; border:1px solid #86efac;">
+                                Descuento Divisas Activo
+                            </span>
+                        </div>
                         <div style="font-size:26px; font-weight:900; color:var(--primary);" id="checkoutTotalUSD">$0.00</div>
                     </div>
                     <div style="text-align:right;">
@@ -688,14 +689,14 @@
                 <div class="form-row-2">
                     <div class="form-group">
                         <label>Método de Pago Principal:</label>
-                        <select id="coPaymentMethod" class="form-select">
-                            <option value="Efectivo USD">Efectivo USD ($)</option>
+                        <select id="coPaymentMethod" class="form-select" onchange="onPaymentMethodChange()">
+                            <option value="Efectivo USD">Efectivo USD ($) - Descuento Divisas</option>
+                            <option value="Zelle">Zelle ($) - Descuento Divisas</option>
+                            <option value="Binance">Binance Pay ($) - Descuento Divisas</option>
+                            <option value="Punto de Venta">Punto de Venta (Tarjeta de Débito)</option>
+                            <option value="Pago Móvil">Pago Móvil (Bolívares)</option>
+                            <option value="Transferencia">Transferencia Bancaria (Bolívares)</option>
                             <option value="Efectivo Bs">Efectivo Bolívares</option>
-                            <option value="Punto de Venta">Punto de Venta (Tarjeta)</option>
-                            <option value="Pago Móvil">Pago Móvil</option>
-                            <option value="Transferencia">Transferencia Bancaria</option>
-                            <option value="Zelle">Zelle</option>
-                            <option value="Binance">Binance Pay</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -912,10 +913,15 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Clasificación de Precio:</label>
+                    <label>Dirección:</label>
+                    <input type="text" id="custDireccion" class="form-input" placeholder="Ej: Sector Delicias Nuevas, Av. Intercomunal, Cabimas">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Cliente:</label>
                     <select id="custTipo" class="form-select">
-                        <option value="novacliente">★ NovaCliente (Técnico / Aliado con descuento)</option>
-                        <option value="publico">Público General (Precio de mostrador)</option>
+                        <option value="tecnico">Técnico / Taller Aliado</option>
+                        <option value="frecuente">Cliente Comercial / Frecuente</option>
+                        <option value="publico">Público General (Mostrador)</option>
                     </select>
                 </div>
             </div>
@@ -942,14 +948,164 @@
     </div>
 
     <!-- ==========================================================
+         MODAL 9: SELECCIONAR / CAMBIAR ESTACIÓN DE TRABAJO (USUARIOS)
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="userStationModal">
+        <div class="erp-modal-card" style="max-width: 520px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Estaciones de Trabajo y Usuarios</span>
+                <button class="erp-modal-close" onclick="closeModal('userStationModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" style="gap: 14px;">
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Selecciona la computadora o rol de usuario para este equipo:</p>
+                <div class="station-select-grid">
+                    <div class="station-card master-card" onclick="selectStationOption('MASTER')">
+                        <div class="station-card-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path></svg>
+                        </div>
+                        <div class="station-card-info">
+                            <strong>MASTER (Caja Principal)</strong>
+                            <span>Control Total / Cobro de Facturas</span>
+                            <small>Recibe dinero, entrega facturas/despachos, modifica existencias y precios</small>
+                        </div>
+                    </div>
+                    <div class="station-card seller-card" onclick="selectStationOption('VENTAS01')">
+                        <div class="station-card-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        </div>
+                        <div class="station-card-info">
+                            <strong>VENTAS 01</strong>
+                            <span>Mostrador 1 - Asesor Comercial</span>
+                            <small>Añadir clientes, generar presupuestos y mandar pedidos a Caja Principal</small>
+                        </div>
+                    </div>
+                    <div class="station-card seller-card" onclick="selectStationOption('VENTAS02')">
+                        <div class="station-card-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        </div>
+                        <div class="station-card-info">
+                            <strong>VENTAS 02</strong>
+                            <span>Mostrador 2 - Asesor Comercial</span>
+                            <small>Añadir clientes, generar presupuestos y mandar pedidos a Caja Principal</small>
+                        </div>
+                    </div>
+                    <div class="station-card seller-card" onclick="selectStationOption('VENTAS03')">
+                        <div class="station-card-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        </div>
+                        <div class="station-card-info">
+                            <strong>VENTAS 03</strong>
+                            <span>Mostrador 3 - Asesor Comercial</span>
+                            <small>Añadir clientes, generar presupuestos y mandar pedidos a Caja Principal</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('userStationModal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 10: PIN DE ACCESO A USUARIO MASTER
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="masterPinModal">
+        <div class="erp-modal-card" style="max-width: 380px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Seguridad: Acceso a MASTER</span>
+                <button class="erp-modal-close" onclick="closeModal('masterPinModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" style="text-align: center; gap: 14px;">
+                <div style="display:flex; justify-content:center; align-items:center; margin-bottom:4px;">
+                    <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Ingresa el PIN de seguridad de Administrador para activar la estación MASTER:</p>
+                <input type="password" id="inputMasterPin" class="form-input" placeholder="PIN (Defecto: 1234)" maxlength="8" style="text-align: center; font-size: 20px; letter-spacing: 4px;" onkeydown="if(event.key==='Enter') submitMasterPin()">
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('masterPinModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitMasterPin()">Confirmar Acceso</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 11: AGREGAR NUEVO PRODUCTO AL INVENTARIO (MASTER)
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="addNewProductModal">
+        <div class="erp-modal-card" style="max-width: 520px;">
+            <div class="erp-modal-header">
+                <span class="erp-modal-title">Agregar Nuevo Repuesto al Catálogo</span>
+                <button class="erp-modal-close" onclick="closeModal('addNewProductModal')">✕</button>
+            </div>
+            <div class="erp-modal-body">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Código / SKU:</label>
+                        <input type="text" id="newProdId" class="form-input" placeholder="Ej: MOT045">
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría:</label>
+                        <select id="newProdCategory" class="form-select">
+                            <option value="Refrigeración">Refrigeración</option>
+                            <option value="Aires Acondicionados">Aires Acondicionados</option>
+                            <option value="Lavadoras">Lavadoras</option>
+                            <option value="Licuadoras">Licuadoras</option>
+                            <option value="Motores">Motores</option>
+                            <option value="Capacitores">Capacitores</option>
+                            <option value="Protectores">Protectores</option>
+                            <option value="Químicos">Químicos</option>
+                            <option value="Herramientas">Herramientas</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Nombre del Producto / Descripción:</label>
+                    <input type="text" id="newProdName" class="form-input" placeholder="Ej: Motor Ventilador 1/4 HP 110V">
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Costo de Compra Base ($ USD):</label>
+                        <input type="number" step="0.01" id="newProdCosto" class="form-input" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Existencia Inicial (Stock):</label>
+                        <input type="number" id="newProdStock" class="form-input" placeholder="10" value="10">
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Stock Mínimo de Alerta:</label>
+                        <input type="number" id="newProdStockMin" class="form-input" placeholder="3" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Ubicación en Almacén:</label>
+                        <input type="text" id="newProdUbicacion" class="form-input" placeholder="Pasillo A / Estante 3" value="Almacén Central">
+                    </div>
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('addNewProductModal')">Cancelar</button>
+                <button class="header-action-btn btn-primary-action" onclick="submitNewProduct()">Guardar en Inventario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
          SCRIPTS Y MOTORES DE PROCESAMIENTO
          ========================================================== -->
     <!-- Base de datos maestra sincronizada (460 repuestos y especificaciones) -->
     <script src="js/productos.js"></script>
+    <!-- Logotipo oficial vectorizado/base64 para comprobantes térmicos -->
+    <script src="js/nova-invoice-logo.js"></script>
     <!-- Motor de persistencia Local-First del ERP (Inventario dinámico, Caja, Ventas, CRM) -->
     <script src="js/admin-db.js"></script>
     <!-- Conector y sincronizador con Supabase Cloud (PostgreSQL Híbrido) -->
     <script src="js/admin-supabase.js"></script>
+    <!-- Gestor de Usuarios y Estaciones (MASTER, VENTAS01, VENTAS02, VENTAS03) -->
+    <script src="js/admin-users.js"></script>
     <!-- Controlador principal SPA y Punto de Venta -->
     <script src="js/admin-app.js"></script>
 </body>

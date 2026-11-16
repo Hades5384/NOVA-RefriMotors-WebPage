@@ -9,7 +9,7 @@
  * - Compras de mercancía y gestión de proveedores
  * - Caja, arqueos diarios X/Z y registro de egresos
  * - Directorio de Clientes (CRM)
- * - Marketing, promociones WhatsApp y enlace a Motion Graphics
+ * - Marketing, promociones WhatsApp y campañas comerciales
  * - Configuración de tasas y respaldos JSON
  * ==============================================================================
  */
@@ -24,13 +24,40 @@ let posCurrentCategory = 'Todos';
 // 1. INICIALIZACIÓN Y NAVEGACIÓN SPA
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    initClock();
+    if (typeof NovaUsers !== 'undefined') NovaUsers.init();
     initBCVWidget();
     initPOS();
+    renderCustomersView();
     setupKeyboardShortcuts();
+    setupBroadcastSync();
 });
 
+function setupBroadcastSync() {
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('nova_pos_channel');
+            bc.onmessage = (ev) => {
+                if (ev.data && ev.data.type && ev.data.type.startsWith('HELD_SALES_')) {
+                    renderHeldSalesList();
+                }
+            };
+        }
+    } catch (e) { }
+}
+
 function navigateTo(viewName) {
+    // Control de acceso por estación: los vendedores solo acceden a POS y Clientes CRM
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller()) {
+        if (viewName !== 'pos' && viewName !== 'customers') {
+            showNovaAlert({
+                title: "Acceso Restringido a MASTER",
+                message: "Esta sección contiene información confidencial de caja, compras, precios o inventario y está reservada exclusivamente para la estación MASTER.",
+                type: "warning"
+            });
+            return;
+        }
+    }
+
     currentView = viewName;
 
     // Actualizar sidebar activo
@@ -72,7 +99,7 @@ function updateHeaderTitles(viewName) {
         purchases: { title: "Compras y Proveedores", subtitle: "Recepción de mercancía, órdenes de compra y costos" },
         cash: { title: "Caja y Finanzas Operativas", subtitle: "Arqueo diario, control de métodos de pago y egresos" },
         customers: { title: "Directorio de Clientes (CRM)", subtitle: "Fichas de técnicos, talleres e historial de compras" },
-        marketing: { title: "Marketing y Promociones", subtitle: "Campañas WhatsApp, combos y suite de motion graphics" },
+        marketing: { title: "Marketing y Promociones", subtitle: "Campañas WhatsApp, combos y difusión comercial" },
         settings: { title: "Configuración y Respaldos", subtitle: "Tasa BCV, datos fiscales de la empresa y copias de seguridad" }
     };
 
@@ -88,18 +115,6 @@ function toggleSidebar() {
     if (sidebar) sidebar.classList.toggle('collapsed');
 }
 
-function initClock() {
-    function update() {
-        const now = new Date();
-        const timeEl = document.getElementById('liveClockTime');
-        const dateEl = document.getElementById('liveClockDate');
-        if (timeEl) timeEl.innerText = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        if (dateEl) dateEl.innerText = now.toLocaleDateString('es-VE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-    }
-    update();
-    setInterval(update, 1000);
-}
-
 function initBCVWidget() {
     updateBCVDisplay();
 }
@@ -111,6 +126,15 @@ function updateBCVDisplay() {
 }
 
 function promptEditBCV() {
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller()) {
+        showNovaAlert({
+            title: "Acceso Restringido",
+            message: "Solo el usuario MASTER puede modificar la Tasa Oficial BCV.",
+            type: "warning"
+        });
+        return;
+    }
+
     const current = NovaDB.getSettings().tasaBCV;
     const input = prompt("Ingrese la nueva Tasa Oficial BCV (Bs. / USD):", current.toFixed(2));
     if (input !== null) {
@@ -143,11 +167,22 @@ function setupKeyboardShortcuts() {
             const inp = document.getElementById('posSearchInput');
             if (inp) { inp.focus(); inp.select(); }
         }
-        // F4: Cobrar POS
+        // F4: Acción de cobro (MASTER) o Mandar a Caja (VENTAS)
         if (e.key === 'F4') {
             e.preventDefault();
             if (currentView === 'pos' && posCart.length > 0) {
-                openCheckoutModal();
+                if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller()) {
+                    sendOrderToMaster();
+                } else {
+                    openCheckoutModal();
+                }
+            }
+        }
+        // F6: Emitir Presupuesto (Cotización)
+        if (e.key === 'F6') {
+            e.preventDefault();
+            if (currentView === 'pos' && posCart.length > 0) {
+                emitPresupuestoFromCart();
             }
         }
         // F8: Pausar Venta
@@ -159,6 +194,7 @@ function setupKeyboardShortcuts() {
         }
     });
 }
+
 
 // ==============================================================================
 // 2. MÓDULO: PUNTO DE VENTA (POS) Y FACTURACIÓN
@@ -202,7 +238,7 @@ function renderPOSCustomerSelect() {
 
     let html = '';
     customers.forEach(c => {
-        html += `<option value="${c.id}">${c.nombre} (${c.rif}) - [${c.tipo === 'novacliente' ? 'NovaCliente' : 'Público'}]</option>`;
+        html += `<option value="${c.id}">${c.nombre} (${c.rif})</option>`;
     });
     sel.innerHTML = html;
 
@@ -217,31 +253,23 @@ function onPOSCustomerChange(custId) {
     const found = customers.find(c => c.id === custId);
     if (found) {
         posSelectedCustomer = found;
-        setPOSTier(found.tipo, false);
     }
 }
 
-function setPOSTier(tier, reRender = true) {
-    posPriceTier = tier;
-    const btnPub = document.getElementById('btnTierPublic');
-    const btnNova = document.getElementById('btnTierNova');
-    if (btnPub && btnNova) {
-        if (tier === 'publico') {
-            btnPub.classList.add('active');
-            btnNova.classList.remove('active');
-        } else {
-            btnNova.classList.add('active');
-            btnPub.classList.remove('active');
-        }
-    }
+function setPOSTier(tier, reRender = false) {
+    posPriceTier = tier || 'publico';
     if (reRender) {
         renderPOSCatalog();
         renderPOSCart();
     }
 }
 
+let _posDebounceTimer = null;
 function filterPOS() {
-    renderPOSCatalog();
+    clearTimeout(_posDebounceTimer);
+    _posDebounceTimer = setTimeout(() => {
+        renderPOSCatalog();
+    }, 120);
 }
 
 function renderPOSCatalog() {
@@ -311,13 +339,13 @@ function renderPOSCatalog() {
     }
 
     let html = '';
-    // Limitar renderizado a los primeros 60 ítems para máxima fluidez
-    const slice = displayList.slice(0, 60);
+    // Limitar renderizado inicial a los primeros 36 ítems para máxima fluidez en PCs modestas
+    const slice = displayList.slice(0, 36);
 
     slice.forEach(item => {
         const precios = calcularPreciosSegunAjustes(item.costoCompra, settings);
-        const priceUSD = (posPriceTier === 'novacliente') ? precios.novaClientesUSD : precios.publicoUSD;
-        const priceBs = (posPriceTier === 'novacliente') ? (precios.novaClientesUSD * settings.tasaBCV) : precios.publicoBs;
+        const priceUSD = precios.publicoUSD;
+        const priceBs = precios.publicoBs;
 
         let stockBadgeClass = 'pos-stock-badge';
         let stockLabel = `${item.stock} en stock`;
@@ -342,7 +370,7 @@ function renderPOSCatalog() {
 
         html += `
             <div class="pos-item-card" onclick="addToPOSCart('${item.id}')">
-                <img src="${imgUrl}" alt="${item.name}" class="pos-card-thumb" onerror="this.src='productos/NO_PHOTO.webp'" loading="lazy">
+                <img src="${imgUrl}" alt="${item.name}" class="pos-card-thumb" onerror="this.src='productos/NO_PHOTO.webp'" loading="lazy" decoding="async">
                 <span class="pos-card-code">${item.id}</span>
                 <h4 class="pos-card-name" title="${item.name}">${item.name}</h4>
                 <div class="pos-card-footer">
@@ -442,7 +470,7 @@ function renderPOSCart() {
 
     posCart.forEach((item, idx) => {
         const precios = calcularPreciosSegunAjustes(item.costoCompra, settings);
-        const unitPrice = (posPriceTier === 'novacliente') ? precios.novaClientesUSD : precios.publicoUSD;
+        const unitPrice = precios.publicoUSD;
         const lineTotal = unitPrice * item.quantity;
         totalUSD += lineTotal;
 
@@ -475,18 +503,23 @@ function updatePOSTotals(totalUSD, totalBs, itemCount) {
     const bsEl = document.getElementById('posTotalBs');
     const subEl = document.getElementById('posSubtotalUSD');
     const btn = document.getElementById('btnPOSCheckout');
+    const btnQuote = document.getElementById('btnPOSQuote');
 
     if (usdEl) usdEl.innerText = `$${totalUSD.toFixed(2)}`;
     if (bsEl) bsEl.innerText = `Bs. ${totalBs.toFixed(2)}`;
     if (subEl) subEl.innerText = `$${totalUSD.toFixed(2)}`;
     if (btn) btn.disabled = (itemCount === 0);
+    if (btnQuote) btnQuote.disabled = (itemCount === 0);
+
+    const badge = document.getElementById('posCartCountBadge');
+    if (badge) badge.innerText = itemCount;
 }
 
 function calcularPreciosSegunAjustes(costoCompra, settings) {
     const util = settings.porcentajeUtilidad || 1.30;
     const iva = settings.porcentajeIva || 1.16;
     const tasaInt = settings.tasaInterna || 1050;
-    const tasaBCV = settings.tasaBCV || 897.54;
+    const tasaBCV = settings.tasaBCV || 914.02;
 
     const novaClientesUSD = costoCompra * util * iva;
     const publicoBs = novaClientesUSD * tasaInt;
@@ -496,13 +529,18 @@ function calcularPreciosSegunAjustes(costoCompra, settings) {
 }
 
 // ==========================================
-// VENTAS EN ESPERA (PAUSAR Y REANUDAR)
+// VENTAS EN ESPERA Y COMANDAS DE MOSTRADOR
 // ==========================================
 function holdPOSSale() {
     if (posCart.length === 0) return;
     const title = prompt("Identificador para esta venta en espera (ej: Técnico taller azul / Nombre):", posSelectedCustomer ? posSelectedCustomer.nombre : "");
     if (title !== null) {
-        NovaDB.holdCurrentSale(posCart, posSelectedCustomer, title);
+        const currentUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'MOSTRADOR', name: 'MOSTRADOR' };
+        NovaDB.holdCurrentSale(posCart, posSelectedCustomer, title, {
+            estacion: currentUser.id,
+            vendedor: currentUser.name,
+            tipoPrecio: 'publico'
+        });
         posCart = [];
         renderPOSCart();
         renderHeldSalesList();
@@ -514,33 +552,146 @@ function holdPOSSale() {
     }
 }
 
+function sendOrderToMaster() {
+    if (posCart.length === 0) {
+        showNovaAlert({
+            title: "Carrito Vacío",
+            message: "Agrega repuestos al carrito antes de enviar el pedido a Caja Principal.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const currentUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'VENTAS01', name: 'VENTAS 01' };
+    const settings = NovaDB.getSettings();
+
+    let totalUSD = 0;
+    posCart.forEach(item => {
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        totalUSD += p.publicoUSD * item.quantity;
+    });
+    const totalBs = totalUSD * settings.tasaBCV;
+
+    const cust = posSelectedCustomer || {
+        nombre: 'Cliente Mostrador',
+        rif: 'V-00000000',
+        telefono: '',
+        direccion: 'Cabimas, Edo. Zulia'
+    };
+
+    const orderId = 'PED-' + currentUser.id.replace('VENTAS', 'V') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    NovaDB.holdCurrentSale(posCart, cust, `${cust.nombre} [${currentUser.name}]`, {
+        id: orderId,
+        estacion: currentUser.id,
+        vendedor: currentUser.name,
+        tipoPrecio: 'publico',
+        totalUSD,
+        totalBs
+    });
+
+    // Limpiar carrito en la computadora de mostrador
+    posCart = [];
+    renderPOSCart();
+
+    showNovaAlert({
+        title: "¡Pedido Enviado a Caja Principal!",
+        message: `Pedido #${orderId} de "${cust.nombre}" por $${totalUSD.toFixed(2)} (Bs. ${totalBs.toFixed(2)}) enviado con éxito a la computadora principal (MASTER). El cliente ya puede pasar a caja para pagar y retirar su factura.`,
+        type: "success"
+    });
+}
+
+async function emitPresupuestoFromCart() {
+    if (posCart.length === 0) {
+        showNovaAlert({
+            title: "Carrito Vacío",
+            message: "Agrega productos al carrito para emitir un presupuesto.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const settings = NovaDB.getSettings();
+    let totalUSD = 0;
+    posCart.forEach(item => {
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        totalUSD += p.publicoUSD * item.quantity;
+    });
+    const totalBs = totalUSD * settings.tasaBCV;
+
+    const cust = posSelectedCustomer || {
+        nombre: 'Cliente Presupuesto',
+        rif: 'V-00000000',
+        telefono: '',
+        direccion: 'Cabimas, Edo. Zulia'
+    };
+
+    const currentUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'VENTAS01', name: 'VENTAS 01' };
+
+    const fakePresupuestoSale = {
+        id: 'PRE-' + Math.floor(100000 + Math.random() * 900000),
+        fechaStr: new Date().toLocaleDateString('es-VE'),
+        horaStr: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        cliente: cust,
+        items: JSON.parse(JSON.stringify(posCart)),
+        tipoPrecio: 'publico',
+        tipoDocumento: 'presupuesto',
+        tasaBCV: settings.tasaBCV,
+        totalUSD,
+        totalBs,
+        metodosPago: [{ metodo: 'Presupuesto / Cotización', montoUSD: totalUSD }],
+        vendedor: currentUser.name
+    };
+
+    await generateInvoiceDocument(fakePresupuestoSale);
+}
+
 function renderHeldSalesList() {
     const held = NovaDB.getHeldSales();
     const btn = document.getElementById('btnHeldSales');
     if (btn) {
         btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> En Espera (${held.length})`;
+        if (held.length > 0) {
+            btn.style.borderColor = 'var(--accent-red)';
+            btn.style.color = 'var(--accent-red)';
+        } else {
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        }
     }
 }
 
 function openHeldSalesModal() {
     const held = NovaDB.getHeldSales();
     if (held.length === 0) {
-        showNovaAlert({ title: "Sin Ventas en Espera", message: "No hay tickets retenidos actualmente.", type: "info" });
+        showNovaAlert({ title: "Sin Pedidos en Espera", message: "No hay tickets o pedidos pendientes por cobrar actualmente.", type: "info" });
         return;
     }
 
     let listHtml = '';
     held.forEach(h => {
-        const time = new Date(h.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const time = h.horaStr || (h.timestamp ? new Date(h.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }) : '');
+        const station = h.estacion || 'MOSTRADOR';
+        const stationClass = station.toLowerCase();
+        const totalStr = h.totalUSD ? `$${h.totalUSD.toFixed(2)}` : '';
+        const totalBsStr = h.totalBs ? `Bs. ${h.totalBs.toFixed(2)}` : '';
+        const custName = (h.customer && h.customer.nombre) ? h.customer.nombre : (h.title || 'Cliente Mostrador');
+        const custRif = (h.customer && h.customer.rif) ? ` (${h.customer.rif})` : '';
+
         listHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:#ffffff;">
-                <div>
-                    <b style="font-size:14px; color:var(--primary);">${h.title}</b>
-                    <p style="font-size:12px; color:var(--text-muted);">${h.cart.length} productos | Hora: ${time}</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:#ffffff; margin-bottom:8px;">
+                <div style="overflow:hidden; padding-right:10px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                        <span class="station-tag ${stationClass}">${station}</span>
+                        <b style="font-size:13.5px; color:var(--text-main);">${custName}${custRif}</b>
+                    </div>
+                    <p style="font-size:12px; color:var(--text-muted); margin:0;">
+                        ${h.cart.length} productos ${totalStr ? `| <b style="color:var(--primary);">${totalStr}</b> <span style="font-size:11px;">(${totalBsStr})</span>` : ''} | Hora: ${time}
+                    </p>
                 </div>
-                <div style="display:flex; gap:8px;">
-                    <button class="header-action-btn btn-primary-action" onclick="resumeHeldSale('${h.id}')" style="padding:6px 12px; font-size:12px;">Reanudar</button>
-                    <button class="ticket-btn-sm" onclick="deleteHeldSale('${h.id}')" style="color:var(--danger);">Descartar</button>
+                <div style="display:flex; gap:8px; flex-shrink:0;">
+                    <button class="header-action-btn btn-primary-action" onclick="resumeHeldSale('${h.id}')" style="padding:7px 14px; font-size:12px;">Cobrar en Caja</button>
+                    <button class="ticket-btn-sm" onclick="deleteHeldSale('${h.id}')" style="color:var(--danger);" title="Descartar">✕</button>
                 </div>
             </div>`;
     });
@@ -556,16 +707,32 @@ function resumeHeldSale(holdId) {
     if (resumed) {
         posCart = resumed.cart;
         if (resumed.customer) posSelectedCustomer = resumed.customer;
+        if (resumed.tipoPrecio) setPOSTier(resumed.tipoPrecio);
+        window._currentHeldSaleOrigin = resumed; // Guardar estación de origen (ej: VENTAS01)
         renderPOSCart();
         renderHeldSalesList();
         closeModal('heldSalesModal');
-        showNovaAlert({ title: "Venta Reanudada", message: `Ticket "${resumed.title}" listo para cobrar.`, type: "success" });
+
+        // Notificar a Supabase que el pedido fue tomado por MASTER
+        if (typeof NovaSupabase !== 'undefined' && NovaSupabase.markCounterOrderServed) {
+            NovaSupabase.markCounterOrderServed(holdId);
+        }
+
+        // Si estamos en la computadora MASTER, abrir modal de cobro de inmediato
+        if (typeof NovaUsers !== 'undefined' && NovaUsers.isAdmin()) {
+            openCheckoutModal();
+        } else {
+            showNovaAlert({ title: "Pedido Cargado", message: `Pedido de "${resumed.title}" listo en el carrito.`, type: "success" });
+        }
     }
 }
 
 function deleteHeldSale(holdId) {
-    if (confirm("¿Deseas descartar definitivamente esta venta en espera?")) {
+    if (confirm("¿Deseas descartar definitivamente este pedido en espera?")) {
         NovaDB.deleteHeldSale(holdId);
+        if (typeof NovaSupabase !== 'undefined' && NovaSupabase.markCounterOrderServed) {
+            NovaSupabase.markCounterOrderServed(holdId);
+        }
         openHeldSalesModal();
         renderHeldSalesList();
     }
@@ -574,57 +741,123 @@ function deleteHeldSale(holdId) {
 // ==========================================
 // MODAL DE COBRO Y EMISIÓN DE FACTURA/TICKET
 // ==========================================
-function openCheckoutModal() {
+function isDivisaPaymentMethod(method) {
+    const m = (method || '').toLowerCase();
+    return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance');
+}
+
+function updateCheckoutTotals() {
     if (posCart.length === 0) return;
 
     const settings = NovaDB.getSettings();
+    const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : 'Efectivo USD';
+    const isUSD = isDivisaPaymentMethod(payMethod);
+
     let totalUSD = 0;
+    let totalBs = 0;
+
     posCart.forEach(item => {
         const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
-        totalUSD += (posPriceTier === 'novacliente' ? p.novaClientesUSD : p.publicoUSD) * item.quantity;
+        if (isUSD) {
+            // Descuento automático al pagar en divisas (efectivo $, zelle, binance)
+            totalUSD += p.novaClientesUSD * item.quantity;
+        } else {
+            // Precio estándar en Bolívares (tarjeta, debito, pago movil, biopago)
+            totalUSD += p.publicoUSD * item.quantity;
+            totalBs += p.publicoBs * item.quantity;
+        }
     });
-    const totalBs = totalUSD * settings.tasaBCV;
 
-    document.getElementById('checkoutTotalUSD').innerText = `$${totalUSD.toFixed(2)}`;
-    document.getElementById('checkoutTotalBs').innerText = `Bs. ${totalBs.toFixed(2)}`;
+    if (isUSD) {
+        totalBs = totalUSD * settings.tasaBCV;
+    }
+
+    const usdEl = document.getElementById('checkoutTotalUSD');
+    const bsEl = document.getElementById('checkoutTotalBs');
+    const badgeEl = document.getElementById('checkoutDiscountBadge');
+
+    if (usdEl) usdEl.innerText = `$${totalUSD.toFixed(2)}`;
+    if (bsEl) bsEl.innerText = `Bs. ${totalBs.toFixed(2)}`;
+
+    if (badgeEl) {
+        badgeEl.style.display = isUSD ? 'inline-block' : 'none';
+    }
+
+    const inputUSD = document.getElementById('payAmountUSD');
+    const inputBs = document.getElementById('payAmountBs');
+    if (isUSD) {
+        if (inputUSD) inputUSD.value = totalUSD.toFixed(2);
+        if (inputBs) inputBs.value = "0.00";
+    } else {
+        if (inputUSD) inputUSD.value = "0.00";
+        if (inputBs) inputBs.value = totalBs.toFixed(2);
+    }
+
+    calculateChange();
+}
+
+function onPaymentMethodChange() {
+    updateCheckoutTotals();
+}
+
+function openCheckoutModal() {
+    if (posCart.length === 0) return;
 
     // Precargar cliente en el modal
     if (posSelectedCustomer) {
-        document.getElementById('coCustName').value = posSelectedCustomer.nombre;
-        document.getElementById('coCustRif').value = posSelectedCustomer.rif;
-        document.getElementById('coCustPhone').value = posSelectedCustomer.telefono;
+        const nameEl = document.getElementById('coCustName');
+        const rifEl = document.getElementById('coCustRif');
+        const phoneEl = document.getElementById('coCustPhone');
+        if (nameEl) nameEl.value = posSelectedCustomer.nombre || '';
+        if (rifEl) rifEl.value = posSelectedCustomer.rif || '';
+        if (phoneEl) phoneEl.value = posSelectedCustomer.telefono || '';
     }
 
-    // Inicializar montos de cobro por defecto en Efectivo USD
-    document.getElementById('payAmountUSD').value = totalUSD.toFixed(2);
-    document.getElementById('payAmountBs').value = "0.00";
-    calculateChange();
+    // Calcular montos acordes al método de pago seleccionado
+    updateCheckoutTotals();
 
     openModal('checkoutModal');
 }
 
 function calculateChange() {
     const settings = NovaDB.getSettings();
-    const totalUSDStr = document.getElementById('checkoutTotalUSD').innerText.replace('$', '');
+    const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : '';
+    const isUSD = isDivisaPaymentMethod(payMethod);
+
+    const totalUSDStr = (document.getElementById('checkoutTotalUSD')?.innerText || '$0').replace('$', '').trim();
     const totalUSD = parseFloat(totalUSDStr) || 0;
+    const totalBsStr = (document.getElementById('checkoutTotalBs')?.innerText || 'Bs. 0').replace('Bs.', '').trim();
+    const totalBs = parseFloat(totalBsStr) || (totalUSD * settings.tasaBCV);
 
     const paidUSD = parseFloat(document.getElementById('payAmountUSD').value) || 0;
     const paidBs = parseFloat(document.getElementById('payAmountBs').value) || 0;
 
-    const totalPaidInUSD = paidUSD + (paidBs / settings.tasaBCV);
-    const diffUSD = totalPaidInUSD - totalUSD;
-
     const changeUSDBox = document.getElementById('changeUSDDisplay');
     const changeBsBox = document.getElementById('changeBsDisplay');
 
-    if (diffUSD >= 0) {
-        if (changeUSDBox) changeUSDBox.innerText = `$${diffUSD.toFixed(2)}`;
-        if (changeBsBox) changeBsBox.innerText = `Bs. ${(diffUSD * settings.tasaBCV).toFixed(2)}`;
-        changeUSDBox.style.color = "var(--success)";
+    if (isUSD) {
+        const diffUSD = paidUSD + (paidBs / settings.tasaBCV) - totalUSD;
+        if (diffUSD >= -0.005) {
+            if (changeUSDBox) changeUSDBox.innerText = `$${Math.max(0, diffUSD).toFixed(2)}`;
+            if (changeBsBox) changeBsBox.innerText = `Bs. ${(Math.max(0, diffUSD) * settings.tasaBCV).toFixed(2)}`;
+            if (changeUSDBox) changeUSDBox.style.color = "var(--success)";
+        } else {
+            if (changeUSDBox) changeUSDBox.innerText = `Falta: $${Math.abs(diffUSD).toFixed(2)}`;
+            if (changeBsBox) changeBsBox.innerText = `Falta: Bs. ${(Math.abs(diffUSD) * settings.tasaBCV).toFixed(2)}`;
+            if (changeUSDBox) changeUSDBox.style.color = "var(--danger)";
+        }
     } else {
-        if (changeUSDBox) changeUSDBox.innerText = `Falta: $${Math.abs(diffUSD).toFixed(2)}`;
-        if (changeBsBox) changeBsBox.innerText = `Falta: Bs. ${(Math.abs(diffUSD) * settings.tasaBCV).toFixed(2)}`;
-        changeUSDBox.style.color = "var(--danger)";
+        const totalPaidInBs = paidBs + (paidUSD * settings.tasaBCV);
+        const diffBs = totalPaidInBs - totalBs;
+        if (diffBs >= -0.5) {
+            if (changeUSDBox) changeUSDBox.innerText = `$${(Math.max(0, diffBs) / settings.tasaBCV).toFixed(2)}`;
+            if (changeBsBox) changeBsBox.innerText = `Bs. ${Math.max(0, diffBs).toFixed(2)}`;
+            if (changeUSDBox) changeUSDBox.style.color = "var(--success)";
+        } else {
+            if (changeUSDBox) changeUSDBox.innerText = `Falta: $${(Math.abs(diffBs) / settings.tasaBCV).toFixed(2)}`;
+            if (changeBsBox) changeBsBox.innerText = `Falta: Bs. ${Math.abs(diffBs).toFixed(2)}`;
+            if (changeUSDBox) changeUSDBox.style.color = "var(--danger)";
+        }
     }
 }
 
@@ -636,192 +869,434 @@ async function finalizeSale() {
     const payMethod = document.getElementById('coPaymentMethod').value;
     const refNum = document.getElementById('coPaymentRef').value.trim();
 
+    const isUSD = isDivisaPaymentMethod(payMethod);
     const settings = NovaDB.getSettings();
+
     let totalUSD = 0;
+    let totalBs = 0;
+
     posCart.forEach(item => {
         const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
-        totalUSD += (posPriceTier === 'novacliente' ? p.novaClientesUSD : p.publicoUSD) * item.quantity;
+        if (isUSD) {
+            totalUSD += p.novaClientesUSD * item.quantity;
+        } else {
+            totalUSD += p.publicoUSD * item.quantity;
+            totalBs += p.publicoBs * item.quantity;
+        }
     });
-    const totalBs = totalUSD * settings.tasaBCV;
+
+    if (isUSD) {
+        totalBs = totalUSD * settings.tasaBCV;
+    }
+
+    const activeUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'MASTER', name: 'MASTER' };
+    const originalOrigin = window._currentHeldSaleOrigin;
 
     const saleRecord = {
-        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: posPriceTier },
+        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: isUSD ? 'divisas' : 'publico' },
         items: posCart,
-        tipoPrecio: posPriceTier,
+        tipoPrecio: isUSD ? 'divisas' : 'publico',
+        descuentoDivisas: isUSD,
         tipoDocumento: docType,
         tasaBCV: settings.tasaBCV,
         totalUSD,
         totalBs,
-        metodosPago: [{ metodo: payMethod, montoUSD: totalUSD, referencia: refNum }]
+        metodosPago: [{ metodo: payMethod, montoUSD: totalUSD, montoBs: totalBs, referencia: refNum }],
+        vendedor: originalOrigin ? (originalOrigin.estacion || originalOrigin.vendedor) : activeUser.name,
+        cajero: activeUser.name,
+        pedIdOriginal: originalOrigin ? originalOrigin.id : null
     };
+
+    window._currentHeldSaleOrigin = null;
 
     const saved = NovaDB.registerSale(saleRecord);
     closeModal('checkoutModal');
-
-    // Generar documento visual listo para imprimir / compartir
-    await generateInvoiceDocument(saved);
 
     // Limpiar carrito de mostrador
     posCart = [];
     renderPOSCart();
     renderPOSCatalog();
-    showNovaAlert({
-        title: "¡Venta Procesada!",
-        message: `Venta registrada con éxito con el código ${saved.id}. El ticket está listo para imprimir o enviar.`,
-        type: "success"
-    });
+
+    // Generar documento visual y abrir modal de comprobante directamente
+    await generateInvoiceDocument(saved);
 }
 
 // ==========================================
-// GENERACIÓN DE DOCUMENTOS (CANVAS TÉRMICO / COTIZACIÓN)
+// GENERACIÓN DE DOCUMENTOS (CANVAS TÉRMICO / NOTA DE DESPACHO)
 // ==========================================
+function loadTicketImage(src) {
+    return new Promise((resolve) => {
+        const targetSrc = (typeof NOVA_FACTURA_BASE64 !== 'undefined' && NOVA_FACTURA_BASE64) ? NOVA_FACTURA_BASE64 : src;
+        const img = new Image();
+        let settled = false;
+        const done = (res) => {
+            if (!settled) {
+                settled = true;
+                resolve(res);
+            }
+        };
+        img.onload = () => done(img);
+        img.onerror = () => done(null);
+        img.src = targetSrc;
+        if (img.complete && img.naturalWidth > 0) {
+            done(img);
+        }
+        setTimeout(() => {
+            if (img.complete && img.naturalWidth > 0) done(img);
+            else done(null);
+        }, 600);
+    });
+}
+
 async function generateInvoiceDocument(sale) {
     const modal = document.getElementById('invoiceDocModal');
     const titleEl = document.getElementById('docModalBadge');
-    if (titleEl) {
-        titleEl.innerText = (sale.tipoDocumento === 'presupuesto') ? 'PRESUPUESTO / COTIZACIÓN' :
-            (sale.tipoDocumento === 'nota_entrega') ? 'NOTA DE ENTREGA' : 'TICKET DE VENTA';
-    }
 
-    // Renderizar Canvas 2D
-    const canvas = document.createElement('canvas');
-    const SCALE = 2;
-    const WIDTH = 320 * SCALE;
-    const PAD = 14 * SCALE;
-    const CONTENT_W = WIDTH - (PAD * 2);
+    try {
+        let docHeaderTitle = "NOTA DE DESPACHO";
+        if (sale.tipoDocumento === 'factura') docHeaderTitle = "FACTURA";
+        else if (sale.tipoDocumento === 'presupuesto') docHeaderTitle = "PRESUPUESTO";
+        else if (sale.tipoDocumento === 'nota_entrega') docHeaderTitle = "NOTA DE DESPACHO";
 
-    let curY = PAD;
-    const ctx = canvas.getContext('2d');
+        if (titleEl) {
+            titleEl.innerText = docHeaderTitle;
+        }
 
-    // Estimación de altura
-    const estimatedH = (460 + (sale.items.length * 36)) * SCALE;
-    canvas.width = WIDTH;
-    canvas.height = estimatedH;
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02, tasaInterna: 1050 };
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, WIDTH, estimatedH);
-    ctx.textBaseline = 'top';
+        // Determinar método de pago principal y moneda (Dólares vs Bolívares)
+        let primaryMethod = 'Efectivo USD';
+        let refNum = '';
+        if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+            primaryMethod = sale.metodosPago[0].metodo || 'Efectivo USD';
+            refNum = sale.metodosPago[0].referencia || '';
+        }
 
-    // Encabezado
-    ctx.fillStyle = '#00458a';
-    ctx.font = `bold ${16 * SCALE}px 'Inter', sans-serif`;
-    const brandName = "NOVA REFRIMOTORS";
-    ctx.fillText(brandName, PAD + (CONTENT_W - ctx.measureText(brandName).width) / 2, curY);
-    curY += 22 * SCALE;
+        const methodLower = primaryMethod.toLowerCase();
+        // Métodos en divisas: Efectivo USD, Zelle, Binance Pay
+        const isUSD = isDivisaPaymentMethod(primaryMethod);
+        const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 914.02;
 
-    ctx.fillStyle = '#334155';
-    ctx.font = `bold ${11 * SCALE}px 'Inter', sans-serif`;
-    const rif = "RIF: J-504401994";
-    ctx.fillText(rif, PAD + (CONTENT_W - ctx.measureText(rif).width) / 2, curY);
-    curY += 15 * SCALE;
+        let methodLabel = primaryMethod.toUpperCase();
+        if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
+        else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
+        else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA (DEBITO)";
+        else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL (BIOPAGO)";
+        else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA BANCARIA";
+        else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
+        else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
 
-    ctx.font = `${9.5 * SCALE}px 'Inter', sans-serif`;
-    const dir = "Av. Carabobo, Cabimas - Zulia";
-    ctx.fillText(dir, PAD + (CONTENT_W - ctx.measureText(dir).width) / 2, curY);
-    curY += 14 * SCALE;
+        if (refNum) {
+            methodLabel += ` [REF: ${refNum}]`;
+        }
 
-    const tlf = "WhatsApp: +58 424-6192394";
-    ctx.fillText(tlf, PAD + (CONTENT_W - ctx.measureText(tlf).width) / 2, curY);
-    curY += 20 * SCALE;
+        const totalProductosVendidos = (sale.items || []).reduce((acc, it) => acc + (parseInt(it.quantity) || 1), 0);
 
-    // Divisor
-    drawDashed(ctx, curY, WIDTH, PAD);
-    curY += 10 * SCALE;
+        // Cargar logotipo oficial para encabezado (prioriza Data URI Base64 seguro)
+        let headerImg = null;
+        try {
+            headerImg = await loadTicketImage('assets/nova-factura.png');
+        } catch (imgErr) {
+            console.warn("Aviso al cargar headerImg:", imgErr);
+        }
 
-    // Tipo y Folio
-    ctx.fillStyle = '#0f172a';
-    ctx.font = `bold ${12 * SCALE}px 'Inter', sans-serif`;
-    const docTitle = `${sale.tipoDocumento.toUpperCase()}: ${sale.id}`;
-    ctx.fillText(docTitle, PAD, curY);
-    curY += 16 * SCALE;
+        // Canvas de Alta Definición Térmica
+        const canvas = document.createElement('canvas');
+        const SCALE = 2;
+        const WIDTH = 380 * SCALE;
+        const PAD = 16 * SCALE;
+        const FONT_MONO = "'Courier New', Consolas, 'Lucida Console', Monaco, monospace";
 
-    ctx.font = `${10 * SCALE}px 'Inter', sans-serif`;
-    ctx.fillText(`Fecha: ${sale.fechaStr}  ${sale.horaStr}`, PAD, curY);
-    curY += 14 * SCALE;
-    ctx.fillText(`Cliente: ${sale.cliente.nombre}`, PAD, curY);
-    curY += 14 * SCALE;
-    ctx.fillText(`RIF/CI: ${sale.cliente.rif}   Tlf: ${sale.cliente.telefono || 'N/A'}`, PAD, curY);
-    curY += 14 * SCALE;
-    ctx.fillText(`Tasa BCV: Bs. ${sale.tasaBCV.toFixed(2)}`, PAD, curY);
-    curY += 18 * SCALE;
+        // Estimación dinámica de altura
+        const estimatedH = Math.ceil((470 + ((sale.items ? sale.items.length : 0) * 36) + (PAD * 2)) * SCALE);
+        canvas.width = WIDTH;
+        canvas.height = estimatedH;
 
-    drawDashed(ctx, curY, WIDTH, PAD);
-    curY += 10 * SCALE;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, WIDTH, estimatedH);
+        ctx.fillStyle = '#000000';
+        ctx.textBaseline = 'top';
 
-    // Tabla de ítems
-    ctx.font = `bold ${10 * SCALE}px 'Inter', sans-serif`;
-    ctx.fillText("DESCRIPCIÓN", PAD, curY);
-    const totHeader = "TOTAL";
-    ctx.fillText(totHeader, WIDTH - PAD - ctx.measureText(totHeader).width, curY);
-    curY += 16 * SCALE;
+        let curY = PAD;
 
-    ctx.font = `${9.5 * SCALE}px 'Inter', sans-serif`;
-    sale.items.forEach(it => {
-        const lineVal = `$${(it.costoCompra * (sale.tipoPrecio === 'novacliente' ? 1.508 : 1.77) * it.quantity).toFixed(2)}`;
-        const lineTxt = `${it.quantity}x [${it.id}] ${it.name}`;
+        // Helper línea discontinua
+        function drawDashedLine(y) {
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.2 * SCALE;
+            ctx.setLineDash([5 * SCALE, 4 * SCALE]);
+            ctx.beginPath();
+            ctx.moveTo(PAD, y);
+            ctx.lineTo(WIDTH - PAD, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
 
-        ctx.fillText(lineTxt.length > 28 ? lineTxt.substring(0, 26) + '..' : lineTxt, PAD, curY);
-        ctx.fillText(lineVal, WIDTH - PAD - ctx.measureText(lineVal).width, curY);
+        // 1. ENCABEZADO: Imagen de cabecera centrada y título de documento
+        if (headerImg && headerImg.naturalWidth > 0) {
+            const imgW = 280 * SCALE;
+            const imgH = Math.round(imgW * (headerImg.naturalHeight / headerImg.naturalWidth));
+            const imgX = (WIDTH - imgW) / 2;
+            ctx.drawImage(headerImg, imgX, curY, imgW, imgH);
+            curY += imgH + (12 * SCALE);
+        }
+
+        ctx.font = `bold ${17 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(docHeaderTitle, WIDTH / 2, curY);
+        curY += 24 * SCALE;
+
+        // 2. DATOS DEL CLIENTE
+        const custNombre = (sale.cliente && sale.cliente.nombre ? sale.cliente.nombre : 'CLIENTE MOSTRADOR').toUpperCase();
+        const custRif = (sale.cliente && sale.cliente.rif ? sale.cliente.rif : 'V-00000000').toUpperCase();
+        const custDir = (sale.cliente && sale.cliente.direccion ? sale.cliente.direccion : 'CABIMAS, EDO. ZULIA').toUpperCase();
+        const custPhone = (sale.cliente && sale.cliente.telefono ? sale.cliente.telefono : '').toUpperCase();
+
+        const colValX = PAD + (100 * SCALE);
+        ctx.textAlign = 'left';
+
+        ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
+        ctx.fillText("NOMBRE:", PAD, curY);
+        ctx.fillText(custNombre.length > 25 ? custNombre.substring(0, 24) + '..' : custNombre, colValX, curY);
         curY += 16 * SCALE;
-    });
 
-    curY += 6 * SCALE;
-    drawDashed(ctx, curY, WIDTH, PAD);
-    curY += 10 * SCALE;
+        ctx.fillText("RIF:", PAD, curY);
+        ctx.fillText(custRif, colValX, curY);
+        curY += 16 * SCALE;
 
-    // Totales
-    ctx.font = `bold ${13 * SCALE}px 'Inter', sans-serif`;
-    const totUsdStr = `TOTAL USD: $${sale.totalUSD.toFixed(2)}`;
-    ctx.fillText(totUsdStr, PAD, curY);
-    curY += 18 * SCALE;
+        ctx.fillText("DIRECCION:", PAD, curY);
+        ctx.fillText(custDir.length > 25 ? custDir.substring(0, 24) + '..' : custDir, colValX, curY);
+        curY += 16 * SCALE;
 
-    const totBsStr = `TOTAL BS: Bs. ${sale.totalBs.toFixed(2)}`;
-    ctx.fillText(totBsStr, PAD, curY);
-    curY += 22 * SCALE;
+        if (custPhone) {
+            ctx.fillText("%DEL", PAD, curY);
+            ctx.fillText(`TLF: ${custPhone}`, colValX, curY);
+            curY += 16 * SCALE;
+        }
+        curY += 6 * SCALE;
 
-    // Pie de página legal
-    ctx.font = `${8.5 * SCALE}px 'Inter', sans-serif`;
-    ctx.fillStyle = '#64748b';
-    const pie1 = "*** CONSERVE SU RECIBO PARA GARANTÍA ***";
-    const pie2 = "* LAS PIEZAS ELÉCTRICAS NO TIENEN GARANTÍA *";
-    ctx.fillText(pie1, PAD + (CONTENT_W - ctx.measureText(pie1).width) / 2, curY);
-    curY += 13 * SCALE;
-    ctx.fillText(pie2, PAD + (CONTENT_W - ctx.measureText(pie2).width) / 2, curY);
-    curY += 16 * SCALE;
+        // 3. LÍNEA DISCONTINUA & DATOS DEL COMPROBANTE
+        drawDashedLine(curY);
+        curY += 12 * SCALE;
 
-    // Asignar imagen a la vista previa
-    const imgEl = document.getElementById('invoiceDocImg');
-    const dataUrl = canvas.toDataURL('image/png');
-    if (imgEl) imgEl.src = dataUrl;
+        const docNumStr = String(sale.id || '1').replace(/\D/g, '').padStart(8, '0');
+        ctx.font = `bold ${12 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${docHeaderTitle}:`, PAD, curY);
+        ctx.textAlign = 'right';
+        ctx.fillText(docNumStr, WIDTH - PAD, curY);
+        curY += 16 * SCALE;
 
-    window._lastGeneratedDocUrl = dataUrl;
-    window._lastGeneratedDocName = `${sale.tipoDocumento}-${sale.id}.png`;
+        ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`FECHA: ${sale.fechaStr || ''}`, PAD, curY);
+        ctx.textAlign = 'right';
+        ctx.fillText(`HORA: ${sale.horaStr || ''}`, WIDTH - PAD, curY);
+        curY += 16 * SCALE;
 
-    if (modal) modal.classList.add('active');
-}
+        if (!isUSD) {
+            ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
+            ctx.textAlign = 'left';
+            ctx.fillText(`TASA BCV: Bs. ${tasa.toFixed(2)}`, PAD, curY);
+            curY += 16 * SCALE;
+        }
+        curY += 2 * SCALE;
 
-function drawDashed(ctx, y, w, pad) {
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(pad, y);
-    ctx.lineTo(w - pad, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
+        // 4. LÍNEA DISCONTINUA & LISTA DE PRODUCTOS (MONEDA SEGÚN PAGO)
+        drawDashedLine(curY);
+        curY += 12 * SCALE;
+
+        ctx.font = `bold ${12 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText("DESCRIPCION", PAD, curY);
+        curY += 16 * SCALE;
+
+        if (Array.isArray(sale.items)) {
+            sale.items.forEach(it => {
+                const prices = (typeof calcularPreciosSegunAjustes === 'function')
+                    ? calcularPreciosSegunAjustes(it.costoCompra, settings)
+                    : { publicoUSD: (it.costoCompra || 0) * 1.77, novaClientesUSD: (it.costoCompra || 0) * 1.508, publicoBs: (it.costoCompra || 0) * 1.77 * 914.02 };
+                // Si el pago es en divisas ($ efectivo, zelle, binance), el precio unitario refleja el descuento en divisas
+                const isDivisa = isUSD || sale.tipoPrecio === 'divisas' || sale.descuentoDivisas || sale.tipoPrecio === 'novacliente';
+                const unitPriceUSD = isDivisa ? prices.novaClientesUSD : prices.publicoUSD;
+                const lineTotalUSD = unitPriceUSD * it.quantity;
+
+                // Renglón 1: Descripción en mayúsculas
+                ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
+                ctx.textAlign = 'left';
+                const itName = it.name.toUpperCase();
+                ctx.fillText(itName.length > 34 ? itName.substring(0, 32) + '..' : itName, PAD, curY);
+                curY += 14 * SCALE;
+
+                // Renglón 2: Código   Cant x PrecioUnit                    Total
+                ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
+                ctx.textAlign = 'left';
+
+                if (isUSD) {
+                    ctx.fillText(`${it.id}    ${it.quantity} x $${unitPriceUSD.toFixed(2)}`, PAD, curY);
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`$${lineTotalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+                } else {
+                    const unitPriceBs = prices.publicoBs || (unitPriceUSD * tasa);
+                    const lineTotalBs = unitPriceBs * it.quantity;
+                    ctx.fillText(`${it.id}    ${it.quantity} x Bs. ${unitPriceBs.toFixed(2)}`, PAD, curY);
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`Bs. ${lineTotalBs.toFixed(2)}`, WIDTH - PAD, curY);
+                }
+                curY += 18 * SCALE;
+            });
+        }
+        curY += 4 * SCALE;
+
+        // 5. LÍNEA DISCONTINUA & TOTAL Y FORMA DE PAGO SELECCIONADA
+        drawDashedLine(curY);
+        curY += 12 * SCALE;
+
+        // TOTAL EN LA MONEDA DE PAGO
+        ctx.font = `bold ${13 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText("TOTAL", PAD, curY);
+        ctx.textAlign = 'right';
+        if (isUSD) {
+            ctx.fillText(`$${sale.totalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+        } else {
+            ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
+        }
+        curY += 18 * SCALE;
+
+        // ÚNICO SLOT: FORMA DE PAGO UTILIZADA
+        ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText(methodLabel, PAD, curY);
+        ctx.textAlign = 'right';
+        if (isUSD) {
+            ctx.fillText(`$${sale.totalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+        } else {
+            ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
+        }
+        curY += 18 * SCALE;
+
+        // TOTAL PRODUCTOS VENDIDOS
+        ctx.font = `bold ${12 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText("TOTAL PRODUCTOS VENDIDOS:", PAD, curY);
+        ctx.textAlign = 'right';
+        ctx.fillText(String(totalProductosVendidos), WIDTH - PAD, curY);
+        curY += 18 * SCALE;
+
+        // 6. LÍNEA DISCONTINUA & DATOS DE CAJERO / VENDEDOR
+        drawDashedLine(curY);
+        curY += 12 * SCALE;
+
+        ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`USUARIO: ${(sale.vendedor || '0.11-CAJA PRINCIPAL').toUpperCase()}`, PAD, curY);
+        curY += 15 * SCALE;
+
+        ctx.fillText("VENDEDOR: 01 MOSTRADOR", PAD, curY);
+        curY += 22 * SCALE;
+
+        // 7. AVISO LEGAL INFERIOR (CENTRALIZADO)
+        ctx.font = `bold ${9.5 * SCALE}px ${FONT_MONO}`;
+        ctx.textAlign = 'center';
+        ctx.fillText("*** CONSERVE SU RECIBO PARA CUALQUIER RECLAMO ***", WIDTH / 2, curY);
+        curY += 14 * SCALE;
+        ctx.fillText("**** LAS PIEZAS ELECTRICAS NO TIENEN GARANTIA ****", WIDTH / 2, curY);
+        curY += 16 * SCALE;
+
+        // Asignar imagen a la vista previa del modal con fallback de seguridad
+        const imgEl = document.getElementById('invoiceDocImg');
+        let dataUrl = '';
+        try {
+            dataUrl = canvas.toDataURL('image/png');
+            if (imgEl) {
+                imgEl.src = dataUrl;
+                imgEl.style.display = 'block';
+            }
+            window._lastGeneratedDocUrl = dataUrl;
+        } catch (exportErr) {
+            console.warn("Aviso toDataURL:", exportErr);
+            if (imgEl && imgEl.parentNode) {
+                imgEl.style.display = 'none';
+                let fbCanvas = document.getElementById('invoiceDocCanvasFallback');
+                if (!fbCanvas) {
+                    fbCanvas = document.createElement('canvas');
+                    fbCanvas.id = 'invoiceDocCanvasFallback';
+                    imgEl.parentNode.appendChild(fbCanvas);
+                }
+                fbCanvas.width = canvas.width;
+                fbCanvas.height = canvas.height;
+                fbCanvas.style.maxWidth = '100%';
+                fbCanvas.style.boxShadow = 'var(--shadow-md)';
+                fbCanvas.style.borderRadius = '4px';
+                fbCanvas.style.background = '#ffffff';
+                fbCanvas.style.display = 'block';
+                const fbCtx = fbCanvas.getContext('2d');
+                fbCtx.drawImage(canvas, 0, 0);
+            }
+        }
+
+        window._lastGeneratedDocName = `${docHeaderTitle.replace(/\s+/g, '_')}-${docNumStr}.png`;
+
+        if (modal) modal.classList.add('active');
+    } catch (fatalErr) {
+        console.error("Error al generar comprobante:", fatalErr);
+        if (modal) modal.classList.add('active');
+        showNovaAlert({
+            title: "Comprobante Registrado",
+            message: `La venta #${sale.id || ''} se registró correctamente con éxito en el sistema.`,
+            type: "success"
+        });
+    }
 }
 
 function printCurrentDocument() {
-    const w = window.open('');
-    w.document.write(`<img src="${window._lastGeneratedDocUrl}" style="max-width:320px; width:100%;" onload="window.print();window.close();">`);
+    let docUrl = window._lastGeneratedDocUrl;
+    if (!docUrl) {
+        const fbCanvas = document.getElementById('invoiceDocCanvasFallback');
+        if (fbCanvas) {
+            try { docUrl = fbCanvas.toDataURL('image/png'); } catch (e) { }
+        }
+    }
+    if (!docUrl) {
+        window.print();
+        return;
+    }
+    const w = window.open('', '_blank');
+    if (!w) {
+        window.print();
+        return;
+    }
+    w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Imprimir Comprobante</title>
+    <style>
+        @page { margin: 0; size: auto; }
+        body { margin: 0; padding: 0; background: #ffffff; display: flex; justify-content: center; }
+        img { width: 100%; max-width: 380px; height: auto; image-rendering: crisp-edges; image-rendering: pixelated; }
+    </style>
+</head>
+<body>
+    <img src="${docUrl}" onload="setTimeout(()=>{ window.print(); window.close(); }, 250);">
+</body>
+</html>`);
     w.document.close();
 }
 
 function downloadCurrentDocument() {
-    if (!window._lastGeneratedDocUrl) return;
+    let docUrl = window._lastGeneratedDocUrl;
+    if (!docUrl) {
+        const fbCanvas = document.getElementById('invoiceDocCanvasFallback');
+        if (fbCanvas) {
+            try { docUrl = fbCanvas.toDataURL('image/png'); } catch (e) { }
+        }
+    }
+    if (!docUrl) return;
     const a = document.createElement('a');
-    a.href = window._lastGeneratedDocUrl;
-    a.download = window._lastGeneratedDocName || 'Ticket-Nova.png';
+    a.href = docUrl;
+    a.download = window._lastGeneratedDocName || 'Nota_de_Despacho.png';
     a.click();
 }
 
@@ -846,7 +1321,7 @@ function renderInventoryView() {
         else if (item.stock <= item.stockMinimo) lowStockCount++;
 
         // Buscar costo para valorización
-        const cost = getProductCost(item.id, prods);
+        const cost = getProductCost(item.id, prods, item);
         totalStockValuationUSD += cost * item.stock;
     });
 
@@ -863,13 +1338,22 @@ function renderInventoryView() {
     renderInventoryTable();
 }
 
-function getProductCost(code, prods) {
-    for (let p of prods) {
-        if (p.id === code) return p.costoCompra;
-        if (p.variants) {
-            let v = p.variants.find(x => x.id === code);
-            if (v) return v.costoCompra;
+function getProductCost(code, prods, invItem) {
+    if (invItem && typeof invItem.costoCompra === 'number' && invItem.costoCompra > 0) {
+        return invItem.costoCompra;
+    }
+    if (prods && Array.isArray(prods)) {
+        for (let p of prods) {
+            if (p.id === code && typeof p.costoCompra === 'number') return p.costoCompra;
+            if (p.variants) {
+                let v = p.variants.find(x => x.id === code);
+                if (v && typeof v.costoCompra === 'number') return v.costoCompra;
+            }
         }
+    }
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : null;
+    if (inv && inv[code] && typeof inv[code].costoCompra === 'number') {
+        return inv[code].costoCompra;
     }
     return 0;
 }
@@ -899,14 +1383,14 @@ function renderInventoryTable() {
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron repuestos en el inventario con los criterios seleccionados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron repuestos en el inventario con los criterios seleccionados.</td></tr>`;
         return;
     }
 
     let html = '';
     // Paginación virtual ligera
     filtered.slice(0, 100).forEach(item => {
-        const cost = getProductCost(item.id, prods);
+        const cost = getProductCost(item.id, prods, item);
         const precios = calcularPreciosSegunAjustes(cost, settings);
 
         let statusBadge = '<span class="status-badge status-optimal">● Óptimo</span>';
@@ -918,7 +1402,14 @@ function renderInventoryTable() {
                 <td><span class="code-badge">${item.id}</span></td>
                 <td><b>${item.name}</b></td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${item.category || 'General'}</span></td>
-                <td>$${cost.toFixed(2)}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span>$${cost.toFixed(2)}</span>
+                        <button class="ticket-btn-sm" onclick="promptUpdateCost('${item.id}')" title="Modificar Costo Base">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                    </div>
+                </td>
                 <td><b style="color:var(--accent-red);">$${precios.publicoUSD.toFixed(2)}</b></td>
                 <td><b style="color:var(--primary);">$${precios.novaClientesUSD.toFixed(2)}</b></td>
                 <td>
@@ -929,6 +1420,11 @@ function renderInventoryTable() {
                     </div>
                 </td>
                 <td>${statusBadge}</td>
+                <td style="text-align:right;">
+                    <button class="ticket-btn-sm" onclick="confirmDeleteProduct('${item.id}')" style="color:var(--danger);" title="Eliminar del catálogo">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </td>
             </tr>`;
     });
 
@@ -940,6 +1436,128 @@ function quickStockAdjust(itemId, diff) {
     const newQty = Math.max(0, current + diff);
     NovaDB.setStock(itemId, newQty, "Ajuste rápido en tabla");
     renderInventoryView();
+}
+
+function promptUpdateCost(itemId) {
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const currentCost = getProductCost(itemId, prods);
+    const input = prompt(`Modificar costo base de compra para [${itemId}] en $ USD:\n(Los precios de venta se recalcularán automáticamente)`, currentCost.toFixed(2));
+    if (input !== null) {
+        const val = parseFloat(input.replace(',', '.'));
+        if (!isNaN(val) && val >= 0) {
+            NovaDB.updateProductCost(itemId, val);
+            renderInventoryView();
+            renderPOSCatalog();
+            showNovaAlert({
+                title: "Costo Actualizado",
+                message: `Nuevo costo $${val.toFixed(2)} registrado para ${itemId}. Precios actualizados en POS.`,
+                type: "success"
+            });
+        }
+    }
+}
+
+function confirmDeleteProduct(itemId) {
+    if (confirm(`¿Estás seguro de que deseas eliminar definitivamente el producto [${itemId}] del inventario y del catálogo?`)) {
+        NovaDB.deleteProduct(itemId);
+        renderInventoryView();
+        renderPOSCatalog();
+        showNovaAlert({
+            title: "Producto Eliminado",
+            message: `El repuesto [${itemId}] fue removido correctamente.`,
+            type: "info"
+        });
+    }
+}
+
+function openAddNewProductModal() {
+    openModal('addNewProductModal');
+}
+
+function submitNewProduct() {
+    const id = document.getElementById('newProdId').value.trim();
+    const name = document.getElementById('newProdName').value.trim();
+    const category = document.getElementById('newProdCategory').value;
+    const costoCompra = parseFloat(document.getElementById('newProdCosto').value) || 0;
+    const stock = parseInt(document.getElementById('newProdStock').value) || 0;
+    const stockMinimo = parseInt(document.getElementById('newProdStockMin').value) || 3;
+    const ubicacion = document.getElementById('newProdUbicacion').value.trim() || 'Almacén Central';
+
+    if (!id || !name) {
+        showNovaAlert({
+            title: "Campos Requeridos",
+            message: "El código SKU y la descripción del producto son obligatorios.",
+            type: "warning"
+        });
+        return;
+    }
+
+    NovaDB.addNewProduct({ id, name, category, costoCompra, stock, stockMinimo, ubicacion });
+    closeModal('addNewProductModal');
+
+    // Limpiar campos
+    document.getElementById('newProdId').value = '';
+    document.getElementById('newProdName').value = '';
+    document.getElementById('newProdCosto').value = '';
+
+    renderInventoryView();
+    renderPOSCatalog();
+    showNovaAlert({
+        title: "Producto Guardado",
+        message: `El repuesto [${id}] ${name} fue registrado con éxito en el catálogo y cargado en el inventario.`,
+        type: "success"
+    });
+}
+
+// ==========================================
+// CONTROL DE ESTACIONES Y USUARIOS (MASTER & VENTAS)
+// ==========================================
+function openSwitchStationModal() {
+    openModal('userStationModal');
+}
+
+function selectStationOption(stationId) {
+    if (stationId === 'MASTER') {
+        closeModal('userStationModal');
+        const pinInp = document.getElementById('inputMasterPin');
+        if (pinInp) pinInp.value = '';
+        openModal('masterPinModal');
+        setTimeout(() => { if (pinInp) pinInp.focus(); }, 150);
+        return;
+    }
+
+    const res = NovaUsers.switchStation(stationId);
+    if (res.success) {
+        closeModal('userStationModal');
+        showNovaAlert({
+            title: "Estación Cambiada",
+            message: `Esta computadora ahora está operando como estación [${res.user.name}].`,
+            type: "success"
+        });
+    }
+}
+
+function submitMasterPin() {
+    const pinInp = document.getElementById('inputMasterPin');
+    const entered = pinInp ? pinInp.value.trim() : '';
+
+    const res = NovaUsers.switchStation('MASTER', entered);
+    if (res.success) {
+        closeModal('masterPinModal');
+        if (pinInp) pinInp.value = '';
+        showNovaAlert({
+            title: "Estación MASTER Activada",
+            message: "Acceso concedido. Tienes el control total sobre el sistema, caja, facturas e inventario.",
+            type: "success"
+        });
+    } else {
+        showNovaAlert({
+            title: "PIN Incorrecto",
+            message: res.message || "El PIN ingresado no coincide con el de Administrador.",
+            type: "warning"
+        });
+        if (pinInp) { pinInp.focus(); pinInp.select(); }
+    }
 }
 
 // ==============================================================================
@@ -1000,6 +1618,8 @@ function submitNewExpense() {
     }
 
     NovaDB.addExpense({ concepto, categoria, montoUSD: monto, metodoPago: metodo });
+    document.getElementById('expConcepto').value = '';
+    document.getElementById('expMonto').value = '';
     closeModal('addExpenseModal');
     renderCashView();
     showNovaAlert({ title: "Egreso Registrado", message: `Se registró el egreso de $${monto.toFixed(2)} con éxito.`, type: "success" });
@@ -1089,6 +1709,10 @@ function submitNewPurchase() {
         totalUSD: cost * qty
     });
 
+    document.getElementById('purItemCode').value = '';
+    document.getElementById('purItemQty').value = '1';
+    document.getElementById('purItemCost').value = '';
+
     closeModal('addPurchaseModal');
     renderPurchasesView();
     if (currentView === 'inventory') renderInventoryView();
@@ -1107,11 +1731,39 @@ function renderCustomersView() {
     const tbody = document.getElementById('customersTableBody');
     if (!tbody) return;
 
+    if (customers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron clientes registrados en el directorio.</td></tr>`;
+        return;
+    }
+
     let html = '';
     customers.forEach(c => {
-        const tierBadge = c.tipo === 'novacliente' ?
-            '<span class="status-badge" style="background:#e0f2fe; color:#0369a1;">★ NovaCliente</span>' :
-            '<span class="status-badge" style="background:#f1f5f9; color:#475569;">Público General</span>';
+        let tierLabel = 'Público General';
+        let tierStyle = 'background:#f1f5f9; color:#475569;';
+        if (c.tipo === 'tecnico') {
+            tierLabel = 'Técnico / Taller';
+            tierStyle = 'background:#e0f2fe; color:#0369a1;';
+        } else if (c.tipo === 'frecuente' || c.tipo === 'novacliente') {
+            tierLabel = 'Cliente Frecuente';
+            tierStyle = 'background:#ecfdf5; color:#047857;';
+        }
+        const tierBadge = `<span class="status-badge" style="${tierStyle}">${tierLabel}</span>`;
+
+        let actionHtml = '';
+        if (c.id === 'CLI-001') {
+            actionHtml = `<span style="font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg-card-subtle, rgba(0,0,0,0.04)); padding:3px 8px; border-radius:4px;" title="Cliente predeterminado de mostrador">Principal</span>`;
+        } else {
+            actionHtml = `
+                <button class="ticket-btn-sm btn-danger-sm" onclick="confirmDeleteCustomer('${c.id}')" title="Eliminar cliente">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </button>
+            `;
+        }
 
         html += `
             <tr>
@@ -1119,11 +1771,41 @@ function renderCustomersView() {
                 <td><b>${c.nombre}</b></td>
                 <td>${c.rif}</td>
                 <td>${c.telefono || 'N/A'}</td>
+                <td><span style="font-size:12px; color:var(--text-muted);">${c.direccion || 'Cabimas, Edo. Zulia'}</span></td>
                 <td>${tierBadge}</td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${c.notas || 'Sin notas'}</span></td>
+                <td style="text-align:right;">${actionHtml}</td>
             </tr>`;
     });
     tbody.innerHTML = html;
+}
+
+function confirmDeleteCustomer(customerId) {
+    if (!customerId || customerId === 'CLI-001') {
+        showNovaAlert({
+            title: "Acción Protegida",
+            message: "El Cliente Mostrador principal no puede ser eliminado ya que es requerido para el funcionamiento del mostrador.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const customers = NovaDB.getCustomers();
+    const cust = customers.find(c => c.id === customerId);
+    const clientName = cust ? cust.nombre : customerId;
+
+    if (confirm(`¿Estás seguro de que deseas eliminar al cliente [${customerId}] "${clientName}" del directorio?\nEsta acción no se puede deshacer.`)) {
+        const deleted = NovaDB.deleteCustomer(customerId);
+        if (deleted) {
+            renderCustomersView();
+            renderPOSCustomerSelect();
+            showNovaAlert({
+                title: "Cliente Eliminado",
+                message: `El registro de "${clientName}" fue eliminado correctamente de la base de datos.`,
+                type: "info"
+            });
+        }
+    }
 }
 
 function openAddCustomerModal() {
@@ -1134,6 +1816,7 @@ function submitNewCustomer() {
     const nombre = document.getElementById('custNombre').value.trim();
     const rif = document.getElementById('custRif').value.trim();
     const telefono = document.getElementById('custTelefono').value.trim();
+    const direccion = document.getElementById('custDireccion') ? document.getElementById('custDireccion').value.trim() : '';
     const tipo = document.getElementById('custTipo').value;
 
     if (!nombre || !rif) {
@@ -1141,11 +1824,26 @@ function submitNewCustomer() {
         return;
     }
 
-    NovaDB.saveCustomer({ nombre, rif, telefono, tipo });
+    const saved = NovaDB.saveCustomer({ nombre, rif, telefono, direccion, tipo });
     closeModal('addCustomerModal');
+
+    // Limpiar campos
+    document.getElementById('custNombre').value = '';
+    document.getElementById('custRif').value = '';
+    document.getElementById('custTelefono').value = '';
+    if (document.getElementById('custDireccion')) document.getElementById('custDireccion').value = '';
+
     renderCustomersView();
     renderPOSCustomerSelect();
-    showNovaAlert({ title: "Cliente Guardado", message: `Se registró a ${nombre} correctamente.`, type: "success" });
+
+    // Si estamos en POS, asignar como cliente seleccionado
+    if (saved) {
+        posSelectedCustomer = saved;
+        const sel = document.getElementById('posCustomerSelect');
+        if (sel) sel.value = saved.id;
+    }
+
+    showNovaAlert({ title: "Cliente Guardado", message: `Se registró a "${nombre}" correctamente en la base de datos.`, type: "success" });
 }
 
 // ==============================================================================
@@ -1245,11 +1943,6 @@ function handleBackupFileSelect(event) {
 // ==========================================
 async function triggerManualSync() {
     if (typeof NovaSupabase === 'undefined') return;
-    showNovaAlert({
-        title: "Sincronizando...",
-        message: "Enviando registros locales a la base de datos en la nube.",
-        type: "success"
-    });
     await NovaSupabase.processQueue();
     const queue = NovaSupabase.getQueue();
     if (queue.length === 0) {
@@ -1259,10 +1952,33 @@ async function triggerManualSync() {
             type: "success"
         });
     } else {
+        const lastErr = NovaSupabase.getLastError() || "Error de respuesta del servidor Supabase";
         showNovaAlert({
             title: "Sincronización Parcial",
-            message: `Quedan ${queue.length} registros pendientes por enviar.`,
+            message: `Quedan ${queue.length} registro(s) pendiente(s) por enviar.\n\nDetalle del error:\n${lastErr}\n\nPuedes pulsar 'Limpiar Cola' si se trata de un registro huérfano.`,
             type: "warning"
+        });
+    }
+}
+
+function triggerClearQueue() {
+    if (typeof NovaSupabase === 'undefined') return;
+    const q = NovaSupabase.getQueue();
+    if (q.length === 0) {
+        showNovaAlert({
+            title: "Cola al Día",
+            message: "No hay registros pendientes en la cola.",
+            type: "info"
+        });
+        return;
+    }
+
+    if (confirm(`Hay ${q.length} registro(s) pendiente(s) en la cola.\n¿Deseas descartar los registros pendientes atascados para restablecer la sincronización con la nube?`)) {
+        NovaSupabase.clearQueue();
+        showNovaAlert({
+            title: "Cola Limpiada",
+            message: "Se vació la cola de pendientes. El estado del sistema ahora es 'Nube Conectada'.",
+            type: "success"
         });
     }
 }
@@ -1307,11 +2023,71 @@ function openModal(modalId) {
 function closeModal(modalId) {
     const m = document.getElementById(modalId);
     if (m) m.classList.remove('active');
+    if (modalId === 'invoiceDocModal') {
+        const fbCanvas = document.getElementById('invoiceDocCanvasFallback');
+        if (fbCanvas) fbCanvas.remove();
+        const imgEl = document.getElementById('invoiceDocImg');
+        if (imgEl) imgEl.style.display = 'block';
+    }
 }
 
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.querySelectorAll('.erp-modal-overlay.active').forEach(m => m.classList.remove('active'));
+        const alertModal = document.getElementById('novaAlertModal');
+        if (alertModal && alertModal.classList.contains('active')) alertModal.classList.remove('active');
     }
 });
+
+// ==========================================
+// SISTEMA DE ALERTAS Y AVISOS MODALES NOVA
+// ==========================================
+let _localAlertCallback = null;
+function showNovaAlert({ title, message, type = 'info', confirmText = 'Entendido', onConfirm = null }) {
+    _localAlertCallback = onConfirm;
+    const modal = document.getElementById('novaAlertModal');
+    const titleEl = document.getElementById('novaAlertTitle');
+    const msgEl = document.getElementById('novaAlertMessage');
+    const iconEl = document.getElementById('novaAlertIcon');
+    const btnEl = document.getElementById('novaAlertConfirmBtn');
+
+    if (!modal) {
+        alert(message);
+        if (onConfirm) onConfirm();
+        return;
+    }
+
+    if (titleEl) titleEl.innerText = title;
+    if (msgEl) msgEl.innerText = message;
+    if (btnEl) btnEl.innerText = confirmText;
+
+    if (iconEl) {
+        iconEl.className = 'nova-alert-icon ' + type;
+        if (type === 'warning') {
+            iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+        } else if (type === 'success') {
+            iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        } else if (type === 'error') {
+            iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+        } else {
+            iconEl.innerHTML = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+        }
+    }
+
+    modal.classList.add('active');
+    if (btnEl) btnEl.focus();
+}
+
+function closeNovaAlert(event) {
+    if (event && event.target !== event.currentTarget && !event.target.classList.contains('nova-alert-btn')) {
+        return;
+    }
+    const modal = document.getElementById('novaAlertModal');
+    if (modal) modal.classList.remove('active');
+    if (_localAlertCallback) {
+        const cb = _localAlertCallback;
+        _localAlertCallback = null;
+        try { cb(); } catch (err) { console.error(err); }
+    }
+}
 

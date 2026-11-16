@@ -19,10 +19,11 @@ const NovaDB = (function () {
     const STORAGE_KEY_PREFIX = 'nova_erp_';
 
     const DEFAULT_SETTINGS = {
-        tasaBCV: 897.54,
+        tasaBCV: 914.02,
         tasaInterna: 1050,
         porcentajeUtilidad: 1.30,
         porcentajeIva: 1.16,
+        masterPin: "1234",
         empresa: {
             nombre: "NOVA RefriMotors",
             rif: "J504401994",
@@ -34,9 +35,9 @@ const NovaDB = (function () {
     };
 
     const DEFAULT_CUSTOMERS = [
-        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", tipo: "publico", notas: "Cliente general" },
-        { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", tipo: "novacliente", notas: "Técnico aliado frecuente" },
-        { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", tipo: "novacliente", notas: "Taller corporativo" }
+        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "publico", notas: "Cliente general" },
+        { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas", tipo: "novacliente", notas: "Técnico aliado frecuente" },
+        { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas", tipo: "novacliente", notas: "Taller corporativo" }
     ];
 
     const DEFAULT_SUPPLIERS = [
@@ -261,6 +262,83 @@ const NovaDB = (function () {
         return false;
     }
 
+    function addNewProduct(prodData) {
+        const inv = getInventory();
+        const code = (prodData.id || ('PROD-' + Date.now().toString().slice(-4))).toUpperCase().trim();
+        const initialStock = parseInt(prodData.stock) || 0;
+        const cost = parseFloat(prodData.costoCompra) || 0;
+
+        inv[code] = {
+            id: code,
+            name: prodData.name || 'Nuevo Repuesto',
+            category: prodData.category || 'General',
+            stock: initialStock,
+            stockMinimo: parseInt(prodData.stockMinimo) || 3,
+            ubicacion: prodData.ubicacion || 'Almacén Central',
+            costoCompra: cost
+        };
+        _write('inventory', inv);
+
+        if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
+            const exists = window.products.some(p => p.id === code);
+            if (!exists) {
+                window.products.push({
+                    id: code,
+                    name: inv[code].name,
+                    category: inv[code].category,
+                    costoCompra: cost,
+                    images: ['assets/products/default.png'],
+                    specs: { "Garantía": "90 días por defecto de fábrica" }
+                });
+            }
+        }
+
+        _logStockMovement({
+            productId: code,
+            oldStock: 0,
+            newStock: initialStock,
+            diff: initialStock,
+            reason: "Alta de nuevo producto en catálogo",
+            timestamp: new Date().toISOString()
+        });
+
+        return inv[code];
+    }
+
+    function deleteProduct(productId) {
+        const inv = getInventory();
+        if (inv[productId]) {
+            delete inv[productId];
+            _write('inventory', inv);
+            if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
+                window.products = window.products.filter(p => p.id !== productId);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function updateProductCost(productId, newCost) {
+        const cost = parseFloat(newCost);
+        if (isNaN(cost) || cost < 0) return false;
+        const inv = getInventory();
+        if (inv[productId]) {
+            inv[productId].costoCompra = cost;
+            _write('inventory', inv);
+        }
+        if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
+            const p = window.products.find(x => x.id === productId);
+            if (p) p.costoCompra = cost;
+            window.products.forEach(prod => {
+                if (prod.variants) {
+                    const v = prod.variants.find(x => x.id === productId);
+                    if (v) v.costoCompra = cost;
+                }
+            });
+        }
+        return true;
+    }
+
     function _logStockMovement(entry) {
         const logs = _read('stock_logs', []);
         logs.unshift(entry);
@@ -320,24 +398,49 @@ const NovaDB = (function () {
     }
 
     // ==========================================
-    // 5. VENTAS EN ESPERA (PAUSAR Y REANUDAR)
+    // 5. VENTAS EN ESPERA Y PEDIDOS DE MOSTRADOR
     // ==========================================
     function getHeldSales() {
         return _read('held_sales', []);
     }
 
-    function holdCurrentSale(cartItems, customerData, title) {
+    function holdCurrentSale(cartItems, customerData, title, extraData = {}) {
         if (!cartItems || cartItems.length === 0) return false;
         const held = getHeldSales();
-        const newHold = {
+        const newHold = Object.assign({
             id: 'HOLD-' + Date.now().toString().slice(-4),
             timestamp: Date.now(),
-            title: title || customerData.nombre || `Pedido en espera (${cartItems.length} ítems)`,
+            fechaStr: new Date().toLocaleDateString('es-VE'),
+            horaStr: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            title: title || (customerData ? customerData.nombre : '') || `Pedido en espera (${cartItems.length} ítems)`,
             customer: customerData,
-            cart: cartItems
-        };
-        held.unshift(newHold);
+            cart: cartItems,
+            estacion: extraData.estacion || 'MOSTRADOR',
+            vendedor: extraData.vendedor || 'MOSTRADOR',
+            tipoPrecio: extraData.tipoPrecio || 'publico',
+            totalUSD: extraData.totalUSD || 0,
+            totalBs: extraData.totalBs || 0,
+            estado: 'pendiente'
+        }, extraData);
+
+        // Evitar duplicados por id
+        const idx = held.findIndex(h => h.id === newHold.id);
+        if (idx !== -1) {
+            held[idx] = newHold;
+        } else {
+            held.unshift(newHold);
+        }
         _write('held_sales', held);
+
+        // Notificar en tiempo real a otras pestañas/ventanas abiertas en este equipo
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('nova_pos_channel');
+                bc.postMessage({ type: 'HELD_SALES_UPDATED', hold: newHold });
+                bc.close();
+            }
+        } catch (e) {}
+
         return newHold;
     }
 
@@ -347,6 +450,15 @@ const NovaDB = (function () {
         if (target) {
             held = held.filter(h => h.id !== holdId);
             _write('held_sales', held);
+
+            try {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const bc = new BroadcastChannel('nova_pos_channel');
+                    bc.postMessage({ type: 'HELD_SALES_RELEASED', holdId });
+                    bc.close();
+                }
+            } catch (e) {}
+
             return target;
         }
         return null;
@@ -356,7 +468,33 @@ const NovaDB = (function () {
         let held = getHeldSales();
         held = held.filter(h => h.id !== holdId);
         _write('held_sales', held);
+
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('nova_pos_channel');
+                bc.postMessage({ type: 'HELD_SALES_DELETED', holdId });
+                bc.close();
+            }
+        } catch (e) {}
+
         return true;
+    }
+
+    function mergeIncomingHeldSales(incomingList) {
+        if (!Array.isArray(incomingList) || incomingList.length === 0) return false;
+        const current = getHeldSales();
+        let changed = false;
+        incomingList.forEach(inc => {
+            const exists = current.some(c => c.id === inc.id);
+            if (!exists) {
+                current.unshift(inc);
+                changed = true;
+            }
+        });
+        if (changed) {
+            _write('held_sales', current);
+        }
+        return changed;
     }
 
     // ==========================================
@@ -448,15 +586,28 @@ const NovaDB = (function () {
 
     function saveCustomer(customer) {
         const list = getCustomers();
-        const existingIdx = list.findIndex(c => c.id === customer.id || (c.rif && c.rif.toUpperCase() === customer.rif.toUpperCase()));
+        const existingIdx = list.findIndex(c => (customer.id && c.id === customer.id) || (customer.rif && c.rif && c.rif.toUpperCase() === customer.rif.toUpperCase()));
         if (existingIdx !== -1) {
             list[existingIdx] = Object.assign({}, list[existingIdx], customer);
+            if (customer.direccion) list[existingIdx].direccion = customer.direccion;
         } else {
             customer.id = customer.id || 'CLI-' + (list.length + 1).toString().padStart(3, '0');
             list.push(customer);
         }
         _write('customers', list);
         return customer;
+    }
+
+    function deleteCustomer(customerId) {
+        if (!customerId || customerId === 'CLI-001') return false;
+        let list = getCustomers();
+        const initialLen = list.length;
+        list = list.filter(c => c.id !== customerId);
+        if (list.length < initialLen) {
+            _write('customers', list);
+            return true;
+        }
+        return false;
     }
 
     function getSuppliers() {
@@ -594,10 +745,15 @@ const NovaDB = (function () {
         addExpense,
         getCustomers,
         saveCustomer,
+        deleteCustomer,
         getSuppliers,
         saveSupplier,
         getPurchases,
         registerPurchase,
+        addNewProduct,
+        deleteProduct,
+        updateProductCost,
+        mergeIncomingHeldSales,
         exportFullBackupJSON,
         importFullBackupJSON
     };

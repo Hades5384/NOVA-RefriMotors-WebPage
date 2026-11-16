@@ -82,19 +82,19 @@ const NovaSupabase = (function () {
                 _client = window.supabase.createClient(cfg.url, cfg.key, {
                     auth: { persistSession: false }
                 });
-                console.log("🟢 NovaSupabase: Cliente inicializado correctamente.");
+                console.log("[NovaSupabase] Cliente inicializado correctamente.");
             } catch (err) {
-                console.warn("⚠️ NovaSupabase: Error al inicializar cliente:", err);
+                console.warn("[NovaSupabase] Error al inicializar cliente:", err);
                 _client = null;
             }
         } else {
-            console.warn("⚠️ NovaSupabase: Librería supabase-js no disponible o faltan credenciales.");
+            console.warn("[NovaSupabase] Librería supabase-js no disponible o faltan credenciales.");
         }
 
         // Monitorear conectividad de red
         window.addEventListener('online', () => {
             _isOnline = true;
-            console.log("🌐 Conexión a internet restaurada. Procesando sincronización...");
+            console.log("[NovaSupabase] Conexión a internet restaurada. Procesando sincronización...");
             _updateUIStatus();
             processQueue();
             checkAndSeedCatalog();
@@ -102,7 +102,7 @@ const NovaSupabase = (function () {
 
         window.addEventListener('offline', () => {
             _isOnline = false;
-            console.warn("📡 Sin conexión a internet. Activando Modo Local de contingencia.");
+            console.warn("[NovaSupabase] Sin conexión a internet. Activando Modo Local de contingencia.");
             _updateUIStatus();
         });
 
@@ -115,6 +115,21 @@ const NovaSupabase = (function () {
                 }
             }, (cfg.syncIntervalSeconds || 30) * 1000);
         }
+
+        // Monitoreo periódico de pedidos de mostrador para el usuario MASTER
+        setInterval(async () => {
+            if (_client && _isOnline && !_isSyncing) {
+                if (typeof NovaUsers !== 'undefined' && NovaUsers.isAdmin()) {
+                    const remoteOrders = await fetchPendingCounterOrders();
+                    if (remoteOrders && remoteOrders.length > 0 && typeof window.NovaDB !== 'undefined') {
+                        const hasChanges = window.NovaDB.mergeIncomingHeldSales(remoteOrders);
+                        if (hasChanges && typeof renderHeldSalesList === 'function') {
+                            renderHeldSalesList();
+                        }
+                    }
+                }
+            }
+        }, 7000);
 
         // Interceptar métodos de NovaDB para sincronización transparente
         _hookNovaDB();
@@ -217,11 +232,43 @@ const NovaSupabase = (function () {
                     nombre: res.nombre,
                     rif: res.rif,
                     telefono: res.telefono,
+                    direccion: res.direccion || '',
                     tipo: res.tipo,
                     notas: res.notas
                 });
             }
             return res;
+        };
+
+        const origDeleteCustomer = window.NovaDB.deleteCustomer;
+        if (origDeleteCustomer) {
+            window.NovaDB.deleteCustomer = function (customerId) {
+                const res = origDeleteCustomer.apply(this, arguments);
+                if (res) {
+                    _enqueue('delete', 'clientes', { id: customerId });
+                }
+                return res;
+            };
+        }
+
+        // Hook de Ventas en Espera / Pedidos de Mostrador
+        const origHoldCurrentSale = window.NovaDB.holdCurrentSale;
+        window.NovaDB.holdCurrentSale = function (cartItems, customerData, title, extraData) {
+            const record = origHoldCurrentSale.apply(this, arguments);
+            if (record && record.estacion && record.estacion !== 'MOSTRADOR') {
+                _enqueue('insert', 'pedidos_mostrador', {
+                    id: record.id,
+                    estacion: record.estacion,
+                    vendedor: record.vendedor || record.estacion,
+                    cliente: record.customer || {},
+                    items: record.cart || [],
+                    tipo_precio: record.tipoPrecio || 'publico',
+                    total_usd: record.totalUSD || 0,
+                    total_bs: record.totalBs || 0,
+                    estado: 'pendiente'
+                });
+            }
+            return record;
         };
 
         // Hook de Proveedores
@@ -298,10 +345,13 @@ const NovaSupabase = (function () {
     // ==========================================
     // 3. PROCESAMIENTO DE COLA DE SINCRONIZACIÓN
     // ==========================================
+    let _lastSyncError = null;
+
     async function processQueue() {
         if (!_client || !_isOnline || _isSyncing) return;
         const queue = _getQueue();
         if (queue.length === 0) {
+            _lastSyncError = null;
             _updateUIStatus();
             return;
         }
@@ -316,12 +366,21 @@ const NovaSupabase = (function () {
             const item = queue[i];
             try {
                 let err = null;
-                if (item.action === 'insert') {
-                    const { error } = await _client.from(item.table).insert([item.data]);
-                    err = error;
-                } else if (item.action === 'upsert') {
+                // En tablas relacionales con primary key 'id', usamos upsert
+                // para garantizar idempotencia total y evitar bloqueos por clave duplicada (23505).
+                if (item.action === 'insert' || item.action === 'upsert') {
                     const { error } = await _client.from(item.table).upsert([item.data], { onConflict: 'id' });
                     err = error;
+                } else if (item.action === 'update') {
+                    const { error } = await _client.from(item.table).update(item.data).eq('id', item.data.id);
+                    err = error;
+                } else if (item.action === 'delete') {
+                    const { error } = await _client.from(item.table).delete().eq('id', item.data.id);
+                    err = error;
+                    // Si el registro ya no existía en la nube, se considera exitoso
+                    if (err && (err.code === 'PGRST116' || (err.message && err.message.toLowerCase().includes('not found')))) {
+                        err = null;
+                    }
                 } else if (item.action === 'update_stock') {
                     const updatePayload = { stock: item.data.stock, updated_at: new Date().toISOString() };
                     if (item.data.costo_compra) updatePayload.costo_compra = item.data.costo_compra;
@@ -329,25 +388,50 @@ const NovaSupabase = (function () {
                     const { error } = await _client.from('productos').update(updatePayload).eq('id', item.data.id);
                     err = error;
 
-                    // Registrar en log de auditoría kardex si fue exitoso
+                    // Registrar en log de auditoría kardex si fue exitoso (tolerante a si no existe la tabla)
                     if (!err) {
-                        await _client.from('movimientos_stock').insert([{
-                            producto_id: item.data.id,
-                            new_stock: item.data.stock,
-                            reason: item.data.reason || 'Sincronización'
-                        }]);
+                        try {
+                            await _client.from('movimientos_stock').insert([{
+                                producto_id: item.data.id,
+                                new_stock: item.data.stock,
+                                reason: item.data.reason || 'Sincronización'
+                            }]);
+                        } catch (kardexErr) {
+                            console.warn("[NovaSupabase] Aviso kardex opcional:", kardexErr);
+                        }
                     }
                 }
 
+                // Si el error es por clave duplicada (código 23505), el registro ya está en Supabase
+                if (err && (err.code === '23505' || (err.message && err.message.toLowerCase().includes('duplicate key')))) {
+                    console.log(`[NovaSupabase] Item ${item.id} ya existe en Supabase (${item.table}). Marcado como sincronizado.`);
+                    err = null;
+                }
+
                 if (err) {
-                    console.warn(`Error sincronizando item ${item.id} en ${item.table}:`, err);
-                    remaining.push(item);
+                    item.retries = (item.retries || 0) + 1;
+                    item.lastError = err.message || err.details || JSON.stringify(err);
+                    _lastSyncError = `[${item.table}] ${item.lastError}`;
+                    console.warn(`[NovaSupabase] Error sincronizando item ${item.id} en ${item.table} (intento ${item.retries}):`, err);
+
+                    // Si falla más de 3 veces consecutivas por error de tabla, esquema o RLS,
+                    // se purga de la cola para no dejar el sistema congelado permanentemente
+                    if (item.retries >= 3) {
+                        console.error(`[NovaSupabase] Registro atascado ${item.id} en ${item.table} descartado tras ${item.retries} intentos:`, item.lastError);
+                    } else {
+                        remaining.push(item);
+                    }
                 } else {
                     successCount++;
                 }
             } catch (e) {
                 console.error(`Fallo en conexión al procesar ${item.id}:`, e);
-                remaining.push(item);
+                item.retries = (item.retries || 0) + 1;
+                item.lastError = e.message || String(e);
+                _lastSyncError = item.lastError;
+                if ((item.retries || 0) < 3) {
+                    remaining.push(item);
+                }
             }
         }
 
@@ -356,8 +440,15 @@ const NovaSupabase = (function () {
         _updateUIStatus();
 
         if (successCount > 0) {
-            console.log(`☁️ NovaSupabase: ${successCount} registros sincronizados con la nube.`);
+            console.log(`[NovaSupabase] ${successCount} registros sincronizados con la nube.`);
         }
+    }
+
+    function clearQueue() {
+        _saveQueue([]);
+        _lastSyncError = null;
+        _updateUIStatus();
+        return true;
     }
 
     // ==========================================
@@ -371,12 +462,12 @@ const NovaSupabase = (function () {
             if (!force) {
                 const { count, error } = await _client.from('productos').select('*', { count: 'exact', head: true });
                 if (!error && count && count > 0) {
-                    console.log(`☁️ NovaSupabase: Base de datos ya cuenta con ${count} repuestos cargados.`);
+                    console.log(`[NovaSupabase] Base de datos ya cuenta con ${count} repuestos cargados.`);
                     return;
                 }
             }
 
-            console.log("🚀 NovaSupabase: Iniciando carga masiva de los 460 repuestos y variantes a Supabase...");
+            console.log("[NovaSupabase] Iniciando carga masiva de repuestos a Supabase...");
             await seedFullCatalog();
         } catch (e) {
             console.warn("No se pudo verificar catálogo en Supabase:", e);
@@ -450,7 +541,7 @@ const NovaSupabase = (function () {
             }
         });
 
-        console.log(`📦 Preparados ${rowsToInsert.length} repuestos para subir en lotes...`);
+        console.log(`[NovaSupabase] Preparados ${rowsToInsert.length} repuestos para subir en lotes...`);
 
         // Subir en lotes de 50 para evitar exceder límites de request
         const batchSize = 50;
@@ -496,7 +587,7 @@ const NovaSupabase = (function () {
             }
         }
 
-        console.log(`✅ ¡Catálogo cargado con éxito en Supabase! (${inserted} productos).`);
+        console.log(`[NovaSupabase] Catálogo cargado con éxito en Supabase (${inserted} productos).`);
         return { success: true, count: inserted };
     }
 
@@ -530,6 +621,47 @@ const NovaSupabase = (function () {
         }
     }
 
+    async function fetchPendingCounterOrders() {
+        if (!_client || !_isOnline) return [];
+        try {
+            const { data, error } = await _client
+                .from('pedidos_mostrador')
+                .select('*')
+                .eq('estado', 'pendiente')
+                .order('created_at', { ascending: false });
+            if (error) return [];
+            return (data || []).map(p => ({
+                id: p.id,
+                timestamp: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+                fechaStr: p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '',
+                horaStr: p.created_at ? new Date(p.created_at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }) : '',
+                title: (p.cliente && p.cliente.nombre) ? p.cliente.nombre : `Pedido ${p.id}`,
+                customer: p.cliente,
+                cart: p.items,
+                estacion: p.estacion,
+                vendedor: p.vendedor,
+                tipoPrecio: p.tipo_precio,
+                totalUSD: parseFloat(p.total_usd) || 0,
+                totalBs: parseFloat(p.total_bs) || 0,
+                estado: p.estado
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function markCounterOrderServed(orderId) {
+        if (!_client || !_isOnline) {
+            _enqueue('update', 'pedidos_mostrador', { id: orderId, estado: 'atendido' });
+            return;
+        }
+        try {
+            await _client.from('pedidos_mostrador').update({ estado: 'atendido' }).eq('id', orderId);
+        } catch (e) {
+            _enqueue('update', 'pedidos_mostrador', { id: orderId, estado: 'atendido' });
+        }
+    }
+
     // ==========================================
     // 6. MÉTODOS PÚBLICOS
     // ==========================================
@@ -539,7 +671,11 @@ const NovaSupabase = (function () {
         getConfig: _getConfig,
         saveConfig: _saveConfig,
         getQueue: _getQueue,
+        clearQueue,
+        getLastError: () => _lastSyncError,
         processQueue,
+        fetchPendingCounterOrders,
+        markCounterOrderServed,
         seedFullCatalog,
         checkAndSeedCatalog,
         isOnline: () => _isOnline,
