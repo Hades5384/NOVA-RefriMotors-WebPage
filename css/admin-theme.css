@@ -743,6 +743,82 @@ body {
     color: var(--danger);
 }
 
+/* BARRA DE CARGA Y CONTROL DEL CATÁLOGO POS */
+.pos-catalog-footer {
+    padding: 10px 16px;
+    background-color: #fafbfc;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.pos-footer-info {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pos-footer-info strong {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.pos-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pos-load-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    color: var(--text-main);
+}
+
+.pos-load-btn:hover {
+    background-color: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+.pos-load-btn.btn-load-more {
+    background: linear-gradient(135deg, var(--primary) 0%, #0056b3 100%);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+.pos-load-btn.btn-load-more:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #00366b 100%);
+}
+
+.pos-all-loaded-pill {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--success);
+    background: rgba(22, 163, 74, 0.1);
+    padding: 4px 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
 /* PANEL DEL CARRITO Y COBRO (LADO DERECHO DEL POS) */
 .pos-ticket-panel {
     background-color: var(--card-bg);

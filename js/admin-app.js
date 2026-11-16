@@ -19,6 +19,8 @@ let posCart = [];
 let posSelectedCustomer = null;
 let posPriceTier = 'publico'; // 'publico' | 'novacliente'
 let posCurrentCategory = 'Todos';
+const POS_DEFAULT_PAGE_SIZE = 36;
+let posVisibleLimit = POS_DEFAULT_PAGE_SIZE;
 
 // ==========================================
 // 1. INICIALIZACIÓN Y NAVEGACIÓN SPA
@@ -39,6 +41,10 @@ function setupBroadcastSync() {
             bc.onmessage = (ev) => {
                 if (ev.data && ev.data.type && ev.data.type.startsWith('HELD_SALES_')) {
                     renderHeldSalesList();
+                    const modal = document.getElementById('heldSalesModal');
+                    if (modal && modal.classList.contains('active')) {
+                        renderHeldSalesModalContent();
+                    }
                 }
             };
         }
@@ -226,6 +232,7 @@ function renderPOSCategoryPills() {
 
 function setPOSCategory(catName, btn) {
     posCurrentCategory = catName;
+    posVisibleLimit = POS_DEFAULT_PAGE_SIZE;
     document.querySelectorAll('.pos-cat-pill').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     renderPOSCatalog();
@@ -268,12 +275,14 @@ let _posDebounceTimer = null;
 function filterPOS() {
     clearTimeout(_posDebounceTimer);
     _posDebounceTimer = setTimeout(() => {
+        posVisibleLimit = POS_DEFAULT_PAGE_SIZE;
         renderPOSCatalog();
     }, 120);
 }
 
 function renderPOSCatalog() {
     const container = document.getElementById('posItemsGrid');
+    const footerEl = document.getElementById('posCatalogFooter');
     if (!container) return;
 
     const queryInput = document.getElementById('posSearchInput');
@@ -335,13 +344,15 @@ function renderPOSCatalog() {
                 <p style="font-weight: 700; font-size: 15px;">No se encontraron repuestos con los filtros actuales.</p>
                 <p style="font-size: 12px; margin-top: 6px;">Intenta con otra palabra clave o selecciona 'Todos'.</p>
             </div>`;
+        if (footerEl) footerEl.innerHTML = '';
         return;
     }
 
-    let html = '';
-    // Limitar renderizado inicial a los primeros 36 ítems para máxima fluidez en PCs modestas
-    const slice = displayList.slice(0, 36);
+    const total = displayList.length;
+    const slice = displayList.slice(0, posVisibleLimit);
+    const showing = slice.length;
 
+    let html = '';
     slice.forEach(item => {
         const precios = calcularPreciosSegunAjustes(item.costoCompra, settings);
         const priceUSD = precios.publicoUSD;
@@ -384,6 +395,69 @@ function renderPOSCatalog() {
     });
 
     container.innerHTML = html;
+
+    // Renderizar Footer de Paginación y Carga Progresiva
+    if (footerEl) {
+        if (total <= POS_DEFAULT_PAGE_SIZE) {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Catálogo completo visible</span>
+                </div>`;
+        } else if (showing < total) {
+            const remaining = total - showing;
+            const nextBatch = Math.min(POS_DEFAULT_PAGE_SIZE, remaining);
+            let buttonsHtml = `
+                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMorePOSCatalog(${POS_DEFAULT_PAGE_SIZE})">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Cargar ${nextBatch} más
+                </button>
+                <button type="button" class="pos-load-btn" onclick="loadAllPOSCatalog()">
+                    Ver todos (${total})
+                </button>`;
+            if (posVisibleLimit > POS_DEFAULT_PAGE_SIZE) {
+                buttonsHtml += `
+                    <button type="button" class="pos-load-btn" onclick="resetPOSCatalogLimit()" title="Reducir a ${POS_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${POS_DEFAULT_PAGE_SIZE}
+                    </button>`;
+            }
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">${buttonsHtml}</div>`;
+        } else {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Catálogo completo cargado</span>
+                    <button type="button" class="pos-load-btn" onclick="resetPOSCatalogLimit()" title="Reducir a ${POS_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${POS_DEFAULT_PAGE_SIZE}
+                    </button>
+                </div>`;
+        }
+    }
+}
+
+function loadMorePOSCatalog(amount = POS_DEFAULT_PAGE_SIZE) {
+    posVisibleLimit += amount;
+    renderPOSCatalog();
+}
+
+function loadAllPOSCatalog() {
+    posVisibleLimit = 999999;
+    renderPOSCatalog();
+}
+
+function resetPOSCatalogLimit() {
+    posVisibleLimit = POS_DEFAULT_PAGE_SIZE;
+    renderPOSCatalog();
+    const grid = document.getElementById('posItemsGrid');
+    if (grid) grid.scrollTop = 0;
+}
+
+if (typeof window !== 'undefined') {
+    window.loadMorePOSCatalog = loadMorePOSCatalog;
+    window.loadAllPOSCatalog = loadAllPOSCatalog;
+    window.resetPOSCatalogLimit = resetPOSCatalogLimit;
 }
 
 function addToPOSCart(itemId) {
@@ -661,10 +735,18 @@ function renderHeldSalesList() {
     }
 }
 
-function openHeldSalesModal() {
+function renderHeldSalesModalContent() {
     const held = NovaDB.getHeldSales();
+    const container = document.getElementById('heldSalesListContainer');
+    if (!container) return;
+
     if (held.length === 0) {
-        showNovaAlert({ title: "Sin Pedidos en Espera", message: "No hay tickets o pedidos pendientes por cobrar actualmente.", type: "info" });
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px; opacity:0.5;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <p style="font-weight: 700; font-size: 15px; color: var(--text-main); margin-bottom: 4px;">No hay pedidos en espera</p>
+                <p style="font-size: 13px; margin: 0;">Todos los pedidos y tickets pendientes han sido atendidos o descartados.</p>
+            </div>`;
         return;
     }
 
@@ -679,7 +761,7 @@ function openHeldSalesModal() {
         const custRif = (h.customer && h.customer.rif) ? ` (${h.customer.rif})` : '';
 
         listHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:#ffffff; margin-bottom:8px;">
+            <div id="held-row-${h.id}" style="display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:#ffffff; margin-bottom:8px; transition:opacity 0.2s ease;">
                 <div style="overflow:hidden; padding-right:10px;">
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
                         <span class="station-tag ${stationClass}">${station}</span>
@@ -696,9 +778,12 @@ function openHeldSalesModal() {
             </div>`;
     });
 
+    container.innerHTML = listHtml;
+}
+
+function openHeldSalesModal() {
+    renderHeldSalesModalContent();
     const modal = document.getElementById('heldSalesModal');
-    const container = document.getElementById('heldSalesListContainer');
-    if (container) container.innerHTML = listHtml;
     if (modal) modal.classList.add('active');
 }
 
@@ -728,13 +813,29 @@ function resumeHeldSale(holdId) {
 }
 
 function deleteHeldSale(holdId) {
-    if (confirm("¿Deseas descartar definitivamente este pedido en espera?")) {
-        NovaDB.deleteHeldSale(holdId);
-        if (typeof NovaSupabase !== 'undefined' && NovaSupabase.markCounterOrderServed) {
-            NovaSupabase.markCounterOrderServed(holdId);
-        }
-        openHeldSalesModal();
-        renderHeldSalesList();
+    if (!confirm("¿Deseas descartar definitivamente este pedido en espera?")) return;
+
+    // 1. Eliminar de la base de datos local
+    NovaDB.deleteHeldSale(holdId);
+
+    // 2. Notificar a Supabase para marcar como atendido/descartado
+    if (typeof NovaSupabase !== 'undefined' && NovaSupabase.markCounterOrderServed) {
+        NovaSupabase.markCounterOrderServed(holdId);
+    }
+
+    // 3. Eliminar la fila del DOM de inmediato sin esperar ni requerir reabrir el modal
+    const row = document.getElementById('held-row-' + holdId);
+    if (row) {
+        row.remove();
+    }
+
+    // 4. Actualizar contador en el header
+    renderHeldSalesList();
+
+    // 5. Si ya no quedan filas de pedidos en el modal, mostrar el estado vacío
+    const container = document.getElementById('heldSalesListContainer');
+    if (container && container.querySelectorAll('[id^="held-row-"]').length === 0) {
+        renderHeldSalesModalContent();
     }
 }
 

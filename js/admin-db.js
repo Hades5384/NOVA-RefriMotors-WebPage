@@ -47,6 +47,9 @@ const NovaDB = (function () {
         { id: "PRV-004", razonSocial: "Gases Refrigerantes de Occidente", rif: "J-40556677", telefono: "0424-1122334", contacto: "Marcos Vivas", rubro: "Gases R134a, R410a, R22" }
     ];
 
+    // Registro en memoria de pedidos descartados/atendidos para prevenir resurrección en sondeos
+    const _discardedOrders = new Set();
+
     function _read(key, fallback) {
         try {
             const raw = localStorage.getItem(STORAGE_KEY_PREFIX + key);
@@ -448,6 +451,7 @@ const NovaDB = (function () {
         let held = getHeldSales();
         const target = held.find(h => h.id === holdId);
         if (target) {
+            _discardedOrders.add(holdId);
             held = held.filter(h => h.id !== holdId);
             _write('held_sales', held);
 
@@ -465,6 +469,7 @@ const NovaDB = (function () {
     }
 
     function deleteHeldSale(holdId) {
+        _discardedOrders.add(holdId);
         let held = getHeldSales();
         held = held.filter(h => h.id !== holdId);
         _write('held_sales', held);
@@ -485,6 +490,7 @@ const NovaDB = (function () {
         const current = getHeldSales();
         let changed = false;
         incomingList.forEach(inc => {
+            if (_discardedOrders.has(inc.id)) return;
             const exists = current.some(c => c.id === inc.id);
             if (!exists) {
                 current.unshift(inc);

@@ -123,8 +123,14 @@ const NovaSupabase = (function () {
                     const remoteOrders = await fetchPendingCounterOrders();
                     if (remoteOrders && remoteOrders.length > 0 && typeof window.NovaDB !== 'undefined') {
                         const hasChanges = window.NovaDB.mergeIncomingHeldSales(remoteOrders);
-                        if (hasChanges && typeof renderHeldSalesList === 'function') {
-                            renderHeldSalesList();
+                        if (hasChanges) {
+                            if (typeof renderHeldSalesList === 'function') renderHeldSalesList();
+                            if (typeof renderHeldSalesModalContent === 'function') {
+                                const modal = document.getElementById('heldSalesModal');
+                                if (modal && modal.classList.contains('active')) {
+                                    renderHeldSalesModalContent();
+                                }
+                            }
                         }
                     }
                 }
