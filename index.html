@@ -111,6 +111,17 @@
                     <span class="nav-item-text">Marketing y Combos</span>
                 </div>
 
+                <div class="nav-item" data-view="reports" onclick="navigateTo('reports')">
+                    <div class="nav-item-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </div>
+                    <span class="nav-item-text">Reportes y Fiscal</span>
+                </div>
+
                 <div class="nav-item" data-view="settings" onclick="navigateTo('settings')">
                     <div class="nav-item-icon">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -634,6 +645,13 @@
                     </div>
                 </section>
 
+                <!-- ==========================================================
+                     VISTA 8: CENTRO DE REPORTES, FISCALIDAD SENIAT Y AUDITORÍA
+                     ========================================================== -->
+                <section class="erp-view" id="view-reports">
+                    <!-- Renderizado dinámico por NovaReports.renderReportsView() -->
+                </section>
+
             </div>
         </main>
     </div>
@@ -1098,6 +1116,44 @@
     </div>
 
     <!-- ==========================================================
+         MODAL 8: VISUALIZADOR Y EXPORTADOR DE REPORTES FISCALES Y CONTABLES
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="reportViewerModal">
+        <div class="erp-modal-card erp-modal-wide">
+            <div class="erp-modal-header">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <span class="erp-modal-title">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                        Reporte Administrativo y Fiscal
+                    </span>
+                    <select class="customer-input" style="width:auto; padding:5px 12px; font-size:12px; font-weight:700; height:32px;" id="reportModalPeriodSelect" onchange="NovaReports.setDateRangeInModal(this.value)">
+                        <option value="hoy">Hoy</option>
+                        <option value="semana">Esta Semana</option>
+                        <option value="quincena">Esta Quincena</option>
+                        <option value="mes" selected>Este Mes</option>
+                        <option value="anio">Año 2026</option>
+                        <option value="todo">Todo el Historial</option>
+                    </select>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="header-action-btn btn-secondary-action" onclick="NovaReports.exportCurrentModalExcel()" style="font-size:12px; padding:6px 12px;" title="Descargar reporte completo en formato Excel (.xls) con diseño contable y membrete">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>
+                        Descargar Excel (.xls)
+                    </button>
+                    <button type="button" class="header-action-btn btn-primary-action" onclick="NovaReports.printCurrentModal()" style="font-size:12px; padding:6px 12px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Imprimir / Guardar PDF
+                    </button>
+                    <button class="erp-modal-close" onclick="closeModal('reportViewerModal')">✕</button>
+                </div>
+            </div>
+            <div class="erp-modal-body" id="reportViewerContent" style="padding: 24px; max-height: calc(88vh - 75px); overflow-y: auto;">
+                <!-- Documento renderizado -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
          SCRIPTS Y MOTORES DE PROCESAMIENTO
          ========================================================== -->
     <!-- Base de datos maestra sincronizada (460 repuestos y especificaciones) -->
@@ -1110,6 +1166,8 @@
     <script src="js/admin-supabase.js"></script>
     <!-- Gestor de Usuarios y Estaciones (MASTER, VENTAS01, VENTAS02, VENTAS03) -->
     <script src="js/admin-users.js"></script>
+    <!-- Centro de Reportes, Fiscalidad SENIAT y Auditoría ERP -->
+    <script src="js/admin-reports.js"></script>
     <!-- Controlador principal SPA y Punto de Venta -->
     <script src="js/admin-app.js"></script>
 </body>

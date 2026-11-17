@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initBCVWidget();
     initPOS();
     renderCustomersView();
+    if (typeof NovaReports !== 'undefined') NovaReports.init();
     setupKeyboardShortcuts();
     setupBroadcastSync();
 });
@@ -95,6 +96,9 @@ function navigateTo(viewName) {
     else if (viewName === 'cash') renderCashView();
     else if (viewName === 'customers') renderCustomersView();
     else if (viewName === 'marketing') renderMarketingView();
+    else if (viewName === 'reports') {
+        if (typeof NovaReports !== 'undefined') NovaReports.renderReportsView();
+    }
     else if (viewName === 'settings') renderSettingsView();
 }
 
@@ -106,6 +110,7 @@ function updateHeaderTitles(viewName) {
         cash: { title: "Caja y Finanzas Operativas", subtitle: "Arqueo diario, control de métodos de pago y egresos" },
         customers: { title: "Directorio de Clientes (CRM)", subtitle: "Fichas de técnicos, talleres e historial de compras" },
         marketing: { title: "Marketing y Promociones", subtitle: "Campañas WhatsApp, combos y difusión comercial" },
+        reports: { title: "Centro de Reportes y Auditoría Fiscal", subtitle: "Libros legales de IVA, control de caja, kardex de inventario, finanzas y auditoría interna" },
         settings: { title: "Configuración y Respaldos", subtitle: "Tasa BCV, datos fiscales de la empresa y copias de seguridad" }
     };
 

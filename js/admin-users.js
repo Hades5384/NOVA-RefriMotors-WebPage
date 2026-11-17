@@ -161,6 +161,7 @@ const NovaUsers = (function () {
             'inventory': user.permissions.canManageInventory,
             'purchases': user.permissions.canManagePurchases,
             'marketing': user.permissions.canManageSettings,
+            'reports': user.permissions.canManageSettings,
             'settings': user.permissions.canManageSettings
         };
 
