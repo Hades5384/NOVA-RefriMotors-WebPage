@@ -2,7 +2,7 @@
 // NOVA RefriMotors - Base de Datos Centralizada de Repuestos y Productos
 // Catalogo Oficial: Refrigeracion, Herramientas, Electricidad, Motores y Climatizacion
 // ============================================================================
-const products = [
+var products = [
 
     // ============================================================== //
     // ============================================================== //

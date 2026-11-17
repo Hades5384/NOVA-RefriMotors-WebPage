@@ -229,7 +229,13 @@
                                             <!-- Precargado dinámicamente -->
                                         </select>
                                     </div>
-                                    <button type="button" class="btn-add-customer-pos" onclick="openAddCustomerModal()" title="Registrar nuevo cliente en la base de datos">
+                                    <button type="button" class="btn-customer-action-pos btn-search-customer-pos" onclick="openSearchCustomerModal()" title="Buscar cliente existente en la base de datos (Cédula, RIF o Nombre)">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="btn-customer-action-pos btn-add-customer-pos" onclick="openAddCustomerModal()" title="Registrar nuevo cliente en la base de datos">
                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
                                             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -342,13 +348,13 @@
                             <div class="table-toolbar-right" id="invMasterToolbarActions">
                                 <button class="header-action-btn btn-primary-action" onclick="openAddNewProductModal()">
                                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                    + Nuevo Producto
+                                    Nuevo Producto
                                 </button>
                             </div>
                         </div>
 
                         <div class="table-responsive">
-                            <table class="data-table">
+                            <table class="data-table inventory-data-table">
                                 <thead>
                                     <tr>
                                         <th>Código</th>
@@ -496,7 +502,6 @@
                                         <th>RIF / Cédula</th>
                                         <th>Teléfono WhatsApp</th>
                                         <th>Dirección</th>
-                                        <th>Nivel de Precio</th>
                                         <th>Notas</th>
                                         <th style="text-align:right;">Acciones</th>
                                     </tr>
@@ -916,7 +921,7 @@
     <div class="erp-modal-overlay" id="addCustomerModal">
         <div class="erp-modal-card" style="max-width: 480px;">
             <div class="erp-modal-header">
-                <span class="erp-modal-title">Registrar Cliente / Taller</span>
+                <span class="erp-modal-title">Registrar Cliente</span>
                 <button class="erp-modal-close" onclick="closeModal('addCustomerModal')">✕</button>
             </div>
             <div class="erp-modal-body">
@@ -938,18 +943,41 @@
                     <label>Dirección:</label>
                     <input type="text" id="custDireccion" class="form-input" placeholder="Ej: Sector Delicias Nuevas, Av. Intercomunal, Cabimas">
                 </div>
-                <div class="form-group">
-                    <label>Tipo de Cliente:</label>
-                    <select id="custTipo" class="form-select">
-                        <option value="tecnico">Técnico / Taller Aliado</option>
-                        <option value="frecuente">Cliente Comercial / Frecuente</option>
-                        <option value="publico">Público General (Mostrador)</option>
-                    </select>
-                </div>
             </div>
             <div class="erp-modal-footer">
                 <button class="header-action-btn btn-secondary-action" onclick="closeModal('addCustomerModal')">Cancelar</button>
                 <button class="header-action-btn btn-primary-action" onclick="submitNewCustomer()">Guardar Cliente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 7.1: BUSCAR Y SELECCIONAR CLIENTE EXISTENTE (POS)
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="searchCustomerModal">
+        <div class="erp-modal-card" style="max-width: 580px;">
+            <div class="erp-modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <span class="erp-modal-title">Buscar y Seleccionar Cliente</span>
+                </div>
+                <button class="erp-modal-close" onclick="closeModal('searchCustomerModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" style="padding: 20px;">
+                <div style="position:relative; margin-bottom: 16px;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="posCustomerSearchQuickInput" class="form-input" placeholder="Buscar por Cédula, RIF o Nombre del cliente..." style="padding-left: 36px;" oninput="filterQuickCustomerSearch(this.value)">
+                </div>
+                <div id="quickCustomerSearchResults" class="quick-customer-results-list" style="max-height: 340px; overflow-y: auto; overflow-x: hidden; display:flex; flex-direction:column; gap:8px; padding-right:4px;">
+                    <!-- Clientes cargados dinámicamente -->
+                </div>
+            </div>
+            <div class="erp-modal-footer" style="justify-content: space-between;">
+                <button type="button" class="header-action-btn btn-secondary-action" onclick="closeModal('searchCustomerModal'); openAddCustomerModal();">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Registrar Nuevo Cliente
+                </button>
+                <button class="header-action-btn btn-secondary-action" onclick="closeModal('searchCustomerModal')">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1056,13 +1084,13 @@
          MODAL 11: AGREGAR NUEVO PRODUCTO AL INVENTARIO (MASTER)
          ========================================================== -->
     <div class="erp-modal-overlay" id="addNewProductModal">
-        <div class="erp-modal-card" style="max-width: 520px;">
+        <div class="erp-modal-card" style="max-width: 560px;">
             <div class="erp-modal-header">
                 <span class="erp-modal-title">Agregar Nuevo Repuesto al Catálogo</span>
                 <button class="erp-modal-close" onclick="closeModal('addNewProductModal')">✕</button>
             </div>
-            <div class="erp-modal-body">
-                <div class="form-row-2">
+            <div class="erp-modal-body" style="padding: 22px;">
+                <div class="form-row-3" style="margin-bottom: 14px;">
                     <div class="form-group">
                         <label>Código / SKU:</label>
                         <input type="text" id="newProdId" class="form-input" placeholder="Ej: MOT045">
@@ -1082,35 +1110,173 @@
                             <option value="General">General</option>
                         </select>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Nombre del Producto / Descripción:</label>
-                    <input type="text" id="newProdName" class="form-input" placeholder="Ej: Motor Ventilador 1/4 HP 110V">
-                </div>
-                <div class="form-row-2">
                     <div class="form-group">
-                        <label>Costo de Compra Base ($ USD):</label>
-                        <input type="number" step="0.01" id="newProdCosto" class="form-input" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Existencia Inicial (Stock):</label>
-                        <input type="number" id="newProdStock" class="form-input" placeholder="10" value="10">
-                    </div>
-                </div>
-                <div class="form-row-2">
-                    <div class="form-group">
-                        <label>Stock Mínimo de Alerta:</label>
+                        <label>Stock Mínimo:</label>
                         <input type="number" id="newProdStockMin" class="form-input" placeholder="3" value="3">
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label>Nombre / Descripción Corta:</label>
+                    <input type="text" id="newProdName" class="form-input" placeholder="Ej: Motor Ventilador 1/4 HP 110V" style="font-weight:600;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Descripción Detallada y Especificaciones Técnicas:</label>
+                    <textarea id="newProdDetailedDesc" class="form-input" rows="2" placeholder="Detalles amplios, ficha técnica, voltaje, compatibilidad, marca u observaciones..." style="resize: vertical; min-height: 62px; font-family: inherit; line-height: 1.45; font-size: 13px;"></textarea>
+                </div>
+
+                <!-- Costo de Reposición, Utilidad e IVA -->
+                <div class="form-row-3" style="margin-bottom: 16px;">
                     <div class="form-group">
-                        <label>Ubicación en Almacén:</label>
-                        <input type="text" id="newProdUbicacion" class="form-input" placeholder="Pasillo A / Estante 3" value="Almacén Central">
+                        <label>Costo Reposición ($):</label>
+                        <input type="number" step="0.01" min="0" id="newProdCosto" class="form-input" placeholder="0.00" oninput="calculateNewProductPrice()" style="font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>% Utilidad:</label>
+                        <input type="number" step="0.1" min="0" id="newProdUtilidad" class="form-input" placeholder="30" value="30" oninput="calculateNewProductPrice()" style="font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>% IVA:</label>
+                        <input type="number" step="0.1" min="0" id="newProdIva" class="form-input" placeholder="16" value="16" oninput="calculateNewProductPrice()" style="font-weight:700;">
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Cálculo Automático de Precio Final de Venta -->
+                <div class="product-price-calc-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">
+                        <span style="font-size:11.5px; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">Desglose y Precio de Venta Calculado</span>
+                        <span style="font-size:10.5px; font-weight:800; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:12px;">Cálculo Automático</span>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:12px; font-size:11.5px;">
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">Costo Reposición:</span>
+                            <b style="font-size:12.5px; color:#0f172a;" id="newCalcCostoDisplay">$0.00</b>
+                        </div>
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">Utilidad (<span id="newCalcUtilPercent">30%</span>):</span>
+                            <b style="font-size:12.5px; color:#15803d;" id="newCalcGananciaDisplay">+$0.00</b>
+                        </div>
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">IVA (<span id="newCalcIvaPercent">16%</span>):</span>
+                            <b style="font-size:12.5px; color:#0369a1;" id="newCalcIvaDisplay">+$0.00</b>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:2px solid #16a34a; border-radius:8px; padding:12px 16px;">
+                        <div>
+                            <span style="display:block; font-size:11px; font-weight:800; color:#166534; text-transform:uppercase;">Precio Final de Venta:</span>
+                            <span style="font-size:12px; color:#64748b;">En Bolívares (BCV): <b style="color:#0f172a;" id="newCalcPrecioBs">Bs. 0,00</b></span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:24px; font-weight:900; color:#15803d; line-height:1;" id="newCalcPrecioUSD">$0.00</span>
+                            <span style="display:block; font-size:10px; font-weight:800; color:#166534;">USD NETO</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="erp-modal-footer">
                 <button class="header-action-btn btn-secondary-action" onclick="closeModal('addNewProductModal')">Cancelar</button>
                 <button class="header-action-btn btn-primary-action" onclick="submitNewProduct()">Guardar en Inventario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 11.1: MODIFICAR PRODUCTO / REPUESTO (INVENTARIO)
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="editProductModal">
+        <div class="erp-modal-card" style="max-width: 560px;">
+            <div class="erp-modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <span class="erp-modal-title">Modificar Producto y Precios</span>
+                </div>
+                <button class="erp-modal-close" onclick="closeModal('editProductModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" style="padding: 22px;">
+                <input type="hidden" id="editProdId">
+
+                <!-- Ficha del Repuesto -->
+                <div style="display:flex; align-items:center; justify-content:space-between; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">SKU / Código:</span>
+                        <span class="code-badge" id="editProdCodeBadge" style="font-size:12px; font-weight:800;">PROD-000</span>
+                    </div>
+                    <div>
+                        <span style="font-size:11px; font-weight:700; color:#0369a1; background:#e0f2fe; padding:3px 9px; border-radius:6px;" id="editProdCategoryBadge">General</span>
+                    </div>
+                </div>
+
+                <!-- Descripción Corta del Producto -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label>Nombre / Descripción Corta:</label>
+                    <input type="text" id="editProdName" class="form-input" placeholder="Nombre del repuesto..." style="font-weight:600;">
+                </div>
+
+                <!-- Descripción Detallada y Larga -->
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Descripción Detallada y Especificaciones Técnicas:</label>
+                    <textarea id="editProdDetailedDesc" class="form-input" rows="3" placeholder="Escribe detalles amplios, ficha técnica, voltaje, compatibilidad de equipos, marca, medidas u observaciones..." style="resize: vertical; min-height: 76px; font-family: inherit; line-height: 1.45; font-size: 13px;"></textarea>
+                </div>
+
+                <!-- Costo de Reposición, Utilidad e IVA -->
+                <div class="form-row-3" style="margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label>Costo Reposición ($):</label>
+                        <input type="number" step="0.01" min="0" id="editProdCosto" class="form-input" placeholder="0.00" oninput="calculateEditProductPrice()" style="font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>% Utilidad:</label>
+                        <input type="number" step="0.1" min="0" id="editProdUtilidad" class="form-input" placeholder="30" value="30" oninput="calculateEditProductPrice()" style="font-weight:700;">
+                    </div>
+                    <div class="form-group">
+                        <label>% IVA:</label>
+                        <input type="number" step="0.1" min="0" id="editProdIva" class="form-input" placeholder="16" value="16" oninput="calculateEditProductPrice()" style="font-weight:700;">
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Cálculo Automático de Precio Final de Venta -->
+                <div class="product-price-calc-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #bbf7d0; padding-bottom:8px;">
+                        <span style="font-size:11.5px; font-weight:800; color:#166534; text-transform:uppercase; letter-spacing:0.5px;">Desglose y Precio de Venta Calculado</span>
+                        <span style="font-size:10.5px; font-weight:800; color:#15803d; background:#dcfce7; padding:2px 8px; border-radius:12px;">Cálculo Automático</span>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:12px; font-size:11.5px;">
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">Costo Reposición:</span>
+                            <b style="font-size:12.5px; color:#0f172a;" id="editCalcCostoDisplay">$0.00</b>
+                        </div>
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">Utilidad (<span id="editCalcUtilPercent">30%</span>):</span>
+                            <b style="font-size:12.5px; color:#15803d;" id="editCalcGananciaDisplay">+$0.00</b>
+                        </div>
+                        <div style="background:#ffffff; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <span style="color:#64748b; display:block; font-size:10.5px;">IVA (<span id="editCalcIvaPercent">16%</span>):</span>
+                            <b style="font-size:12.5px; color:#0369a1;" id="editCalcIvaDisplay">+$0.00</b>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:2px solid #16a34a; border-radius:8px; padding:12px 16px;">
+                        <div>
+                            <span style="display:block; font-size:11px; font-weight:800; color:#166534; text-transform:uppercase;">Precio Final de Venta:</span>
+                            <span style="font-size:12px; color:#64748b;">En Bolívares (BCV): <b style="color:#0f172a;" id="editCalcPrecioBs">Bs. 0,00</b></span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:24px; font-weight:900; color:#15803d; line-height:1;" id="editCalcPrecioUSD">$0.00</span>
+                            <span style="display:block; font-size:10px; font-weight:800; color:#166534;">USD NETO</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="erp-modal-footer">
+                <button type="button" class="header-action-btn btn-secondary-action" onclick="closeModal('editProductModal')">Cancelar</button>
+                <button type="button" class="header-action-btn btn-primary-action" onclick="saveEditedProduct()">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    Guardar Cambios
+                </button>
             </div>
         </div>
     </div>

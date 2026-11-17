@@ -939,6 +939,7 @@ body {
     background-color: #ffffff;
 }
 
+.btn-customer-action-pos,
 .btn-add-customer-pos {
     width: 33px;
     height: 33px;
@@ -951,11 +952,95 @@ body {
     border-radius: var(--radius-md);
     color: var(--primary);
     cursor: pointer;
+    transition: all 0.15s ease;
 }
 
+.btn-customer-action-pos:hover,
 .btn-add-customer-pos:hover {
     background: var(--primary-light);
     border-color: var(--primary);
+    color: #002244;
+}
+
+/* Modal de Búsqueda Rápida de Clientes Existentes */
+.quick-customer-results-list {
+    max-height: 340px;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+    scrollbar-gutter: stable;
+}
+
+.quick-customer-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    box-sizing: border-box;
+    width: 100%;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quick-customer-item:hover {
+    border-color: #003366;
+    background-color: #f0f7ff;
+    box-shadow: 0 2px 6px rgba(0, 51, 102, 0.08);
+}
+
+.quick-customer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.quick-customer-name {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.quick-customer-meta {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-select-customer-pill {
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: #003366;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.btn-select-customer-pill:hover {
+    background: #002244;
+}
+
+/* Tarjeta de Cálculo Dinámico de Precios (Inventario) */
+.product-price-calc-card {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-top: 6px;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.06);
 }
 
 /* LISTA DE ÍTEMS DEL TICKET */
@@ -1169,11 +1254,12 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 12px 16px;
+    padding: 13px 16px;
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 10;
+    white-space: nowrap;
 }
 
 .data-table td {
@@ -1187,25 +1273,96 @@ body {
     background-color: #f8fafc;
 }
 
+/* Distribución holgada por columna en la tabla de inventario */
+.inventory-data-table th,
+.inventory-data-table td {
+    padding: 14px 16px;
+}
+
+.inventory-data-table th:nth-child(1),
+.inventory-data-table td:nth-child(1) {
+    width: 96px;
+    white-space: nowrap;
+}
+
+.inventory-data-table th:nth-child(2),
+.inventory-data-table td:nth-child(2) {
+    min-width: 240px;
+    max-width: 340px;
+    padding-right: 24px;
+}
+
+.inventory-data-table th:nth-child(3),
+.inventory-data-table td:nth-child(3) {
+    min-width: 130px;
+    white-space: nowrap;
+}
+
+.inventory-data-table th:nth-child(4),
+.inventory-data-table td:nth-child(4) {
+    min-width: 125px;
+    white-space: nowrap;
+}
+
+.inventory-data-table th:nth-child(5),
+.inventory-data-table td:nth-child(5),
+.inventory-data-table th:nth-child(6),
+.inventory-data-table td:nth-child(6) {
+    min-width: 115px;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.inventory-data-table th:nth-child(7),
+.inventory-data-table td:nth-child(7) {
+    min-width: 120px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.inventory-data-table td:nth-child(7) > div {
+    justify-content: center;
+}
+
+.inventory-data-table th:nth-child(8),
+.inventory-data-table td:nth-child(8) {
+    min-width: 128px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.inventory-data-table th:nth-child(9),
+.inventory-data-table td:nth-child(9) {
+    min-width: 136px;
+    white-space: nowrap;
+    text-align: right;
+}
+
 .code-badge {
     font-family: monospace;
     font-size: 12px;
     font-weight: 700;
-    padding: 3px 6px;
+    padding: 4px 8px;
     background-color: #f1f5f9;
     border-radius: 4px;
     color: var(--primary);
     border: 1px solid #e2e8f0;
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .status-badge {
-    padding: 3px 8px;
+    padding: 4px 11px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.25;
 }
 
 .status-optimal {
@@ -2247,6 +2404,7 @@ body {
     .header-action-btn,
     .report-clean-footer,
     .reports-filter-bar,
+    .report-client-filter-box,
     .btn-report-view,
     .report-quick-exports {
         display: none !important;

@@ -144,6 +144,17 @@ const NovaReports = (function () {
             legalNote: 'Garantiza la trazabilidad de operaciones que disminuyen la base de ingresos.',
             generate: generateAnulacionesReport
         },
+        {
+            id: 'compras_cliente',
+            category: 'ventas',
+            areaName: '2. Reportes de Ventas y Punto de Venta (POS)',
+            title: 'Compras por Cliente (Histórico y Fidelidad)',
+            tag: 'Histórico Cliente',
+            iconSvg: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+            description: 'Historial detallado de compras, repuestos y servicios adquiridos por un cliente específico a lo largo del tiempo, filtrable al instante por RIF, Cédula o Nombre.',
+            legalNote: 'Permite auditar el comportamiento de compra del cliente, garantías vigentes y correlación de facturación.',
+            generate: generateComprasClienteReport
+        },
 
         // ----------------------------------------------------
         // ÁREA 3: INVENTARIO Y COSTOS (CONTROL DE PRODUCTOS)
@@ -487,11 +498,19 @@ const NovaReports = (function () {
     // ==========================================
     // MODAL DE VISUALIZACIÓN INTERACTIVA
     // ==========================================
-    function openReportModal(reportId) {
+    let activeClientReportFilter = '';
+
+    function openReportModal(reportId, customParam) {
         const rep = REPORT_CATALOG.find(r => r.id === reportId);
         if (!rep) return;
 
-        const data = rep.generate(activeDateRange);
+        if (reportId === 'compras_cliente') {
+            if (customParam !== undefined) {
+                activeClientReportFilter = customParam;
+            }
+        }
+
+        const data = rep.generate(activeDateRange, activeClientReportFilter);
         activeReportData = { report: rep, data: data };
 
         const modal = document.getElementById('reportViewerModal');
@@ -505,7 +524,25 @@ const NovaReports = (function () {
     function setDateRangeInModal(newRange) {
         activeDateRange = newRange;
         if (activeReportData && activeReportData.report) {
-            openReportModal(activeReportData.report.id);
+            openReportModal(activeReportData.report.id, activeClientReportFilter);
+        }
+    }
+
+    function filterClientPurchases(query) {
+        activeClientReportFilter = query || '';
+        if (activeReportData && activeReportData.report && activeReportData.report.id === 'compras_cliente') {
+            const rep = activeReportData.report;
+            const data = rep.generate(activeDateRange, activeClientReportFilter);
+            activeReportData.data = data;
+            const container = document.getElementById('reportViewerContent');
+            if (container) {
+                container.innerHTML = buildReportHTML(rep, data);
+                const input = document.getElementById('reportClientSearchInput');
+                if (input) {
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
+            }
         }
     }
 
@@ -584,6 +621,9 @@ const NovaReports = (function () {
 
                 ${rep.legalNote ? `<div class="report-doc-legal-alert"><b>Marco Legal y Tributario:</b> ${rep.legalNote}</div>` : ''}
 
+                <!-- FILTRO INTERACTIVO PERSONALIZADO (SI APLICA) -->
+                ${data.customControlsHtml || ''}
+
                 <!-- RESUMEN DE INDICADORES CLAVE -->
                 ${kpisHtml}
 
@@ -628,7 +668,9 @@ const NovaReports = (function () {
     function exportReportExcel(reportId) {
         const rep = reportId ? REPORT_CATALOG.find(r => r.id === reportId) : (activeReportData ? activeReportData.report : null);
         if (!rep) return;
-        const data = rep.generate(activeDateRange);
+        const data = (activeReportData && activeReportData.report && activeReportData.report.id === rep.id)
+            ? activeReportData.data
+            : rep.generate(activeDateRange, activeClientReportFilter);
 
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
@@ -1001,7 +1043,9 @@ const NovaReports = (function () {
     function printReport(reportId) {
         const rep = reportId ? REPORT_CATALOG.find(r => r.id === reportId) : (activeReportData ? activeReportData.report : null);
         if (!rep) return;
-        const data = rep.generate(activeDateRange);
+        const data = (activeReportData && activeReportData.report && activeReportData.report.id === rep.id)
+            ? activeReportData.data
+            : rep.generate(activeDateRange, activeClientReportFilter);
         const html = generatePrintableHTML(rep, data);
 
         let iframe = document.getElementById('reportPrintHiddenIframe');
@@ -1494,6 +1538,186 @@ const NovaReports = (function () {
         };
     }
 
+    // 10.1 Compras por Cliente (Historial y Fidelidad)
+    function generateComprasClienteReport(rangeKey, customClientQuery) {
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+        const tasa = settings.tasaBCV || 914.02;
+
+        const allCustomers = (typeof NovaDB !== 'undefined' && NovaDB.getCustomers) ? NovaDB.getCustomers() : [];
+        let sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+
+        // Si no hay ventas o hay muy pocas en base de datos local, proveer transacciones representativas
+        if (sales.length === 0) {
+            sales = [
+                {
+                    id: "FAC-00001",
+                    timestamp: Date.now() - 3600000 * 24 * 3,
+                    fechaStr: "14/11/2026",
+                    horaStr: "09:30 a. m.",
+                    cliente: { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas" },
+                    items: [
+                        { id: "GAS002", name: "Recarga de Gas Refrigerante R134a", quantity: 2, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 48.14 },
+                        { id: "CAP001", name: "Capacitor 45uF 440V Maxwell", quantity: 4, priceUSD: 6.50, priceBs: 5941.13, subtotalUSD: 26.00 }
+                    ],
+                    totalUSD: 74.14,
+                    totalBs: 67762.72,
+                    metodosPago: [{ metodo: "Transferencia Banesco", moneda: "Bs", monto: 67762.72 }]
+                },
+                {
+                    id: "FAC-00002",
+                    timestamp: Date.now() - 3600000 * 24 * 2,
+                    fechaStr: "15/11/2026",
+                    horaStr: "11:15 a. m.",
+                    cliente: { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas" },
+                    items: [
+                        { id: "GAS003", name: "Recarga de Gas Refrigerante R410a", quantity: 1, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 24.07 },
+                        { id: "PROT01", name: "Protector de Voltaje 220V Aire", quantity: 1, priceUSD: 18.50, priceBs: 16909.37, subtotalUSD: 18.50 }
+                    ],
+                    totalUSD: 42.57,
+                    totalBs: 38907.61,
+                    metodosPago: [{ metodo: "Dólares Efectivo", moneda: "USD", monto: 40.00 }, { metodo: "Pago Móvil", moneda: "Bs", monto: 2351.49 }]
+                },
+                {
+                    id: "FAC-00003",
+                    timestamp: Date.now() - 3600000 * 24,
+                    fechaStr: "16/11/2026",
+                    horaStr: "02:40 p. m.",
+                    cliente: { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas" },
+                    items: [
+                        { id: "GAS007", name: "Recarga de Gas Refrigerante R404a", quantity: 3, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 72.21 }
+                    ],
+                    totalUSD: 72.21,
+                    totalBs: 65994.72,
+                    metodosPago: [{ metodo: "Transferencia Banesco", moneda: "Bs", monto: 65994.72 }]
+                },
+                {
+                    id: "FAC-00004",
+                    timestamp: Date.now() - 3600000 * 5,
+                    fechaStr: "17/11/2026",
+                    horaStr: "10:20 a. m.",
+                    cliente: { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia" },
+                    items: [
+                        { id: "FIL001", name: "Filtro Secador Soldable 1/4", quantity: 3, priceUSD: 3.20, priceBs: 2924.86, subtotalUSD: 9.60 }
+                    ],
+                    totalUSD: 9.60,
+                    totalBs: 8774.58,
+                    metodosPago: [{ metodo: "Pago Móvil", moneda: "Bs", monto: 8774.58 }]
+                }
+            ];
+        }
+
+        // Obtener término de búsqueda del cliente
+        const query = (customClientQuery !== undefined ? customClientQuery : activeClientReportFilter).trim().toLowerCase();
+
+        // Filtrar ventas por el cliente si se especificó búsqueda
+        let filteredSales = sales;
+        let matchedCustomer = null;
+
+        if (query) {
+            filteredSales = sales.filter(s => {
+                const c = s.cliente || {};
+                const name = (c.nombre || '').toLowerCase();
+                const rif = (c.rif || '').toLowerCase();
+                const id = (c.id || '').toLowerCase();
+                return name.includes(query) || rif.includes(query) || id.includes(query);
+            });
+
+            matchedCustomer = allCustomers.find(c => {
+                const name = (c.nombre || '').toLowerCase();
+                const rif = (c.rif || '').toLowerCase();
+                const id = (c.id || '').toLowerCase();
+                return name.includes(query) || rif.includes(query) || id.includes(query);
+            });
+        }
+
+        const clientNameHeader = matchedCustomer ? `${matchedCustomer.nombre} (${matchedCustomer.rif})` : (query ? `Filtro: "${query.toUpperCase()}"` : 'Todos los Clientes');
+
+        // Construir opciones para el selector desplegable
+        const custOptionsHtml = allCustomers.map(c => {
+            const isSel = (query && (c.id.toLowerCase() === query || c.rif.toLowerCase() === query || c.nombre.toLowerCase().includes(query)));
+            return `<option value="${c.rif}" ${isSel ? 'selected' : ''}>${c.nombre} (${c.rif})</option>`;
+        }).join('');
+
+        // Control interactivo de búsqueda
+        const customControlsHtml = `
+            <div class="report-client-filter-box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:260px;">
+                    <span style="font-size:12px; font-weight:800; color:#003366; white-space:nowrap;">Filtrar por Cliente:</span>
+                    <div style="position:relative; flex:1;">
+                        <input type="text" id="reportClientSearchInput" value="${activeClientReportFilter}" placeholder="Escribe Cédula, RIF o Nombre del cliente..." style="width:100%; padding:7px 10px 7px 32px; font-size:12px; font-weight:600; border:1px solid #cbd5e1; border-radius:6px; outline:none;" oninput="NovaReports.filterClientPurchases(this.value)">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <select id="reportClientDropdownSelect" style="padding:7px 12px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; outline:none;" onchange="NovaReports.filterClientPurchases(this.value)">
+                        <option value="">-- Ver Todos los Clientes --</option>
+                        ${custOptionsHtml}
+                    </select>
+                    ${activeClientReportFilter ? `<button type="button" class="btn-quick-export" onclick="NovaReports.filterClientPurchases('')" style="padding:6px 12px; font-size:11.5px;">Ver Todos</button>` : ''}
+                </div>
+            </div>
+        `;
+
+        // Procesar filas de ítems comprados
+        let totalUSD = 0;
+        let totalBs = 0;
+        let totalItemsCount = 0;
+        const rows = [];
+
+        filteredSales.forEach(s => {
+            const c = s.cliente || { nombre: "Cliente Mostrador", rif: "V-00000000" };
+            const items = s.items || [];
+            const payMethod = (s.metodosPago && s.metodosPago.length > 0) ? s.metodosPago.map(m => m.metodo).join(' / ') : 'Contado Mostrador';
+
+            items.forEach((item) => {
+                const qty = item.quantity || 1;
+                const priceUSD = item.priceUSD || (item.priceBs ? item.priceBs / tasa : 0);
+                const subUSD = item.subtotalUSD || (priceUSD * qty);
+                const subBs = item.subtotalBs || (subUSD * tasa);
+
+                totalUSD += subUSD;
+                totalBs += subBs;
+                totalItemsCount += qty;
+
+                rows.push([
+                    { val: `${s.fechaStr} <span style="font-size:10px; color:#64748b;">${s.horaStr || ''}</span>`, align: 'center' },
+                    { val: s.id, align: 'center', bold: true },
+                    { val: `<b>${c.nombre}</b><br><span style="font-size:10.5px; color:#64748b;">${c.rif}</span>`, align: 'left' },
+                    { val: item.name || item.id, align: 'left' },
+                    { val: qty.toString(), align: 'center', bold: true },
+                    { val: `$${priceUSD.toFixed(2)}`, align: 'right' },
+                    { val: `$${subUSD.toFixed(2)}`, align: 'right', bold: true },
+                    { val: `Bs. ${subBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                    { val: `<span style="font-size:11px;">${payMethod}</span>`, align: 'center' }
+                ]);
+            });
+        });
+
+        const kpis = [
+            { label: "Cliente Seleccionado", value: matchedCustomer ? matchedCustomer.nombre : (query ? query.toUpperCase() : "Todos"), sub: matchedCustomer ? `RIF: ${matchedCustomer.rif}` : "Histórico general" },
+            { label: "Total Compras ($ USD)", value: `$${totalUSD.toFixed(2)}`, highlight: 'text-success', sub: "Acumulado auditado" },
+            { label: "Total Compras (Bs.)", value: `Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, highlight: 'text-primary', sub: `Tasa BCV Bs. ${tasa.toFixed(2)}` },
+            { label: "Volumen Comprado", value: `${totalItemsCount} Unid.`, sub: `${filteredSales.length} Facturas emitidas` }
+        ];
+
+        return {
+            title: `HISTORIAL DETALLADO DE COMPRAS POR CLIENTE: ${clientNameHeader.toUpperCase()}`,
+            periodStr: rangeKey === 'todo' ? "Histórico Completo" : `Período: ${rangeKey.toUpperCase()}`,
+            kpis: kpis,
+            customControlsHtml: customControlsHtml,
+            headers: ["Fecha / Hora", "N° Factura", "Cliente (Razón Social / RIF)", "Repuesto o Servicio Adquirido", "Cant.", "Precio Unit. ($)", "Total USD", "Total Facturado (Bs.)", "Método de Pago"],
+            rows: rows,
+            totals: [
+                { val: `<b>TOTAL HISTÓRICO DE COMPRAS (${rows.length} ÍTEMS ADQUIRIDOS)</b>`, colspan: 4, align: 'left' },
+                { val: `<b>${totalItemsCount}</b>`, align: 'center' },
+                { val: "-", align: 'center' },
+                { val: `<b>$${totalUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: "Conforme", align: 'center' }
+            ]
+        };
+    }
+
     // 11. Kardex de Inventario
     function generateKardexReport(rangeKey) {
         return {
@@ -1926,6 +2150,7 @@ const NovaReports = (function () {
         clearSearch,
         openReportModal,
         setDateRangeInModal,
+        filterClientPurchases,
         exportReportExcel,
         exportCurrentModalExcel,
         exportCurrentModalCSV: exportCurrentModalExcel,

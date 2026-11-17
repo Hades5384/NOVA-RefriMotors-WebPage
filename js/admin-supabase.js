@@ -92,12 +92,13 @@ const NovaSupabase = (function () {
         }
 
         // Monitorear conectividad de red
-        window.addEventListener('online', () => {
+        window.addEventListener('online', async () => {
             _isOnline = true;
             console.log("[NovaSupabase] Conexión a internet restaurada. Procesando sincronización...");
             _updateUIStatus();
-            processQueue();
-            checkAndSeedCatalog();
+            await processQueue();
+            await checkAndSeedCatalog();
+            await pullCloudUpdates();
         });
 
         window.addEventListener('offline', () => {
@@ -106,14 +107,17 @@ const NovaSupabase = (function () {
             _updateUIStatus();
         });
 
-        // Intervalo periódico de sincronización de cola
+        // Intervalo periódico de sincronización bidireccional (Push + Pull)
         if (cfg.autoSync) {
             if (_syncTimer) clearInterval(_syncTimer);
-            _syncTimer = setInterval(() => {
+            _syncTimer = setInterval(async () => {
                 if (_isOnline && !_isSyncing) {
-                    processQueue();
+                    await processQueue();
+                    if (_getQueue().length === 0) {
+                        await pullCloudUpdates();
+                    }
                 }
-            }, (cfg.syncIntervalSeconds || 30) * 1000);
+            }, (cfg.syncIntervalSeconds || 25) * 1000);
         }
 
         // Monitoreo periódico de pedidos de mostrador para el usuario MASTER
@@ -143,9 +147,12 @@ const NovaSupabase = (function () {
         // Actualizar interfaz inicial
         _updateUIStatus();
 
-        // Verificar si la base de datos necesita carga inicial de los 460 productos
-        setTimeout(() => {
-            checkAndSeedCatalog();
+        // Verificar si la base de datos necesita carga inicial y descargar cambios recientes
+        setTimeout(async () => {
+            await checkAndSeedCatalog();
+            await processQueue();
+            await pullCloudUpdates();
+            _subscribeRealtime();
         }, 1500);
     }
 
@@ -346,6 +353,108 @@ const NovaSupabase = (function () {
             }
             return closedShift;
         };
+
+        // Hook de Alta de Nuevo Producto en Inventario
+        const origAddNewProduct = window.NovaDB.addNewProduct;
+        if (origAddNewProduct) {
+            window.NovaDB.addNewProduct = function (prodData) {
+                const res = origAddNewProduct.apply(this, arguments);
+                if (res) {
+                    const util = typeof res.porcentajeUtilidad === 'number' ? res.porcentajeUtilidad : 30;
+                    const ivaVal = typeof res.iva === 'number' ? res.iva : 16;
+                    const cost = parseFloat(res.costoCompra) || 0;
+                    const finalPrice = typeof res.precioFinalUSD === 'number'
+                        ? res.precioFinalUSD
+                        : +(cost * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+
+                    _enqueue('upsert', 'productos', {
+                        id: res.id,
+                        nombre: res.name,
+                        categoria: res.category || 'General',
+                        descripcion: res.descripcionDetallada || res.description || null,
+                        costo_compra: cost,
+                        precio_novacliente: +finalPrice.toFixed(2),
+                        specs: {
+                            porcentaje_utilidad: util,
+                            iva: ivaVal
+                        },
+                        stock: parseInt(res.stock) || 0,
+                        stock_minimo: parseInt(res.stockMinimo) || 3,
+                        ubicacion: res.ubicacion || 'Almacén Central',
+                        activo: true,
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                return res;
+            };
+        }
+
+        // Hook de Modificación Completa de Producto (Nombre, Descripción Larga, Costo, Utilidad, IVA, Precio Final)
+        const origUpdateProduct = window.NovaDB.updateProduct;
+        if (origUpdateProduct) {
+            window.NovaDB.updateProduct = function (productId, updates) {
+                const res = origUpdateProduct.apply(this, arguments);
+                if (res) {
+                    const inv = window.NovaDB.getInventory();
+                    const item = inv[productId];
+                    if (item) {
+                        const util = typeof item.porcentajeUtilidad === 'number' ? item.porcentajeUtilidad : 30;
+                        const ivaVal = typeof item.iva === 'number' ? item.iva : 16;
+                        const cost = parseFloat(item.costoCompra) || 0;
+                        const finalPrice = typeof item.precioFinalUSD === 'number'
+                            ? item.precioFinalUSD
+                            : +(cost * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+
+                        _enqueue('upsert', 'productos', {
+                            id: item.id,
+                            nombre: item.name,
+                            categoria: item.category || 'General',
+                            descripcion: item.descripcionDetallada || item.description || null,
+                            costo_compra: cost,
+                            precio_novacliente: +finalPrice.toFixed(2),
+                            specs: {
+                                porcentaje_utilidad: util,
+                                iva: ivaVal
+                            },
+                            stock: parseInt(item.stock) || 0,
+                            stock_minimo: parseInt(item.stockMinimo) || 3,
+                            ubicacion: item.ubicacion || 'Almacén Central',
+                            activo: true,
+                            updated_at: new Date().toISOString()
+                        });
+                    }
+                }
+                return res;
+            };
+        }
+
+        // Hook de Actualización Rápida de Costo
+        const origUpdateProductCost = window.NovaDB.updateProductCost;
+        if (origUpdateProductCost) {
+            window.NovaDB.updateProductCost = function (productId, newCost) {
+                const res = origUpdateProductCost.apply(this, arguments);
+                if (res) {
+                    _enqueue('update', 'productos', {
+                        id: productId,
+                        costo_compra: parseFloat(newCost) || 0,
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                return res;
+            };
+        }
+
+        // Hook de Eliminación de Producto
+        const origDeleteProduct = window.NovaDB.deleteProduct;
+        if (origDeleteProduct) {
+            window.NovaDB.deleteProduct = function (productId) {
+                const res = origDeleteProduct.apply(this, arguments);
+                if (res) {
+                    _enqueue('delete', 'productos', { id: productId });
+                }
+                return res;
+            };
+        }
     }
 
     // ==========================================
@@ -464,11 +573,75 @@ const NovaSupabase = (function () {
         if (!_client || !_isOnline) return;
 
         try {
-            // Verificar si la tabla de productos ya tiene registros
             if (!force) {
                 const { count, error } = await _client.from('productos').select('*', { count: 'exact', head: true });
-                if (!error && count && count > 0) {
-                    console.log(`[NovaSupabase] Base de datos ya cuenta con ${count} repuestos cargados.`);
+                if (error) return;
+
+                if (count && count > 0) {
+                    // Verificar si quedó una carga parcial incompleta (ej: interrumpida antes de terminar todos los SKUs)
+                    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+                    const catalogIds = new Map();
+                    prods.forEach(p => {
+                        if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                            p.variants.forEach(v => catalogIds.set(v.id, { p, v }));
+                        } else {
+                            catalogIds.set(p.id, { p, v: null });
+                        }
+                    });
+
+                    let deletedIds = [];
+                    try { deletedIds = JSON.parse(localStorage.getItem('nova_erp_deleted_products') || '[]'); } catch (e) {}
+                    const deletedSet = new Set(deletedIds);
+
+                    if (count < catalogIds.size - deletedSet.size) {
+                        const existingRes = await _fetchAllPaginated('productos', 'id');
+                        if (!existingRes.error && Array.isArray(existingRes.data)) {
+                            const existingSet = new Set(existingRes.data.map(r => r.id));
+                            const inv = (typeof NovaDB !== 'undefined') ? NovaDB.getInventory() : {};
+                            const missingRows = [];
+
+                            catalogIds.forEach(({ p, v }, skuId) => {
+                                if (existingSet.has(skuId) || deletedSet.has(skuId)) return;
+                                const localItem = inv[skuId];
+                                const costo = (localItem && typeof localItem.costoCompra === 'number' && localItem.costoCompra > 0)
+                                    ? localItem.costoCompra
+                                    : (v ? (v.costoCompra || 0) : (p.costoCompra || 0));
+                                const util = (localItem && typeof localItem.porcentajeUtilidad === 'number') ? localItem.porcentajeUtilidad : 30;
+                                const ivaVal = (localItem && typeof localItem.iva === 'number') ? localItem.iva : 16;
+                                const precioNova = +(costo * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+                                const baseSpecs = (p.specs && typeof p.specs === 'object') ? p.specs : {};
+
+                                missingRows.push({
+                                    id: skuId,
+                                    parent_id: v ? p.id : null,
+                                    nombre: (localItem && localItem.name) ? localItem.name : (v ? `${p.name} (${v.name})` : p.name),
+                                    categoria: (localItem && localItem.category) ? localItem.category : (p.category || "General"),
+                                    modelo: p.model || null,
+                                    descripcion: (localItem && (localItem.descripcionDetallada || localItem.description)) || p.desc || null,
+                                    costo_compra: costo,
+                                    precio_novacliente: precioNova,
+                                    imagenes: p.images || [],
+                                    specs: Object.assign({}, baseSpecs, { porcentaje_utilidad: util, iva: ivaVal }),
+                                    stock: localItem ? (parseInt(localItem.stock) || 0) : (v ? 12 : 15),
+                                    stock_minimo: localItem ? (parseInt(localItem.stockMinimo) || 3) : (v ? 3 : 4),
+                                    ubicacion: (localItem && localItem.ubicacion) || "Almacén Central",
+                                    activo: true
+                                });
+                            });
+
+                            if (missingRows.length > 0) {
+                                console.log(`[NovaSupabase] Completando ${missingRows.length} repuestos faltantes en Supabase sin sobrescribir los existentes...`);
+                                const batchSize = 50;
+                                for (let i = 0; i < missingRows.length; i += batchSize) {
+                                    const batch = missingRows.slice(i, i + batchSize);
+                                    await _client.from('productos').upsert(batch, { onConflict: 'id', ignoreDuplicates: true });
+                                }
+                                console.log(`[NovaSupabase] Catálogo completado (${count + missingRows.length} repuestos en la nube).`);
+                            }
+                        }
+                    } else {
+                        console.log(`[NovaSupabase] Base de datos ya cuenta con ${count} repuestos cargados.`);
+                    }
                     return;
                 }
             }
@@ -489,32 +662,36 @@ const NovaSupabase = (function () {
         }
 
         const inv = (typeof NovaDB !== 'undefined') ? NovaDB.getInventory() : {};
-        const rowsToInsert = [];
+        const rowsMap = new Map();
 
-        // Desglosar productos y variantes
+        // Desglosar productos y variantes (deduplicados por id para evitar conflictos en lote)
         prods.forEach(p => {
-            const specsJson = p.specs || {};
+            const specsJson = (p.specs && typeof p.specs === 'object') ? Object.assign({}, p.specs) : {};
             const imagesJson = p.images || [];
 
             if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                 p.variants.forEach(v => {
-                    const vStock = inv[v.id] ? inv[v.id].stock : 12;
-                    const vMin = inv[v.id] ? inv[v.id].stockMinimo : 3;
-                    const vUbic = inv[v.id] ? inv[v.id].ubicacion : "Almacén Central";
-                    const costo = v.costoCompra || 0;
-                    const precioNova = +(costo * 1.30 * 1.16).toFixed(2);
+                    const localItem = inv[v.id];
+                    const vStock = localItem ? localItem.stock : 12;
+                    const vMin = localItem ? localItem.stockMinimo : 3;
+                    const vUbic = localItem ? localItem.ubicacion : "Almacén Central";
+                    const costo = (localItem && typeof localItem.costoCompra === 'number' && localItem.costoCompra > 0) ? localItem.costoCompra : (v.costoCompra || 0);
+                    const util = (localItem && typeof localItem.porcentajeUtilidad === 'number') ? localItem.porcentajeUtilidad : 30;
+                    const ivaVal = (localItem && typeof localItem.iva === 'number') ? localItem.iva : 16;
+                    const precioNova = +(costo * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+                    const rowSpecs = Object.assign({}, specsJson, { porcentaje_utilidad: util, iva: ivaVal });
 
-                    rowsToInsert.push({
+                    rowsMap.set(v.id, {
                         id: v.id,
                         parent_id: p.id,
-                        nombre: `${p.name} (${v.name})`,
-                        categoria: p.category || "General",
+                        nombre: (localItem && localItem.name) ? localItem.name : `${p.name} (${v.name})`,
+                        categoria: (localItem && localItem.category) ? localItem.category : (p.category || "General"),
                         modelo: p.model || null,
-                        descripcion: p.desc || null,
+                        descripcion: (localItem && (localItem.descripcionDetallada || localItem.description)) ? (localItem.descripcionDetallada || localItem.description) : (p.desc || null),
                         costo_compra: costo,
                         precio_novacliente: precioNova,
                         imagenes: imagesJson,
-                        specs: specsJson,
+                        specs: rowSpecs,
                         stock: vStock,
                         stock_minimo: vMin,
                         ubicacion: vUbic,
@@ -522,23 +699,27 @@ const NovaSupabase = (function () {
                     });
                 });
             } else {
-                const pStock = inv[p.id] ? inv[p.id].stock : 15;
-                const pMin = inv[p.id] ? inv[p.id].stockMinimo : 4;
-                const pUbic = inv[p.id] ? inv[p.id].ubicacion : "Almacén Central";
-                const costo = p.costoCompra || 0;
-                const precioNova = +(costo * 1.30 * 1.16).toFixed(2);
+                const localItem = inv[p.id];
+                const pStock = localItem ? localItem.stock : 15;
+                const pMin = localItem ? localItem.stockMinimo : 4;
+                const pUbic = localItem ? localItem.ubicacion : "Almacén Central";
+                const costo = (localItem && typeof localItem.costoCompra === 'number' && localItem.costoCompra > 0) ? localItem.costoCompra : (p.costoCompra || 0);
+                const util = (localItem && typeof localItem.porcentajeUtilidad === 'number') ? localItem.porcentajeUtilidad : 30;
+                const ivaVal = (localItem && typeof localItem.iva === 'number') ? localItem.iva : 16;
+                const precioNova = +(costo * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+                const rowSpecs = Object.assign({}, specsJson, { porcentaje_utilidad: util, iva: ivaVal });
 
-                rowsToInsert.push({
+                rowsMap.set(p.id, {
                     id: p.id,
                     parent_id: null,
-                    nombre: p.name,
-                    categoria: p.category || "General",
+                    nombre: (localItem && localItem.name) ? localItem.name : p.name,
+                    categoria: (localItem && localItem.category) ? localItem.category : (p.category || "General"),
                     modelo: p.model || null,
-                    descripcion: p.desc || null,
+                    descripcion: (localItem && (localItem.descripcionDetallada || localItem.description)) ? (localItem.descripcionDetallada || localItem.description) : (p.desc || null),
                     costo_compra: costo,
                     precio_novacliente: precioNova,
                     imagenes: imagesJson,
-                    specs: specsJson,
+                    specs: rowSpecs,
                     stock: pStock,
                     stock_minimo: pMin,
                     ubicacion: pUbic,
@@ -546,6 +727,37 @@ const NovaSupabase = (function () {
                 });
             }
         });
+
+        // Incluir también productos personalizados creados en el inventario local
+        Object.values(inv).forEach(localItem => {
+            if (localItem && localItem.id && !rowsMap.has(localItem.id)) {
+                const costo = parseFloat(localItem.costoCompra) || 0;
+                const util = typeof localItem.porcentajeUtilidad === 'number' ? localItem.porcentajeUtilidad : 30;
+                const ivaVal = typeof localItem.iva === 'number' ? localItem.iva : 16;
+                const precioNova = typeof localItem.precioFinalUSD === 'number'
+                    ? +localItem.precioFinalUSD.toFixed(2)
+                    : +(costo * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+
+                rowsMap.set(localItem.id, {
+                    id: localItem.id,
+                    parent_id: localItem.parentId || null,
+                    nombre: localItem.name || localItem.id,
+                    categoria: localItem.category || "General",
+                    modelo: null,
+                    descripcion: localItem.descripcionDetallada || localItem.description || null,
+                    costo_compra: costo,
+                    precio_novacliente: precioNova,
+                    imagenes: ['assets/products/default.png'],
+                    specs: { porcentaje_utilidad: util, iva: ivaVal },
+                    stock: parseInt(localItem.stock) || 0,
+                    stock_minimo: parseInt(localItem.stockMinimo) || 3,
+                    ubicacion: localItem.ubicacion || "Almacén Central",
+                    activo: true
+                });
+            }
+        });
+
+        const rowsToInsert = Array.from(rowsMap.values());
 
         console.log(`[NovaSupabase] Preparados ${rowsToInsert.length} repuestos para subir en lotes...`);
 
@@ -575,7 +787,8 @@ const NovaSupabase = (function () {
                     nombre: c.nombre,
                     rif: c.rif,
                     telefono: c.telefono,
-                    tipo: c.tipo,
+                    direccion: c.direccion || '',
+                    tipo: c.tipo || 'cliente',
                     notas: c.notas
                 })), { onConflict: 'id' });
             }
@@ -669,6 +882,429 @@ const NovaSupabase = (function () {
     }
 
     // ==========================================
+    // 5.1 SINCRONIZACIÓN BIDIRECCIONAL COMPLETA Y REALTIME (FUENTE ÚNICA DE VERDAD)
+    // ==========================================
+    let _realtimeChannel = null;
+    let _isPulling = false;
+    let _realtimePullTimer = null;
+
+    function _scheduleRealtimePull() {
+        clearTimeout(_realtimePullTimer);
+        _realtimePullTimer = setTimeout(() => {
+            if (_isOnline && !_isSyncing && _getQueue().length === 0) {
+                pullCloudUpdates();
+            }
+        }, 350);
+    }
+
+    function _mapRemoteProductToInv(r, prevItem) {
+        const specs = (r.specs && typeof r.specs === 'object') ? r.specs : {};
+        const cost = parseFloat(r.costo_compra) || 0;
+        const util = (typeof specs.porcentaje_utilidad === 'number') ? specs.porcentaje_utilidad : (prevItem?.porcentajeUtilidad ?? 30);
+        const ivaVal = (typeof specs.iva === 'number') ? specs.iva : (prevItem?.iva ?? 16);
+        const precioFinal = parseFloat(r.precio_novacliente) || +(cost * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
+        const detailedDesc = r.descripcion || '';
+
+        return Object.assign({}, prevItem || {}, {
+            id: r.id,
+            parentId: r.parent_id || (prevItem ? prevItem.parentId : null),
+            name: r.nombre || (prevItem ? prevItem.name : r.id),
+            descripcionDetallada: detailedDesc,
+            description: detailedDesc,
+            category: r.categoria || (prevItem ? prevItem.category : 'General'),
+            costoCompra: cost,
+            porcentajeUtilidad: util,
+            iva: ivaVal,
+            precioFinalUSD: precioFinal,
+            stock: parseInt(r.stock) || 0,
+            stockMinimo: parseInt(r.stock_minimo) || (prevItem ? prevItem.stockMinimo : 3),
+            ubicacion: r.ubicacion || (prevItem ? prevItem.ubicacion : 'Almacén Central')
+        });
+    }
+
+    function _syncMemoryProductsFromInv(inv, remoteRowsById) {
+        if (typeof window.products === 'undefined' || !Array.isArray(window.products)) return;
+
+        const existingIds = new Set();
+        const updatedProducts = [];
+
+        window.products.forEach(p => {
+            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                const keptVariants = [];
+                p.variants.forEach(v => {
+                    if (inv[v.id]) {
+                        const item = inv[v.id];
+                        v.name = item.name;
+                        v.descripcionDetallada = item.descripcionDetallada || '';
+                        v.description = item.descripcionDetallada || '';
+                        v.costoCompra = item.costoCompra;
+                        v.porcentajeUtilidad = item.porcentajeUtilidad;
+                        v.iva = item.iva;
+                        v.price = item.precioFinalUSD;
+                        v.precioVentaUSD = item.precioFinalUSD;
+                        keptVariants.push(v);
+                        existingIds.add(v.id);
+                    }
+                });
+                if (keptVariants.length > 0) {
+                    p.variants = keptVariants;
+                    updatedProducts.push(p);
+                }
+            } else if (inv[p.id]) {
+                const item = inv[p.id];
+                p.name = item.name;
+                p.category = item.category;
+                p.descripcionDetallada = item.descripcionDetallada || '';
+                p.description = item.descripcionDetallada || '';
+                p.costoCompra = item.costoCompra;
+                p.porcentajeUtilidad = item.porcentajeUtilidad;
+                p.iva = item.iva;
+                p.price = item.precioFinalUSD;
+                p.precioVentaUSD = item.precioFinalUSD;
+                updatedProducts.push(p);
+                existingIds.add(p.id);
+            }
+        });
+
+        // Agregar productos creados desde otra computadora que no existan aún en window.products
+        Object.keys(inv).forEach(id => {
+            if (!existingIds.has(id)) {
+                const item = inv[id];
+                const rawRow = remoteRowsById ? remoteRowsById[id] : null;
+                updatedProducts.push({
+                    id: item.id,
+                    name: item.name,
+                    descripcionDetallada: item.descripcionDetallada || '',
+                    description: item.descripcionDetallada || '',
+                    category: item.category || 'General',
+                    costoCompra: item.costoCompra || 0,
+                    porcentajeUtilidad: item.porcentajeUtilidad ?? 30,
+                    iva: item.iva ?? 16,
+                    price: item.precioFinalUSD || 0,
+                    precioVentaUSD: item.precioFinalUSD || 0,
+                    images: (rawRow && Array.isArray(rawRow.imagenes) && rawRow.imagenes.length > 0) ? rawRow.imagenes : ['assets/products/default.png'],
+                    specs: (rawRow && rawRow.specs) ? rawRow.specs : {}
+                });
+            }
+        });
+
+        window.products = updatedProducts;
+    }
+
+    async function _fetchAllPaginated(table, selectCols, orderCol) {
+        const allRows = [];
+        const pageSize = 1000;
+        let from = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            let query = _client.from(table).select(selectCols);
+            if (orderCol) query = query.order(orderCol, { ascending: false });
+            const { data, error } = await query.range(from, from + pageSize - 1);
+            if (error) return { data: null, error };
+            if (!data || data.length === 0) {
+                hasMore = false;
+            } else {
+                allRows.push(...data);
+                if (data.length < pageSize) hasMore = false;
+                else from += pageSize;
+            }
+        }
+        return { data: allRows, error: null };
+    }
+
+    async function pullCloudUpdates() {
+        if (!_client || !_isOnline || _isSyncing || _isPulling || _getQueue().length > 0) return false;
+        if (typeof window.NovaDB === 'undefined') return false;
+
+        _isPulling = true;
+        try {
+            let anyChanged = false;
+            let productsChanged = false;
+            let customersChanged = false;
+            let cashOrSalesChanged = false;
+            let purchasesChanged = false;
+
+            // 1. PRODUCTOS E INVENTARIO (Fuente única de verdad)
+            const prodRes = await _fetchAllPaginated(
+                'productos',
+                'id, parent_id, nombre, categoria, descripcion, costo_compra, precio_novacliente, specs, stock, stock_minimo, ubicacion, imagenes'
+            );
+            if (!prodRes.error && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
+                const prevInv = window.NovaDB.getInventory();
+                const prevInvJson = JSON.stringify(prevInv);
+                const freshInv = {};
+                const rowsById = {};
+
+                prodRes.data.forEach(r => {
+                    rowsById[r.id] = r;
+                    freshInv[r.id] = _mapRemoteProductToInv(r, prevInv[r.id]);
+                });
+
+                const newInvJson = JSON.stringify(freshInv);
+                localStorage.setItem('nova_erp_cloud_synced', '1');
+                if (newInvJson !== prevInvJson) {
+                    localStorage.setItem('nova_erp_inventory', newInvJson);
+                    productsChanged = true;
+                    anyChanged = true;
+                }
+                _syncMemoryProductsFromInv(freshInv, rowsById);
+            }
+
+            // 2. CLIENTES (CRM)
+            const { data: remoteCust, error: custErr } = await _client
+                .from('clientes')
+                .select('id, nombre, rif, telefono, direccion, tipo, notas')
+                .order('id', { ascending: true });
+
+            if (!custErr && Array.isArray(remoteCust) && remoteCust.length > 0) {
+                const mappedCust = remoteCust.map(rc => ({
+                    id: rc.id,
+                    nombre: rc.nombre,
+                    rif: rc.rif,
+                    telefono: rc.telefono || '',
+                    direccion: rc.direccion || '',
+                    tipo: 'cliente',
+                    notas: rc.notas || ''
+                }));
+                // Garantizar que CLI-001 quede primero si existe
+                mappedCust.sort((a, b) => (a.id === 'CLI-001' ? -1 : b.id === 'CLI-001' ? 1 : a.id.localeCompare(b.id)));
+                const newCustJson = JSON.stringify(mappedCust);
+                if (newCustJson !== localStorage.getItem('nova_erp_customers')) {
+                    localStorage.setItem('nova_erp_customers', newCustJson);
+                    customersChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // 3. VENTAS Y FACTURACIÓN
+            const salesRes = await _fetchAllPaginated('ventas', '*', 'timestamp');
+            if (!salesRes.error && Array.isArray(salesRes.data)) {
+                const mappedSales = salesRes.data.map(s => ({
+                    id: s.id,
+                    timestamp: Number(s.timestamp) || (s.created_at ? new Date(s.created_at).getTime() : Date.now()),
+                    fechaStr: s.fecha_str || '',
+                    horaStr: s.hora_str || '',
+                    cliente: s.cliente || { nombre: 'Cliente Mostrador', rif: 'V-00000000' },
+                    items: Array.isArray(s.items) ? s.items : [],
+                    tipoPrecio: s.tipo_precio || 'publico',
+                    tipoDocumento: s.tipo_documento || 'factura',
+                    tasaBCV: parseFloat(s.tasa_bcv) || 0,
+                    totalUSD: parseFloat(s.total_usd) || 0,
+                    totalBs: parseFloat(s.total_bs) || 0,
+                    metodosPago: Array.isArray(s.metodos_pago) ? s.metodos_pago : [],
+                    montoPagadoUSD: parseFloat(s.monto_pagado_usd) || 0,
+                    montoPagadoBs: parseFloat(s.monto_pagado_bs) || 0,
+                    vueltoUSD: parseFloat(s.vuelto_usd) || 0,
+                    vueltoBs: parseFloat(s.vuelto_bs) || 0,
+                    vendedor: s.vendedor || 'Caja Principal',
+                    cajero: s.cajero || 'MASTER'
+                }));
+                const newSalesJson = JSON.stringify(mappedSales);
+                if (newSalesJson !== localStorage.getItem('nova_erp_sales')) {
+                    localStorage.setItem('nova_erp_sales', newSalesJson);
+                    cashOrSalesChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // 4. EGRESOS DE CAJA
+            const { data: remoteExp, error: expErr } = await _client
+                .from('egresos')
+                .select('*')
+                .order('timestamp', { ascending: false });
+
+            if (!expErr && Array.isArray(remoteExp)) {
+                const mappedExp = remoteExp.map(e => ({
+                    id: e.id,
+                    timestamp: Number(e.timestamp) || (e.created_at ? new Date(e.created_at).getTime() : Date.now()),
+                    fechaStr: e.fecha_str || '',
+                    concepto: e.concepto || '',
+                    categoria: e.categoria || 'General',
+                    montoUSD: parseFloat(e.monto_usd) || 0,
+                    montoBs: parseFloat(e.monto_bs) || 0,
+                    metodoPago: e.metodo_pago || 'Efectivo USD'
+                }));
+                const newExpJson = JSON.stringify(mappedExp);
+                if (newExpJson !== localStorage.getItem('nova_erp_expenses')) {
+                    localStorage.setItem('nova_erp_expenses', newExpJson);
+                    cashOrSalesChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // 5. PROVEEDORES
+            const { data: remoteSupp, error: suppErr } = await _client
+                .from('proveedores')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (!suppErr && Array.isArray(remoteSupp) && remoteSupp.length > 0) {
+                const mappedSupp = remoteSupp.map(s => ({
+                    id: s.id,
+                    razonSocial: s.razon_social || '',
+                    rif: s.rif || '',
+                    telefono: s.telefono || '',
+                    contacto: s.contacto || '',
+                    rubro: s.rubro || ''
+                }));
+                const newSuppJson = JSON.stringify(mappedSupp);
+                if (newSuppJson !== localStorage.getItem('nova_erp_suppliers')) {
+                    localStorage.setItem('nova_erp_suppliers', newSuppJson);
+                    purchasesChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // 6. COMPRAS A PROVEEDORES
+            const { data: remotePurch, error: purchErr } = await _client
+                .from('compras')
+                .select('*')
+                .order('timestamp', { ascending: false });
+
+            if (!purchErr && Array.isArray(remotePurch)) {
+                const mappedPurch = remotePurch.map(c => ({
+                    id: c.id,
+                    timestamp: Number(c.timestamp) || (c.created_at ? new Date(c.created_at).getTime() : Date.now()),
+                    fechaStr: c.fecha_str || '',
+                    proveedorId: c.proveedor_id || '',
+                    proveedorNombre: c.proveedor_nombre || '',
+                    facturaNumero: c.factura_numero || '',
+                    items: Array.isArray(c.items) ? c.items : [],
+                    totalUSD: parseFloat(c.total_usd) || 0,
+                    notas: c.notas || ''
+                }));
+                const newPurchJson = JSON.stringify(mappedPurch);
+                if (newPurchJson !== localStorage.getItem('nova_erp_purchases')) {
+                    localStorage.setItem('nova_erp_purchases', newPurchJson);
+                    purchasesChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // 7. TURNOS Y CIERRES DE CAJA
+            const { data: remoteShifts, error: shiftErr } = await _client
+                .from('turnos_caja')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (!shiftErr && Array.isArray(remoteShifts) && remoteShifts.length > 0) {
+                const mappedShifts = remoteShifts.map(t => ({
+                    id: t.id,
+                    fechaApertura: t.fecha_apertura || '',
+                    fechaCierre: t.fecha_cierre || null,
+                    montoInicialUSD: parseFloat(t.monto_inicial_usd) || 0,
+                    montoInicialBs: parseFloat(t.monto_inicial_bs) || 0,
+                    estado: t.estado || 'cerrada',
+                    ventasIds: Array.isArray(t.ventas_ids) ? t.ventas_ids : [],
+                    egresosIds: Array.isArray(t.egresos_ids) ? t.egresos_ids : [],
+                    arqueoFisico: t.arqueo_fisico || null
+                }));
+                // Mantener un turno abierto si todos los remotos están cerrados
+                const localShifts = window.NovaDB.getCashShifts ? window.NovaDB.getCashShifts() : [];
+                const hasRemoteOpen = mappedShifts.some(s => s.estado === 'abierta' || s.estado === 'abierto');
+                if (!hasRemoteOpen) {
+                    const localOpen = localShifts.find(s => s.estado === 'abierta' || s.estado === 'abierto');
+                    if (localOpen) mappedShifts.unshift(localOpen);
+                }
+                const newShiftJson = JSON.stringify(mappedShifts);
+                if (newShiftJson !== localStorage.getItem('nova_erp_cash_shifts')) {
+                    localStorage.setItem('nova_erp_cash_shifts', newShiftJson);
+                    cashOrSalesChanged = true;
+                    anyChanged = true;
+                }
+            }
+
+            // Refrescar únicamente las vistas afectadas
+            if (productsChanged) {
+                if (typeof renderInventoryView === 'function') renderInventoryView();
+                if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+            }
+            if (customersChanged) {
+                if (typeof renderCustomersView === 'function') renderCustomersView();
+                if (typeof renderPOSCustomerSelect === 'function') renderPOSCustomerSelect();
+            }
+            if (cashOrSalesChanged) {
+                if (typeof renderCashView === 'function') renderCashView();
+            }
+            if (purchasesChanged) {
+                if (typeof renderPurchasesView === 'function') renderPurchasesView();
+            }
+
+            return anyChanged;
+        } catch (e) {
+            console.warn('[NovaSupabase] Aviso al descargar actualizaciones de la nube:', e);
+            return false;
+        } finally {
+            _isPulling = false;
+        }
+    }
+
+    function _subscribeRealtime() {
+        if (!_client || _realtimeChannel) return;
+        try {
+            _realtimeChannel = _client
+                .channel('nova-erp-realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, (payload) => {
+                    if (typeof window.NovaDB === 'undefined') return;
+                    const inv = window.NovaDB.getInventory();
+                    if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+                        delete inv[payload.old.id];
+                        localStorage.setItem('nova_erp_inventory', JSON.stringify(inv));
+                        _syncMemoryProductsFromInv(inv, null);
+                    } else if (payload.new) {
+                        inv[payload.new.id] = _mapRemoteProductToInv(payload.new, inv[payload.new.id]);
+                        localStorage.setItem('nova_erp_inventory', JSON.stringify(inv));
+                        _syncMemoryProductsFromInv(inv, { [payload.new.id]: payload.new });
+                    }
+                    if (typeof renderInventoryView === 'function') renderInventoryView();
+                    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, (payload) => {
+                    if (typeof window.NovaDB === 'undefined') return;
+                    let list = window.NovaDB.getCustomers();
+                    if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+                        list = list.filter(c => c.id !== payload.old.id);
+                    } else if (payload.new) {
+                        const rc = payload.new;
+                        const idx = list.findIndex(c => c.id === rc.id);
+                        const mapped = {
+                            id: rc.id,
+                            nombre: rc.nombre,
+                            rif: rc.rif,
+                            telefono: rc.telefono || '',
+                            direccion: rc.direccion || '',
+                            tipo: 'cliente',
+                            notas: rc.notas || ''
+                        };
+                        if (idx !== -1) list[idx] = mapped;
+                        else list.push(mapped);
+                    }
+                    localStorage.setItem('nova_erp_customers', JSON.stringify(list));
+                    if (typeof renderCustomersView === 'function') renderCustomersView();
+                    if (typeof renderPOSCustomerSelect === 'function') renderPOSCustomerSelect();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'egresos' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'proveedores' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos_caja' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_mostrador' }, async () => {
+                    if (typeof NovaUsers !== 'undefined' && NovaUsers.isAdmin() && typeof window.NovaDB !== 'undefined') {
+                        const remoteOrders = await fetchPendingCounterOrders();
+                        if (remoteOrders && remoteOrders.length > 0) {
+                            window.NovaDB.mergeIncomingHeldSales(remoteOrders);
+                            if (typeof renderHeldSalesList === 'function') renderHeldSalesList();
+                        }
+                    }
+                })
+                .subscribe();
+        } catch (e) {
+            console.warn('[NovaSupabase] Suscripción Realtime opcional no disponible:', e);
+        }
+    }
+
+    // ==========================================
     // 6. MÉTODOS PÚBLICOS
     // ==========================================
     return {
@@ -680,6 +1316,7 @@ const NovaSupabase = (function () {
         clearQueue,
         getLastError: () => _lastSyncError,
         processQueue,
+        pullCloudUpdates,
         fetchPendingCounterOrders,
         markCounterOrderServed,
         seedFullCatalog,

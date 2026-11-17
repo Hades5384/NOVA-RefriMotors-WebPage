@@ -35,9 +35,9 @@ const NovaDB = (function () {
     };
 
     const DEFAULT_CUSTOMERS = [
-        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "publico", notas: "Cliente general" },
-        { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas", tipo: "novacliente", notas: "Técnico aliado frecuente" },
-        { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas", tipo: "novacliente", notas: "Taller corporativo" }
+        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" },
+        { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas", tipo: "cliente", notas: "Cliente registrado" },
+        { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas", tipo: "cliente", notas: "Cliente registrado" }
     ];
 
     const DEFAULT_SUPPLIERS = [
@@ -105,6 +105,10 @@ const NovaDB = (function () {
 
     function _syncInitialInventory() {
         let inv = _read('inventory', {});
+        // Si ya se sincronizó con Supabase como fuente única de verdad, no resucitar productos eliminados desde productos.js
+        if (localStorage.getItem('nova_erp_cloud_synced') === '1' && Object.keys(inv).length > 0) {
+            return;
+        }
         const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
         let modified = false;
 
@@ -270,15 +274,26 @@ const NovaDB = (function () {
         const code = (prodData.id || ('PROD-' + Date.now().toString().slice(-4))).toUpperCase().trim();
         const initialStock = parseInt(prodData.stock) || 0;
         const cost = parseFloat(prodData.costoCompra) || 0;
+        const util = (prodData.porcentajeUtilidad !== undefined && !isNaN(prodData.porcentajeUtilidad)) ? parseFloat(prodData.porcentajeUtilidad) : 30;
+        const ivaVal = (prodData.iva !== undefined && !isNaN(prodData.iva)) ? parseFloat(prodData.iva) : 16;
+        const precioFinal = (prodData.precioFinalUSD !== undefined && !isNaN(prodData.precioFinalUSD))
+            ? parseFloat(prodData.precioFinalUSD)
+            : cost * (1 + util / 100) * (1 + ivaVal / 100);
+        const detailedDesc = (prodData.descripcionDetallada || '').trim();
 
         inv[code] = {
             id: code,
             name: prodData.name || 'Nuevo Repuesto',
+            descripcionDetallada: detailedDesc,
+            description: detailedDesc,
             category: prodData.category || 'General',
             stock: initialStock,
             stockMinimo: parseInt(prodData.stockMinimo) || 3,
             ubicacion: prodData.ubicacion || 'Almacén Central',
-            costoCompra: cost
+            costoCompra: cost,
+            porcentajeUtilidad: util,
+            iva: ivaVal,
+            precioFinalUSD: precioFinal
         };
         _write('inventory', inv);
 
@@ -288,8 +303,14 @@ const NovaDB = (function () {
                 window.products.push({
                     id: code,
                     name: inv[code].name,
+                    descripcionDetallada: detailedDesc,
+                    description: detailedDesc,
                     category: inv[code].category,
                     costoCompra: cost,
+                    porcentajeUtilidad: util,
+                    iva: ivaVal,
+                    price: precioFinal,
+                    precioVentaUSD: precioFinal,
                     images: ['assets/products/default.png'],
                     specs: { "Garantía": "90 días por defecto de fábrica" }
                 });
@@ -313,8 +334,18 @@ const NovaDB = (function () {
         if (inv[productId]) {
             delete inv[productId];
             _write('inventory', inv);
+            try {
+                const deleted = _read('deleted_products', []);
+                if (!deleted.includes(productId)) {
+                    deleted.push(productId);
+                    _write('deleted_products', deleted);
+                }
+            } catch (e) {}
             if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
                 window.products = window.products.filter(p => p.id !== productId);
+                window.products.forEach(p => {
+                    if (p.variants) p.variants = p.variants.filter(v => v.id !== productId);
+                });
             }
             return true;
         }
@@ -336,6 +367,65 @@ const NovaDB = (function () {
                 if (prod.variants) {
                     const v = prod.variants.find(x => x.id === productId);
                     if (v) v.costoCompra = cost;
+                }
+            });
+        }
+        return true;
+    }
+
+    function updateProduct(productId, updates) {
+        if (!productId || !updates) return false;
+        const inv = getInventory();
+        let target = inv[productId];
+        if (!target) {
+            target = {
+                id: productId,
+                name: updates.name || productId,
+                category: updates.category || 'General',
+                stock: 0,
+                stockMinimo: 3,
+                ubicacion: 'Almacén Central',
+                costoCompra: 0
+            };
+            inv[productId] = target;
+        }
+
+        if (updates.name !== undefined) target.name = updates.name.trim();
+        if (updates.descripcionDetallada !== undefined) {
+            target.descripcionDetallada = updates.descripcionDetallada.trim();
+            target.description = updates.descripcionDetallada.trim();
+        }
+        if (updates.category !== undefined) target.category = updates.category;
+        if (updates.costoCompra !== undefined) target.costoCompra = parseFloat(updates.costoCompra) || 0;
+        if (updates.porcentajeUtilidad !== undefined) target.porcentajeUtilidad = parseFloat(updates.porcentajeUtilidad) || 0;
+        if (updates.iva !== undefined) target.iva = parseFloat(updates.iva) || 0;
+        if (updates.precioFinalUSD !== undefined) target.precioFinalUSD = parseFloat(updates.precioFinalUSD) || 0;
+
+        _write('inventory', inv);
+
+        if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
+            const updateItem = (item) => {
+                if (updates.name !== undefined) item.name = updates.name.trim();
+                if (updates.descripcionDetallada !== undefined) {
+                    item.descripcionDetallada = updates.descripcionDetallada.trim();
+                    item.description = updates.descripcionDetallada.trim();
+                }
+                if (updates.category !== undefined) item.category = updates.category;
+                if (updates.costoCompra !== undefined) item.costoCompra = parseFloat(updates.costoCompra) || 0;
+                if (updates.porcentajeUtilidad !== undefined) item.porcentajeUtilidad = parseFloat(updates.porcentajeUtilidad) || 0;
+                if (updates.iva !== undefined) item.iva = parseFloat(updates.iva) || 0;
+                if (updates.precioFinalUSD !== undefined) {
+                    item.price = updates.precioFinalUSD;
+                    item.precioVentaUSD = updates.precioFinalUSD;
+                }
+            };
+
+            const p = window.products.find(x => x.id === productId);
+            if (p) updateItem(p);
+            window.products.forEach(prod => {
+                if (prod.variants) {
+                    const v = prod.variants.find(x => x.id === productId);
+                    if (v) updateItem(v);
                 }
             });
         }
@@ -757,6 +847,7 @@ const NovaDB = (function () {
         getPurchases,
         registerPurchase,
         addNewProduct,
+        updateProduct,
         deleteProduct,
         updateProductCost,
         mergeIncomingHeldSales,

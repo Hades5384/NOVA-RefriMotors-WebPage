@@ -248,14 +248,21 @@ function renderPOSCustomerSelect() {
     const sel = document.getElementById('posCustomerSelect');
     if (!sel) return;
 
+    const prevId = (posSelectedCustomer && posSelectedCustomer.id) ? posSelectedCustomer.id : sel.value;
+
     let html = '';
     customers.forEach(c => {
         html += `<option value="${c.id}">${c.nombre} (${c.rif})</option>`;
     });
     sel.innerHTML = html;
 
-    // Asignar primer cliente por defecto
-    if (customers.length > 0) {
+    // Preservar cliente actualmente seleccionado si sigue existiendo; si no, asignar el primero
+    const stillExists = prevId && customers.some(c => c.id === prevId);
+    if (stillExists) {
+        sel.value = prevId;
+        onPOSCustomerChange(prevId);
+    } else if (customers.length > 0) {
+        sel.value = customers[0].id;
         onPOSCustomerChange(customers[0].id);
     }
 }
@@ -285,6 +292,29 @@ function filterPOS() {
     }, 120);
 }
 
+function _buildProductMetaLookup(prods) {
+    const map = {};
+    if (!Array.isArray(prods)) return map;
+    prods.forEach(p => {
+        if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            p.variants.forEach(v => {
+                map[v.id] = {
+                    costoCompra: v.costoCompra || 0,
+                    images: p.images || [],
+                    model: p.model || ''
+                };
+            });
+        } else {
+            map[p.id] = {
+                costoCompra: p.costoCompra || 0,
+                images: p.images || [],
+                model: p.model || ''
+            };
+        }
+    });
+    return map;
+}
+
 function renderPOSCatalog() {
     const container = document.getElementById('posItemsGrid');
     const footerEl = document.getElementById('posCatalogFooter');
@@ -296,50 +326,42 @@ function renderPOSCatalog() {
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
     const inv = NovaDB.getInventory();
     const settings = NovaDB.getSettings();
+    const metaById = _buildProductMetaLookup(prods);
 
-    // Expandir productos planos y variantes
+    // Fuente única sincronizada: construir catálogo POS directamente desde NovaDB.getInventory()
+    // para que POS e Inventario coincidan al 100% (mismos productos, nombres, costos, márgenes y stock)
     let displayList = [];
-    prods.forEach(p => {
-        const matchesCategory = (posCurrentCategory === 'Todos') || (p.category === posCurrentCategory);
+    Object.values(inv).forEach(invItem => {
+        if (!invItem || !invItem.id) return;
+        const cat = invItem.category || 'General';
+        const matchesCategory = (posCurrentCategory === 'Todos') || (cat === posCurrentCategory);
         if (!matchesCategory) return;
 
-        if (p.variants && Array.isArray(p.variants)) {
-            p.variants.forEach(v => {
-                const fullName = `${p.name} (${v.name})`;
-                const matchesQuery = !query ||
-                    fullName.toLowerCase().includes(query) ||
-                    v.id.toLowerCase().includes(query) ||
-                    p.id.toLowerCase().includes(query);
+        const meta = metaById[invItem.id] || {};
+        const name = invItem.name || invItem.id;
+        const model = meta.model || '';
+        const matchesQuery = !query ||
+            name.toLowerCase().includes(query) ||
+            invItem.id.toLowerCase().includes(query) ||
+            (invItem.parentId && invItem.parentId.toLowerCase().includes(query)) ||
+            (model && model.toLowerCase().includes(query));
 
-                if (matchesQuery) {
-                    displayList.push({
-                        id: v.id,
-                        parentId: p.id,
-                        name: fullName,
-                        category: p.category,
-                        costoCompra: v.costoCompra,
-                        images: p.images || [],
-                        stock: inv[v.id] ? inv[v.id].stock : 0
-                    });
-                }
+        if (matchesQuery) {
+            const cost = (typeof invItem.costoCompra === 'number' && invItem.costoCompra > 0)
+                ? invItem.costoCompra
+                : (meta.costoCompra || 0);
+
+            displayList.push({
+                id: invItem.id,
+                parentId: invItem.parentId || null,
+                name: name,
+                category: cat,
+                costoCompra: cost,
+                porcentajeUtilidad: invItem.porcentajeUtilidad,
+                iva: invItem.iva,
+                images: meta.images || [],
+                stock: typeof invItem.stock === 'number' ? invItem.stock : 0
             });
-        } else {
-            const matchesQuery = !query ||
-                p.name.toLowerCase().includes(query) ||
-                p.id.toLowerCase().includes(query) ||
-                (p.model && p.model.toLowerCase().includes(query));
-
-            if (matchesQuery) {
-                displayList.push({
-                    id: p.id,
-                    parentId: null,
-                    name: p.name,
-                    category: p.category,
-                    costoCompra: p.costoCompra,
-                    images: p.images || [],
-                    stock: inv[p.id] ? inv[p.id].stock : 0
-                });
-            }
         }
     });
 
@@ -359,7 +381,7 @@ function renderPOSCatalog() {
 
     let html = '';
     slice.forEach(item => {
-        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         const priceUSD = precios.publicoUSD;
         const priceBs = precios.publicoBs;
 
@@ -467,20 +489,23 @@ if (typeof window !== 'undefined') {
 
 function addToPOSCart(itemId) {
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
-    let found = null;
+    const inv = NovaDB.getInventory();
+    const invItem = inv[itemId];
+    const meta = _buildProductMetaLookup(prods)[itemId] || {};
 
-    for (let p of prods) {
-        if (p.id === itemId) {
-            found = { id: p.id, name: p.name, costoCompra: p.costoCompra, images: p.images };
-            break;
-        }
-        if (p.variants) {
-            let v = p.variants.find(x => x.id === itemId);
-            if (v) {
-                found = { id: v.id, name: `${p.name} (${v.name})`, costoCompra: v.costoCompra, images: p.images };
-                break;
-            }
-        }
+    let found = null;
+    if (invItem) {
+        found = {
+            id: invItem.id,
+            name: invItem.name || invItem.id,
+            costoCompra: (typeof invItem.costoCompra === 'number' && invItem.costoCompra > 0) ? invItem.costoCompra : (meta.costoCompra || 0),
+            porcentajeUtilidad: invItem.porcentajeUtilidad,
+            iva: invItem.iva,
+            images: meta.images || []
+        };
+    } else if (meta.costoCompra !== undefined) {
+        const p = prods.find(x => x.id === itemId);
+        found = { id: itemId, name: p ? p.name : itemId, costoCompra: meta.costoCompra, images: meta.images || [] };
     }
 
     if (!found) return;
@@ -493,6 +518,8 @@ function addToPOSCart(itemId) {
             id: found.id,
             name: found.name,
             costoCompra: found.costoCompra,
+            porcentajeUtilidad: found.porcentajeUtilidad,
+            iva: found.iva,
             images: found.images,
             quantity: 1
         });
@@ -548,7 +575,7 @@ function renderPOSCart() {
     let html = '';
 
     posCart.forEach((item, idx) => {
-        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         const unitPrice = precios.publicoUSD;
         const lineTotal = unitPrice * item.quantity;
         totalUSD += lineTotal;
@@ -594,17 +621,45 @@ function updatePOSTotals(totalUSD, totalBs, itemCount) {
     if (badge) badge.innerText = itemCount;
 }
 
-function calcularPreciosSegunAjustes(costoCompra, settings) {
-    const util = settings.porcentajeUtilidad || 1.30;
-    const iva = settings.porcentajeIva || 1.16;
-    const tasaInt = settings.tasaInterna || 1050;
-    const tasaBCV = settings.tasaBCV || 914.02;
+function calcularPreciosSegunAjustes(costoCompra, settings, customUtil, customIva) {
+    const s = settings || (typeof NovaDB !== 'undefined' && NovaDB.getSettings ? NovaDB.getSettings() : {});
 
-    const novaClientesUSD = costoCompra * util * iva;
+    // Porcentaje de utilidad (si viene en porcentaje ej: 30, o factor 1.30)
+    let utilFactor = 1.30;
+    if (customUtil !== undefined && customUtil !== null && !isNaN(customUtil)) {
+        const u = parseFloat(customUtil);
+        utilFactor = u >= 1 ? (u > 10 ? 1 + (u / 100) : u) : 1 + u;
+    } else if (s.porcentajeUtilidad) {
+        utilFactor = s.porcentajeUtilidad >= 1 ? s.porcentajeUtilidad : 1 + s.porcentajeUtilidad;
+    }
+
+    // Porcentaje de IVA (si viene en porcentaje ej: 16, o factor 1.16)
+    let ivaFactor = 1.16;
+    if (customIva !== undefined && customIva !== null && !isNaN(customIva)) {
+        const v = parseFloat(customIva);
+        ivaFactor = v >= 0 ? 1 + (v / 100) : 1.16;
+    } else if (s.porcentajeIva) {
+        ivaFactor = s.porcentajeIva >= 1 ? s.porcentajeIva : 1 + s.porcentajeIva;
+    }
+
+    const tasaInt = s.tasaInterna || 1050;
+    const tasaBCV = s.tasaBCV || 914.02;
+
+    const subtotal = costoCompra * utilFactor;
+    const novaClientesUSD = subtotal * ivaFactor;
     const publicoBs = novaClientesUSD * tasaInt;
     const publicoUSD = publicoBs / tasaBCV;
 
-    return { novaClientesUSD, publicoBs, publicoUSD };
+    return { 
+        novaClientesUSD, 
+        publicoBs, 
+        publicoUSD, 
+        subtotal,
+        gananciaUSD: costoCompra * (utilFactor - 1),
+        montoIvaUSD: subtotal * (ivaFactor - 1),
+        precioFinalUSD: novaClientesUSD,
+        precioFinalBs: novaClientesUSD * tasaBCV
+    };
 }
 
 // ==========================================
@@ -646,7 +701,7 @@ function sendOrderToMaster() {
 
     let totalUSD = 0;
     posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         totalUSD += p.publicoUSD * item.quantity;
     });
     const totalBs = totalUSD * settings.tasaBCV;
@@ -693,7 +748,7 @@ async function emitPresupuestoFromCart() {
     const settings = NovaDB.getSettings();
     let totalUSD = 0;
     posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         totalUSD += p.publicoUSD * item.quantity;
     });
     const totalBs = totalUSD * settings.tasaBCV;
@@ -863,7 +918,7 @@ function updateCheckoutTotals() {
     let totalBs = 0;
 
     posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         if (isUSD) {
             // Descuento automático al pagar en divisas (efectivo $, zelle, binance)
             totalUSD += p.novaClientesUSD * item.quantity;
@@ -982,7 +1037,7 @@ async function finalizeSale() {
     let totalBs = 0;
 
     posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
         if (isUSD) {
             totalUSD += p.novaClientesUSD * item.quantity;
         } else {
@@ -1220,7 +1275,7 @@ async function generateInvoiceDocument(sale) {
         if (Array.isArray(sale.items)) {
             sale.items.forEach(it => {
                 const prices = (typeof calcularPreciosSegunAjustes === 'function')
-                    ? calcularPreciosSegunAjustes(it.costoCompra, settings)
+                    ? calcularPreciosSegunAjustes(it.costoCompra, settings, it.porcentajeUtilidad, it.iva)
                     : { publicoUSD: (it.costoCompra || 0) * 1.77, novaClientesUSD: (it.costoCompra || 0) * 1.508, publicoBs: (it.costoCompra || 0) * 1.77 * 914.02 };
                 // Si el pago es en divisas ($ efectivo, zelle, binance), el precio unitario refleja el descuento en divisas
                 const isDivisa = isUSD || sale.tipoPrecio === 'divisas' || sale.descuentoDivisas || sale.tipoPrecio === 'novacliente';
@@ -1497,21 +1552,25 @@ function renderInventoryTable() {
     // Paginación virtual ligera
     filtered.slice(0, 100).forEach(item => {
         const cost = getProductCost(item.id, prods, item);
-        const precios = calcularPreciosSegunAjustes(cost, settings);
+        const precios = calcularPreciosSegunAjustes(cost, settings, item.porcentajeUtilidad, item.iva);
 
         let statusBadge = '<span class="status-badge status-optimal">● Óptimo</span>';
         if (item.stock === 0) statusBadge = '<span class="status-badge status-out">● Agotado</span>';
         else if (item.stock <= item.stockMinimo) statusBadge = '<span class="status-badge status-low">● Stock Bajo</span>';
 
+        const descPreview = item.descripcionDetallada
+            ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px; max-width:340px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.descripcionDetallada.replace(/"/g, '&quot;')}">${item.descripcionDetallada}</div>`
+            : '';
+
         html += `
             <tr>
                 <td><span class="code-badge">${item.id}</span></td>
-                <td><b>${item.name}</b></td>
+                <td><b>${item.name}</b>${descPreview}</td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${item.category || 'General'}</span></td>
                 <td>
                     <div style="display:flex; align-items:center; gap:6px;">
                         <span>$${cost.toFixed(2)}</span>
-                        <button class="ticket-btn-sm" onclick="promptUpdateCost('${item.id}')" title="Modificar Costo Base">
+                        <button class="ticket-btn-sm" onclick="openEditProductModal('${item.id}')" title="Modificar datos, costo, utilidad e IVA">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         </button>
                     </div>
@@ -1527,9 +1586,15 @@ function renderInventoryTable() {
                 </td>
                 <td>${statusBadge}</td>
                 <td style="text-align:right;">
-                    <button class="ticket-btn-sm" onclick="confirmDeleteProduct('${item.id}')" style="color:var(--danger);" title="Eliminar del catálogo">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
+                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                        <button class="ticket-btn-sm" onclick="openEditProductModal('${item.id}')" title="Modificar descripción, costo, utilidad e IVA" style="color:var(--primary); font-weight:700; padding:4px 8px; display:inline-flex; align-items:center; gap:4px;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            Editar
+                        </button>
+                        <button class="ticket-btn-sm" onclick="confirmDeleteProduct('${item.id}')" style="color:var(--danger);" title="Eliminar del catálogo">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
                 </td>
             </tr>`;
     });
@@ -1545,22 +1610,144 @@ function quickStockAdjust(itemId, diff) {
 }
 
 function promptUpdateCost(itemId) {
+    openEditProductModal(itemId);
+}
+
+function openEditProductModal(productId) {
+    const inv = NovaDB.getInventory();
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
-    const currentCost = getProductCost(itemId, prods);
-    const input = prompt(`Modificar costo base de compra para [${itemId}] en $ USD:\n(Los precios de venta se recalcularán automáticamente)`, currentCost.toFixed(2));
-    if (input !== null) {
-        const val = parseFloat(input.replace(',', '.'));
-        if (!isNaN(val) && val >= 0) {
-            NovaDB.updateProductCost(itemId, val);
-            renderInventoryView();
-            renderPOSCatalog();
-            showNovaAlert({
-                title: "Costo Actualizado",
-                message: `Nuevo costo $${val.toFixed(2)} registrado para ${itemId}. Precios actualizados en POS.`,
-                type: "success"
-            });
-        }
+    const item = inv[productId] || prods.find(p => p.id === productId);
+
+    if (!item) {
+        showNovaAlert({
+            title: "Producto No Encontrado",
+            message: `No se encontró la información del producto [${productId}].`,
+            type: "warning"
+        });
+        return;
     }
+
+    const cost = getProductCost(productId, prods, item);
+    const settings = NovaDB.getSettings();
+
+    // Valores iniciales
+    const currentName = item.name || '';
+    const currentDetailed = item.descripcionDetallada || item.description || '';
+    const currentUtil = (typeof item.porcentajeUtilidad === 'number')
+        ? item.porcentajeUtilidad
+        : (settings.porcentajeUtilidad ? (settings.porcentajeUtilidad >= 1 ? Math.round((settings.porcentajeUtilidad - 1) * 1000) / 10 : Math.round(settings.porcentajeUtilidad * 1000) / 10) : 30);
+    const currentIva = (typeof item.iva === 'number')
+        ? item.iva
+        : (settings.porcentajeIva ? (settings.porcentajeIva >= 1 ? Math.round((settings.porcentajeIva - 1) * 1000) / 10 : Math.round(settings.porcentajeIva * 1000) / 10) : 16);
+
+    // Poblar campos
+    document.getElementById('editProdId').value = productId;
+    const badgeCode = document.getElementById('editProdCodeBadge');
+    if (badgeCode) badgeCode.innerText = productId;
+    const badgeCat = document.getElementById('editProdCategoryBadge');
+    if (badgeCat) badgeCat.innerText = item.category || 'General';
+
+    const inpName = document.getElementById('editProdName');
+    if (inpName) inpName.value = currentName;
+
+    const inpDetailed = document.getElementById('editProdDetailedDesc');
+    if (inpDetailed) inpDetailed.value = currentDetailed;
+
+    const inpCosto = document.getElementById('editProdCosto');
+    if (inpCosto) inpCosto.value = cost > 0 ? cost.toFixed(2) : '0.00';
+
+    const inpUtil = document.getElementById('editProdUtilidad');
+    if (inpUtil) inpUtil.value = currentUtil;
+
+    const inpIva = document.getElementById('editProdIva');
+    if (inpIva) inpIva.value = currentIva;
+
+    calculateEditProductPrice();
+    openModal('editProductModal');
+    setTimeout(() => { if (inpName) inpName.focus(); }, 100);
+}
+
+function calculateEditProductPrice() {
+    const costoInp = document.getElementById('editProdCosto');
+    const utilInp = document.getElementById('editProdUtilidad');
+    const ivaInp = document.getElementById('editProdIva');
+
+    const costo = Math.max(0, parseFloat(costoInp ? costoInp.value : 0) || 0);
+    const utilidad = Math.max(0, parseFloat(utilInp ? utilInp.value : 0) || 0);
+    const iva = Math.max(0, parseFloat(ivaInp ? ivaInp.value : 0) || 0);
+
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+    const tasaBCV = settings.tasaBCV || 914.02;
+
+    const ganancia = costo * (utilidad / 100);
+    const subtotal = costo + ganancia;
+    const montoIva = subtotal * (iva / 100);
+    const precioFinalUSD = subtotal + montoIva;
+    const precioFinalBs = precioFinalUSD * tasaBCV;
+
+    // Actualizar etiquetas en la tarjeta de cálculo
+    const elCosto = document.getElementById('editCalcCostoDisplay');
+    if (elCosto) elCosto.innerText = `$${costo.toFixed(2)}`;
+
+    const elUtilPct = document.getElementById('editCalcUtilPercent');
+    if (elUtilPct) elUtilPct.innerText = `${utilidad}%`;
+
+    const elGanancia = document.getElementById('editCalcGananciaDisplay');
+    if (elGanancia) elGanancia.innerText = `+$${ganancia.toFixed(2)}`;
+
+    const elIvaPct = document.getElementById('editCalcIvaPercent');
+    if (elIvaPct) elIvaPct.innerText = `${iva}%`;
+
+    const elIva = document.getElementById('editCalcIvaDisplay');
+    if (elIva) elIva.innerText = `+$${montoIva.toFixed(2)}`;
+
+    const elPrecioUSD = document.getElementById('editCalcPrecioUSD');
+    if (elPrecioUSD) elPrecioUSD.innerText = `$${precioFinalUSD.toFixed(2)}`;
+
+    const elPrecioBs = document.getElementById('editCalcPrecioBs');
+    if (elPrecioBs) elPrecioBs.innerText = `Bs. ${precioFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    return { costo, utilidad, iva, subtotal, ganancia, montoIva, precioFinalUSD, precioFinalBs };
+}
+
+function saveEditedProduct() {
+    const id = document.getElementById('editProdId').value;
+    const name = document.getElementById('editProdName').value.trim();
+    const descripcionDetallada = (document.getElementById('editProdDetailedDesc')?.value || '').trim();
+    const costo = Math.max(0, parseFloat(document.getElementById('editProdCosto').value) || 0);
+    const utilidad = Math.max(0, parseFloat(document.getElementById('editProdUtilidad').value) || 0);
+    const iva = Math.max(0, parseFloat(document.getElementById('editProdIva').value) || 0);
+
+    if (!id || !name) {
+        showNovaAlert({
+            title: "Datos Requeridos",
+            message: "La descripción del producto no puede estar vacía.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const calc = calculateEditProductPrice();
+    const precioFinalUSD = calc.precioFinalUSD;
+
+    NovaDB.updateProduct(id, {
+        name,
+        descripcionDetallada,
+        costoCompra: costo,
+        porcentajeUtilidad: utilidad,
+        iva: iva,
+        precioFinalUSD: precioFinalUSD
+    });
+
+    closeModal('editProductModal');
+    renderInventoryView();
+    renderPOSCatalog();
+
+    showNovaAlert({
+        title: "Producto Actualizado",
+        message: `El repuesto <b>${name}</b> fue actualizado exitosamente.<br>Nuevo precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
+        type: "success"
+    });
 }
 
 function confirmDeleteProduct(itemId) {
@@ -1577,17 +1764,86 @@ function confirmDeleteProduct(itemId) {
 }
 
 function openAddNewProductModal() {
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : {};
+    const defaultUtil = settings.porcentajeUtilidad
+        ? (settings.porcentajeUtilidad >= 1 ? Math.round((settings.porcentajeUtilidad - 1) * 1000) / 10 : settings.porcentajeUtilidad * 100)
+        : 30;
+    const defaultIva = settings.porcentajeIva
+        ? (settings.porcentajeIva >= 1 ? Math.round((settings.porcentajeIva - 1) * 1000) / 10 : settings.porcentajeIva * 100)
+        : 16;
+
+    const inpId = document.getElementById('newProdId');
+    const inpName = document.getElementById('newProdName');
+    const inpDesc = document.getElementById('newProdDetailedDesc');
+    const inpCosto = document.getElementById('newProdCosto');
+    const inpUtil = document.getElementById('newProdUtilidad');
+    const inpIva = document.getElementById('newProdIva');
+
+    if (inpId) inpId.value = '';
+    if (inpName) inpName.value = '';
+    if (inpDesc) inpDesc.value = '';
+    if (inpCosto) inpCosto.value = '';
+    if (inpUtil) inpUtil.value = defaultUtil;
+    if (inpIva) inpIva.value = defaultIva;
+
+    calculateNewProductPrice();
     openModal('addNewProductModal');
+    setTimeout(() => { if (inpId) inpId.focus(); }, 100);
+}
+
+function calculateNewProductPrice() {
+    const costoInp = document.getElementById('newProdCosto');
+    const utilInp = document.getElementById('newProdUtilidad');
+    const ivaInp = document.getElementById('newProdIva');
+
+    const costo = Math.max(0, parseFloat(costoInp ? costoInp.value : 0) || 0);
+    const utilidad = Math.max(0, parseFloat(utilInp ? utilInp.value : 0) || 0);
+    const iva = Math.max(0, parseFloat(ivaInp ? ivaInp.value : 0) || 0);
+
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+    const tasaBCV = settings.tasaBCV || 914.02;
+
+    const ganancia = costo * (utilidad / 100);
+    const subtotal = costo + ganancia;
+    const montoIva = subtotal * (iva / 100);
+    const precioFinalUSD = subtotal + montoIva;
+    const precioFinalBs = precioFinalUSD * tasaBCV;
+
+    const elCosto = document.getElementById('newCalcCostoDisplay');
+    if (elCosto) elCosto.innerText = `$${costo.toFixed(2)}`;
+
+    const elUtilPct = document.getElementById('newCalcUtilPercent');
+    if (elUtilPct) elUtilPct.innerText = `${utilidad}%`;
+
+    const elGanancia = document.getElementById('newCalcGananciaDisplay');
+    if (elGanancia) elGanancia.innerText = `+$${ganancia.toFixed(2)}`;
+
+    const elIvaPct = document.getElementById('newCalcIvaPercent');
+    if (elIvaPct) elIvaPct.innerText = `${iva}%`;
+
+    const elIva = document.getElementById('newCalcIvaDisplay');
+    if (elIva) elIva.innerText = `+$${montoIva.toFixed(2)}`;
+
+    const elPrecioUSD = document.getElementById('newCalcPrecioUSD');
+    if (elPrecioUSD) elPrecioUSD.innerText = `$${precioFinalUSD.toFixed(2)}`;
+
+    const elPrecioBs = document.getElementById('newCalcPrecioBs');
+    if (elPrecioBs) elPrecioBs.innerText = `Bs. ${precioFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    return { costo, utilidad, iva, subtotal, ganancia, montoIva, precioFinalUSD, precioFinalBs };
 }
 
 function submitNewProduct() {
     const id = document.getElementById('newProdId').value.trim();
     const name = document.getElementById('newProdName').value.trim();
+    const descripcionDetallada = (document.getElementById('newProdDetailedDesc')?.value || '').trim();
     const category = document.getElementById('newProdCategory').value;
-    const costoCompra = parseFloat(document.getElementById('newProdCosto').value) || 0;
-    const stock = parseInt(document.getElementById('newProdStock').value) || 0;
-    const stockMinimo = parseInt(document.getElementById('newProdStockMin').value) || 3;
-    const ubicacion = document.getElementById('newProdUbicacion').value.trim() || 'Almacén Central';
+    const costoCompra = Math.max(0, parseFloat(document.getElementById('newProdCosto').value) || 0);
+    const porcentajeUtilidad = Math.max(0, parseFloat(document.getElementById('newProdUtilidad')?.value) || 0);
+    const iva = Math.max(0, parseFloat(document.getElementById('newProdIva')?.value) || 0);
+    const stock = 0;
+    const stockMinimo = parseInt(document.getElementById('newProdStockMin')?.value) || 3;
+    const ubicacion = 'Almacén Central';
 
     if (!id || !name) {
         showNovaAlert({
@@ -1598,19 +1854,35 @@ function submitNewProduct() {
         return;
     }
 
-    NovaDB.addNewProduct({ id, name, category, costoCompra, stock, stockMinimo, ubicacion });
+    const calc = calculateNewProductPrice();
+    const precioFinalUSD = calc.precioFinalUSD;
+
+    NovaDB.addNewProduct({
+        id,
+        name,
+        descripcionDetallada,
+        category,
+        costoCompra,
+        porcentajeUtilidad,
+        iva,
+        precioFinalUSD,
+        stock,
+        stockMinimo,
+        ubicacion
+    });
     closeModal('addNewProductModal');
 
     // Limpiar campos
     document.getElementById('newProdId').value = '';
     document.getElementById('newProdName').value = '';
+    if (document.getElementById('newProdDetailedDesc')) document.getElementById('newProdDetailedDesc').value = '';
     document.getElementById('newProdCosto').value = '';
 
     renderInventoryView();
     renderPOSCatalog();
     showNovaAlert({
         title: "Producto Guardado",
-        message: `El repuesto [${id}] ${name} fue registrado con éxito en el catálogo y cargado en el inventario.`,
+        message: `El repuesto <b>[${id}] ${name}</b> fue registrado con éxito.<br>Precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
         type: "success"
     });
 }
@@ -1838,36 +2110,40 @@ function renderCustomersView() {
     if (!tbody) return;
 
     if (customers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron clientes registrados en el directorio.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron clientes registrados en el directorio.</td></tr>`;
         return;
     }
 
     let html = '';
     customers.forEach(c => {
-        let tierLabel = 'Público General';
-        let tierStyle = 'background:#f1f5f9; color:#475569;';
-        if (c.tipo === 'tecnico') {
-            tierLabel = 'Técnico / Taller';
-            tierStyle = 'background:#e0f2fe; color:#0369a1;';
-        } else if (c.tipo === 'frecuente' || c.tipo === 'novacliente') {
-            tierLabel = 'Cliente Frecuente';
-            tierStyle = 'background:#ecfdf5; color:#047857;';
-        }
-        const tierBadge = `<span class="status-badge" style="${tierStyle}">${tierLabel}</span>`;
-
         let actionHtml = '';
+        const reportBtn = `
+            <button class="ticket-btn-sm" onclick="viewCustomerPurchasesReport('${c.rif}')" title="Ver historial de compras y repuestos adquiridos por este cliente" style="padding:4px 9px; font-size:11px; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                Compras
+            </button>
+        `;
+
         if (c.id === 'CLI-001') {
-            actionHtml = `<span style="font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg-card-subtle, rgba(0,0,0,0.04)); padding:3px 8px; border-radius:4px;" title="Cliente predeterminado de mostrador">Principal</span>`;
+            actionHtml = `
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                    ${reportBtn}
+                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg-card-subtle, rgba(0,0,0,0.04)); padding:3px 8px; border-radius:4px;" title="Cliente predeterminado de mostrador">Principal</span>
+                </div>
+            `;
         } else {
             actionHtml = `
-                <button class="ticket-btn-sm btn-danger-sm" onclick="confirmDeleteCustomer('${c.id}')" title="Eliminar cliente">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                </button>
+                <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                    ${reportBtn}
+                    <button class="ticket-btn-sm btn-danger-sm" onclick="confirmDeleteCustomer('${c.id}')" title="Eliminar cliente del directorio">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                </div>
             `;
         }
 
@@ -1875,15 +2151,22 @@ function renderCustomersView() {
             <tr>
                 <td><span class="code-badge">${c.id}</span></td>
                 <td><b>${c.nombre}</b></td>
-                <td>${c.rif}</td>
+                <td><span style="font-weight:700; color:#003366;">${c.rif}</span></td>
                 <td>${c.telefono || 'N/A'}</td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${c.direccion || 'Cabimas, Edo. Zulia'}</span></td>
-                <td>${tierBadge}</td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${c.notas || 'Sin notas'}</span></td>
                 <td style="text-align:right;">${actionHtml}</td>
             </tr>`;
     });
     tbody.innerHTML = html;
+}
+
+function viewCustomerPurchasesReport(clientRifOrName) {
+    if (typeof NovaReports !== 'undefined' && NovaReports.openReportModal) {
+        NovaReports.openReportModal('compras_cliente', clientRifOrName);
+    } else {
+        navigateTo('reports');
+    }
 }
 
 function confirmDeleteCustomer(customerId) {
@@ -1923,14 +2206,14 @@ function submitNewCustomer() {
     const rif = document.getElementById('custRif').value.trim();
     const telefono = document.getElementById('custTelefono').value.trim();
     const direccion = document.getElementById('custDireccion') ? document.getElementById('custDireccion').value.trim() : '';
-    const tipo = document.getElementById('custTipo').value;
 
     if (!nombre || !rif) {
         showNovaAlert({ title: "Datos Requeridos", message: "El nombre y el RIF/Cédula son obligatorios.", type: "warning" });
         return;
     }
 
-    const saved = NovaDB.saveCustomer({ nombre, rif, telefono, direccion, tipo });
+    // Todos los clientes se califican de manera estándar y uniforme en la base de datos
+    const saved = NovaDB.saveCustomer({ nombre, rif, telefono, direccion, tipo: 'cliente' });
     closeModal('addCustomerModal');
 
     // Limpiar campos
@@ -1942,14 +2225,99 @@ function submitNewCustomer() {
     renderCustomersView();
     renderPOSCustomerSelect();
 
-    // Si estamos en POS, asignar como cliente seleccionado
+    // Si estamos en POS, asignar inmediatamente como cliente seleccionado
     if (saved) {
         posSelectedCustomer = saved;
         const sel = document.getElementById('posCustomerSelect');
         if (sel) sel.value = saved.id;
     }
 
-    showNovaAlert({ title: "Cliente Guardado", message: `Se registró a "${nombre}" correctamente en la base de datos.`, type: "success" });
+    showNovaAlert({ title: "Cliente Guardado", message: `Se registró a "${nombre}" (${rif}) correctamente en la base de datos.`, type: "success" });
+}
+
+// ==============================================================================
+// BÚSQUEDA RÁPIDA Y SELECCIÓN DE CLIENTES EXISTENTES (LUPA POS)
+// ==============================================================================
+function openSearchCustomerModal() {
+    openModal('searchCustomerModal');
+    const input = document.getElementById('posCustomerSearchQuickInput');
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 80);
+    }
+    filterQuickCustomerSearch('');
+}
+
+function filterQuickCustomerSearch(query) {
+    const listContainer = document.getElementById('quickCustomerSearchResults');
+    if (!listContainer) return;
+
+    const customers = NovaDB.getCustomers();
+    const q = (query || '').toLowerCase().trim();
+
+    const filtered = customers.filter(c => {
+        if (!q) return true;
+        const nombre = (c.nombre || '').toLowerCase();
+        const rif = (c.rif || '').toLowerCase();
+        const tel = (c.telefono || '').toLowerCase();
+        return nombre.includes(q) || rif.includes(q) || tel.includes(q);
+    });
+
+    if (filtered.length === 0) {
+        const safeQuery = String(query || '').replace(/[&<>"']/g, "");
+        listContainer.innerHTML = `
+            <div style="text-align:center; padding:24px 12px; color:var(--text-muted);">
+                <p style="margin:0 0 12px 0; font-size:13px;">No se encontró ningún cliente registrado que coincida con <b>"${safeQuery}"</b>.</p>
+                <button type="button" class="btn-quick-export" onclick="closeModal('searchCustomerModal'); openAddCustomerModal();" style="display:inline-flex; align-items:center; gap:6px; margin:0 auto; padding:7px 14px; font-weight:700;">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Registrar Nuevo Cliente
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(c => {
+        const isCurrent = (posSelectedCustomer && posSelectedCustomer.id === c.id);
+        const activeBorder = isCurrent ? 'border-color:#003366; background:#e8f0fe;' : '';
+        html += `
+            <div class="quick-customer-item" style="${activeBorder}" onclick="selectCustomerFromSearch('${c.id}')" title="Seleccionar este cliente para la venta actual">
+                <div class="quick-customer-info">
+                    <span class="quick-customer-name">${c.nombre}</span>
+                    <div class="quick-customer-meta">
+                        <span style="font-weight:700; color:#003366;">${c.rif}</span>
+                        ${c.telefono ? `<span>• Telf: ${c.telefono}</span>` : ''}
+                        ${c.direccion ? `<span>• ${c.direccion}</span>` : ''}
+                    </div>
+                </div>
+                <div>
+                    <button type="button" class="btn-select-customer-pill" onclick="event.stopPropagation(); selectCustomerFromSearch('${c.id}')">
+                        ${isCurrent ? 'Activo en Ticket' : 'Seleccionar'}
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    listContainer.innerHTML = html;
+}
+
+function selectCustomerFromSearch(customerId) {
+    const customers = NovaDB.getCustomers();
+    const found = customers.find(c => c.id === customerId);
+    if (!found) return;
+
+    posSelectedCustomer = found;
+    const sel = document.getElementById('posCustomerSelect');
+    if (sel) {
+        sel.value = found.id;
+    }
+    closeModal('searchCustomerModal');
+    showNovaAlert({
+        title: "Cliente Seleccionado",
+        message: `Cliente cargado en ticket: <b>${found.nombre}</b> (${found.rif}).`,
+        type: "success"
+    });
 }
 
 // ==============================================================================
@@ -2052,9 +2420,12 @@ async function triggerManualSync() {
     await NovaSupabase.processQueue();
     const queue = NovaSupabase.getQueue();
     if (queue.length === 0) {
+        if (typeof NovaSupabase.pullCloudUpdates === 'function') {
+            await NovaSupabase.pullCloudUpdates();
+        }
         showNovaAlert({
             title: "Nube Actualizada",
-            message: "Todos los datos locales están 100% sincronizados con Supabase.",
+            message: "Todos los datos locales y de la nube están 100% sincronizados con Supabase.",
             type: "success"
         });
     } else {
@@ -2164,7 +2535,7 @@ function showNovaAlert({ title, message, type = 'info', confirmText = 'Entendido
     }
 
     if (titleEl) titleEl.innerText = title;
-    if (msgEl) msgEl.innerText = message;
+    if (msgEl) msgEl.innerHTML = message;
     if (btnEl) btnEl.innerText = confirmText;
 
     if (iconEl) {
