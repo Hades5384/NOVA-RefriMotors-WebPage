@@ -743,6 +743,16 @@ body {
     color: var(--danger);
 }
 
+.pos-item-card.out-of-stock-card {
+    opacity: 0.72;
+    background: #fff8f8;
+    border-color: #fecaca;
+}
+
+.pos-item-card.out-of-stock-card:hover {
+    border-color: var(--danger);
+}
+
 /* BARRA DE CARGA Y CONTROL DEL CATÁLOGO POS */
 .pos-catalog-footer {
     padding: 10px 16px;
@@ -2376,6 +2386,35 @@ body {
 .sig-name {
     font-size: 10px;
     color: #64748b;
+}
+
+/* Botón clicable de N° Factura / Nota de Despacho en tablas de reporte */
+.report-doc-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: #e8f0fe;
+    color: #003366;
+    border: 1px solid #bfdbfe;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.report-doc-link-btn:hover {
+    background: #003366;
+    color: #ffffff;
+    border-color: #003366;
+}
+
+/* Asegurar que el visor de factura siempre se muestre por encima del modal de reportes */
+#invoiceDocModal {
+    z-index: 2100;
 }
 
 /* Iframe oculto para impresión directa y limpia a PDF sin interferencias del DOM */

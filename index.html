@@ -164,6 +164,12 @@
                         En Espera (0)
                     </button>
 
+                    <!-- BOTÓN DE REIMPRESIÓN DE FACTURA / NOTA -->
+                    <button class="header-action-btn btn-secondary-action" id="btnReprintInvoice" onclick="openReprintModal()" title="Reimprimir comprobante emitido [F9]">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Reimprimir [F9]
+                    </button>
+
                     <!-- WIDGET TASA BCV INTERACTIVO -->
                     <div class="bcv-rate-pill" onclick="promptEditBCV()" title="Haz clic para modificar la Tasa Oficial BCV">
                         <div class="bcv-pill-icon">Bs</div>
@@ -640,11 +646,43 @@
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                         Restaurar Copia de Seguridad
                                     </button>
+                                    <button class="header-action-btn btn-secondary-action" onclick="printTestReceipt58mm()" style="justify-content:center; padding:12px;" title="Imprimir ticket de prueba calibrado para Jaltech POS-58 (58/48mm)">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                        Imprimir Ticket de Prueba (POS-58)
+                                    </button>
                                     <input type="file" id="backupFileInput" style="display:none;" accept=".json" onchange="handleBackupFileSelect(event)">
                                 </div>
                             </div>
                             <div style="margin-top:20px; font-size:12px; color:var(--text-muted); padding:12px; background:#f8fafc; border-radius:var(--radius-md);">
                                 <b>Nota de Seguridad:</b> Se recomienda exportar un respaldo al finalizar la jornada después de realizar el cierre de caja diario.
+                            </div>
+                        </div>
+
+                        <!-- ZONA DE MANTENIMIENTO Y PURGA DE DATOS -->
+                        <div class="table-card" style="padding: 24px; border: 1.5px solid #fee2e2; background: #fffafb; display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                                    <h3 style="font-size: 16px; font-weight: 800; color: #b91c1c; margin:0; display:flex; align-items:center; gap:8px;">
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                        Mantenimiento: Purga de Pruebas
+                                    </h3>
+                                    <span style="font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:99px; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;">
+                                        Zona Administrativa
+                                    </span>
+                                </div>
+                                <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 14px;">
+                                    Elimina de forma definitiva todos los registros de prueba (ventas demo, egresos, compras, proveedores y clientes de prueba, dejando únicamente el cliente base de mostrador).
+                                </p>
+                                <div style="padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:var(--radius-md); font-size:12px; color:#1e40af; margin-bottom:16px;">
+                                    🔒 <b>Protección Absoluta:</b> La base de datos de productos y sus existencias de inventario <b>NUNCA</b> se tocan ni se borran.
+                                </div>
+                                <button class="header-action-btn" onclick="triggerPurgeTestData()" style="width:100%; justify-content:center; padding:12px; font-weight:800; font-size:13px; background:#dc2626; color:#ffffff; border:none; border-radius:var(--radius-md); cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.25);">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                    Limpiar Registros de Prueba Definitivamente
+                                </button>
+                            </div>
+                            <div style="margin-top:16px; font-size:11.5px; color:#991b1b;">
+                                ⚠️ Requiere confirmación doble. Úsalo para dejar el sistema 100% puro para la apertura formal.
                             </div>
                         </div>
                     </div>
@@ -705,7 +743,7 @@
                     </div>
                     <div class="form-group">
                         <label>Tipo de Documento:</label>
-                        <select id="coDocType" class="form-select">
+                        <select id="coDocType" class="form-select" onchange="onDocTypeChange()">
                             <option value="factura">Factura / Ticket Digital</option>
                             <option value="presupuesto">Presupuesto / Cotización</option>
                             <option value="nota_entrega">Nota de Entrega</option>
@@ -713,7 +751,7 @@
                     </div>
                 </div>
 
-                <div class="form-row-2">
+                <div class="form-row-2" id="coPaymentRow">
                     <div class="form-group">
                         <label>Método de Pago Principal:</label>
                         <select id="coPaymentMethod" class="form-select" onchange="onPaymentMethodChange()">
@@ -732,7 +770,7 @@
                     </div>
                 </div>
 
-                <div style="padding:14px; background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+                <div id="coPaymentBreakdownBox" style="padding:14px; background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md);">
                     <span style="font-size:12px; font-weight:800; display:block; margin-bottom:8px;">DESGLOSE DE PAGO Y VUELTO:</span>
                     <div class="form-row-2">
                         <div class="form-group">
@@ -755,7 +793,7 @@
             </div>
             <div class="erp-modal-footer">
                 <button class="header-action-btn btn-secondary-action" onclick="closeModal('checkoutModal')">Cancelar</button>
-                <button class="header-action-btn btn-primary-action" onclick="finalizeSale()">
+                <button id="coSubmitBtn" class="header-action-btn btn-primary-action" onclick="finalizeSale()">
                     Emitir y Concluir Venta
                 </button>
             </div>
@@ -798,6 +836,72 @@
             </div>
             <div class="erp-modal-body" id="heldSalesListContainer">
                 <!-- Lista de ventas retenidas -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL 3B: REIMPRESIÓN DE COMPROBANTES Y FACTURAS
+         ========================================================== -->
+    <div class="erp-modal-overlay" id="reprintInvoiceModal">
+        <div class="erp-modal-card" style="max-width: 760px; width: 95%;">
+            <div class="erp-modal-header" style="border-bottom: 1px solid var(--border-color); padding: 14px 20px;">
+                <div>
+                    <span class="erp-modal-title" style="display:flex; align-items:center; gap:8px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Reimpresión de Facturas y Comprobantes
+                    </span>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;">Reimprime cualquier factura, nota de despacho o presupuesto ya emitido sin descontar existencias ni duplicar ventas</p>
+                </div>
+                <button class="erp-modal-close" onclick="closeModal('reprintInvoiceModal')">✕</button>
+            </div>
+            
+            <div class="erp-modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- ACCIÓN RÁPIDA: ÚLTIMA FACTURA EMITIDA -->
+                <div id="reprintQuickActionCard" style="display:none; background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">Último comprobante emitido</span>
+                        <div id="reprintLastSaleInfo" style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">FAC-00001 - Cliente Mostrador ($0.00)</div>
+                    </div>
+                    <button class="header-action-btn btn-primary-action" id="btnQuickReprintLast" onclick="reprintLastSaleDirectly()" style="padding: 7px 14px; font-size: 12px; white-space: nowrap;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Reimprimir Última Factura
+                    </button>
+                </div>
+
+                <!-- BUSCADOR Y FILTROS -->
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width: 220px; position:relative;">
+                        <input type="text" id="reprintSearchInput" class="form-input" placeholder="Buscar por N° comprobante, RIF o nombre del cliente..." oninput="filterReprintSales()" style="padding-left: 34px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <select id="reprintTypeFilter" class="form-select" onchange="filterReprintSales()" style="width: auto; min-width: 160px;">
+                        <option value="all">Todos los comprobantes</option>
+                        <option value="factura">Facturas (FAC)</option>
+                        <option value="nota_entrega">Notas de Despacho (ND)</option>
+                        <option value="presupuesto">Presupuestos (PRE)</option>
+                    </select>
+                </div>
+
+                <!-- TABLA DE COMPROBANTES EMITIDOS -->
+                <div style="max-height: 380px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                    <table class="erp-table" style="width:100%; margin:0; font-size: 12px;">
+                        <thead>
+                            <tr style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
+                                <th style="padding: 8px 12px;">N° Comprobante</th>
+                                <th style="padding: 8px 12px;">Fecha / Hora</th>
+                                <th style="padding: 8px 12px;">Tipo</th>
+                                <th style="padding: 8px 12px;">Cliente</th>
+                                <th style="padding: 8px 12px; text-align:right;">Total USD</th>
+                                <th style="padding: 8px 12px; text-align:right;">Total Bs.</th>
+                                <th style="padding: 8px 12px; text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reprintSalesTableBody">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

@@ -35,17 +35,10 @@ const NovaDB = (function () {
     };
 
     const DEFAULT_CUSTOMERS = [
-        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" },
-        { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas", tipo: "cliente", notas: "Cliente registrado" },
-        { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas", tipo: "cliente", notas: "Cliente registrado" }
+        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" }
     ];
 
-    const DEFAULT_SUPPLIERS = [
-        { id: "PRV-001", razonSocial: "Distribuidora Internacional Steinmann C.A.", rif: "J-31002299", telefono: "0414-9988776", contacto: "Carlos Mendoza", rubro: "Filtros y Herramientas" },
-        { id: "PRV-002", razonSocial: "Importaciones Maxwell Gold", rif: "J-40223311", telefono: "0424-8877665", contacto: "Roberto Silva", rubro: "Capacitores y Relés" },
-        { id: "PRV-003", razonSocial: "Corporación Exceline Venezuela", rif: "J-29881177", telefono: "0412-7766554", contacto: "Elena Romero", rubro: "Protectores de Voltaje" },
-        { id: "PRV-004", razonSocial: "Gases Refrigerantes de Occidente", rif: "J-40556677", telefono: "0424-1122334", contacto: "Marcos Vivas", rubro: "Gases R134a, R410a, R22" }
-    ];
+    const DEFAULT_SUPPLIERS = [];
 
     // Registro en memoria de pedidos descartados/atendidos para prevenir resurrección en sondeos
     const _discardedOrders = new Set();
@@ -77,12 +70,30 @@ const NovaDB = (function () {
         if (!_read('settings', null)) {
             _write('settings', DEFAULT_SETTINGS);
         }
-        if (!_read('customers', null)) {
+
+        // Clientes: inicializar o depurar registros demo antiguos
+        let currentCust = _read('customers', null);
+        if (!currentCust) {
             _write('customers', DEFAULT_CUSTOMERS);
+        } else {
+            const cleanedCust = currentCust.filter(c => c.id !== 'CLI-002' && c.id !== 'CLI-003' && !c.nombre?.includes('Serviluz') && !c.nombre?.includes('Luis González'));
+            if (cleanedCust.length === 0) cleanedCust.push(DEFAULT_CUSTOMERS[0]);
+            if (cleanedCust.length !== currentCust.length) {
+                _write('customers', cleanedCust);
+            }
         }
-        if (!_read('suppliers', null)) {
+
+        // Proveedores: inicializar o depurar proveedores demo antiguos
+        let currentSupp = _read('suppliers', null);
+        if (!currentSupp) {
             _write('suppliers', DEFAULT_SUPPLIERS);
+        } else {
+            const cleanedSupp = currentSupp.filter(s => !s.razonSocial?.includes('Steinmann') && !s.razonSocial?.includes('Maxwell') && !s.razonSocial?.includes('Exceline') && !s.razonSocial?.includes('Gases Refrigerantes'));
+            if (cleanedSupp.length !== currentSupp.length) {
+                _write('suppliers', cleanedSupp);
+            }
         }
+
         if (!_read('sales', null)) {
             _write('sales', []);
         }
@@ -198,9 +209,35 @@ const NovaDB = (function () {
         return _read('inventory', {});
     }
 
+    function _resolveInvKey(inv, productId) {
+        if (!productId || !inv) return null;
+        if (inv[productId]) return productId;
+        const clean = String(productId).trim().toLowerCase();
+        return Object.keys(inv).find(k => k.toLowerCase() === clean) || null;
+    }
+
+    function _syncStockToMemory(key, newStock) {
+        if (typeof window !== 'undefined' && Array.isArray(window.products)) {
+            for (let p of window.products) {
+                if (p && p.id === key) {
+                    p.stock = newStock;
+                    break;
+                }
+                if (p && p.variants && Array.isArray(p.variants)) {
+                    let v = p.variants.find(x => x && x.id === key);
+                    if (v) {
+                        v.stock = newStock;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     function getStock(productId) {
         const inv = getInventory();
-        return inv[productId] ? inv[productId].stock : 0;
+        const key = _resolveInvKey(inv, productId);
+        return key ? (parseInt(inv[key].stock) || 0) : 0;
     }
 
     function setStock(productId, newQty, reason = "Ajuste manual de almacén") {
@@ -208,12 +245,14 @@ const NovaDB = (function () {
         const qty = parseInt(newQty);
         if (isNaN(qty) || qty < 0) return false;
 
-        if (inv[productId]) {
-            const oldStock = inv[productId].stock;
-            inv[productId].stock = qty;
+        const key = _resolveInvKey(inv, productId) || productId;
+        if (inv[key]) {
+            const oldStock = parseInt(inv[key].stock) || 0;
+            inv[key].stock = qty;
             _write('inventory', inv);
+            _syncStockToMemory(key, qty);
             _logStockMovement({
-                productId,
+                productId: key,
                 oldStock,
                 newStock: qty,
                 diff: qty - oldStock,
@@ -230,14 +269,17 @@ const NovaDB = (function () {
         const qty = parseInt(qtyToDeduct);
         if (isNaN(qty) || qty <= 0) return false;
 
-        if (inv[productId]) {
-            const oldStock = inv[productId].stock;
-            inv[productId].stock = Math.max(0, oldStock - qty);
+        const key = _resolveInvKey(inv, productId) || productId;
+        if (inv[key]) {
+            const oldStock = parseInt(inv[key].stock) || 0;
+            const newStock = Math.max(0, oldStock - qty);
+            inv[key].stock = newStock;
             _write('inventory', inv);
+            _syncStockToMemory(key, newStock);
             _logStockMovement({
-                productId,
+                productId: key,
                 oldStock,
-                newStock: inv[productId].stock,
+                newStock,
                 diff: -qty,
                 reason,
                 timestamp: new Date().toISOString()
@@ -252,14 +294,17 @@ const NovaDB = (function () {
         const qty = parseInt(qtyToAdd);
         if (isNaN(qty) || qty <= 0) return false;
 
-        if (inv[productId]) {
-            const oldStock = inv[productId].stock;
-            inv[productId].stock = oldStock + qty;
+        const key = _resolveInvKey(inv, productId) || productId;
+        if (inv[key]) {
+            const oldStock = parseInt(inv[key].stock) || 0;
+            const newStock = oldStock + qty;
+            inv[key].stock = newStock;
             _write('inventory', inv);
+            _syncStockToMemory(key, newStock);
             _logStockMovement({
-                productId,
+                productId: key,
                 oldStock,
-                newStock: inv[productId].stock,
+                newStock,
                 diff: qty,
                 reason,
                 timestamp: new Date().toISOString()
@@ -452,7 +497,18 @@ const NovaDB = (function () {
 
     function registerSale(saleData) {
         const sales = getSales();
-        const saleId = 'FAC-' + (sales.length + 1).toString().padStart(5, '0');
+        const docType = saleData.tipoDocumento || 'factura';
+        const prefix = docType === 'nota_entrega' ? 'ND-' : (docType === 'presupuesto' ? 'PRE-' : 'FAC-');
+
+        // Generar correlativo único tomando el máximo numérico existente para evitar colisiones
+        let maxNum = 0;
+        sales.forEach(s => {
+            if (s && s.id && s.id.startsWith(prefix)) {
+                const n = parseInt(s.id.replace(/\D/g, ''), 10);
+                if (!isNaN(n) && n > maxNum) maxNum = n;
+            }
+        });
+        const saleId = prefix + (maxNum + 1).toString().padStart(5, '0');
         const now = new Date();
 
         const record = {
@@ -462,8 +518,9 @@ const NovaDB = (function () {
             horaStr: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
             cliente: saleData.cliente || { nombre: "Cliente Mostrador", rif: "V-00000000", telefono: "" },
             items: saleData.items || [],
-            tipoPrecio: saleData.tipoPrecio || 'publico', // 'publico' | 'novacliente'
-            tipoDocumento: saleData.tipoDocumento || 'factura', // 'factura' | 'presupuesto' | 'nota_entrega'
+            tipoPrecio: saleData.tipoPrecio || 'publico',
+            descuentoDivisas: !!saleData.descuentoDivisas,
+            tipoDocumento: docType, // 'factura' | 'presupuesto' | 'nota_entrega'
             tasaBCV: saleData.tasaBCV || getSettings().tasaBCV,
             totalUSD: saleData.totalUSD || 0,
             totalBs: saleData.totalBs || 0,
@@ -472,7 +529,8 @@ const NovaDB = (function () {
             montoPagadoBs: saleData.montoPagadoBs || 0,
             vueltoUSD: saleData.vueltoUSD || 0,
             vueltoBs: saleData.vueltoBs || 0,
-            vendedor: saleData.vendedor || "Caja Principal"
+            vendedor: saleData.vendedor || "Caja Principal",
+            cajero: saleData.cajero || "MASTER"
         };
 
         // Si es factura o nota de entrega, descontar del stock
@@ -817,8 +875,39 @@ const NovaDB = (function () {
         }
     }
 
+    function purgeTestData() {
+        _write('sales', []);
+        _write('held_sales', []);
+        _write('expenses', []);
+        _write('purchases', []);
+        _write('suppliers', []);
+        _write('stock_logs', []);
+        _write('customers', DEFAULT_CUSTOMERS);
+
+        // Turno de caja limpio a cero
+        const cleanShift = [{
+            id: 'TURNO-' + Date.now().toString().slice(-6),
+            fechaApertura: new Date().toISOString(),
+            montoInicialUSD: 0.00,
+            montoInicialBs: 0.00,
+            estado: 'abierta',
+            ventasIds: [],
+            egresosIds: []
+        }];
+        _write('cash_shifts', cleanShift);
+
+        try {
+            localStorage.removeItem('nova_supabase_offline_queue');
+        } catch (e) {}
+
+        // IMPORTANTE: El inventario ('inventory') y los eliminados ('deleted_products')
+        // se mantienen completamente protegidos e intactos.
+        return true;
+    }
+
     return {
         init,
+        purgeTestData,
         getSettings,
         updateSettings,
         setTasaBCV,

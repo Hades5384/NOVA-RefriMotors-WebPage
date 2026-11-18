@@ -203,6 +203,11 @@ function setupKeyboardShortcuts() {
                 holdPOSSale();
             }
         }
+        // F9: Reimpresión de Comprobante / Factura
+        if (e.key === 'F9') {
+            e.preventDefault();
+            openReprintModal();
+        }
     });
 }
 
@@ -387,9 +392,11 @@ function renderPOSCatalog() {
 
         let stockBadgeClass = 'pos-stock-badge';
         let stockLabel = `${item.stock} en stock`;
+        let cardExtraClass = '';
         if (item.stock === 0) {
             stockBadgeClass += ' zero';
             stockLabel = 'Agotado';
+            cardExtraClass = ' out-of-stock-card';
         } else if (item.stock <= 3) {
             stockBadgeClass += ' low';
             stockLabel = `Bajo: ${item.stock}`;
@@ -407,7 +414,7 @@ function renderPOSCatalog() {
         }
 
         html += `
-            <div class="pos-item-card" onclick="addToPOSCart('${item.id}')">
+            <div class="pos-item-card${cardExtraClass}" onclick="addToPOSCart('${item.id}')" title="${item.stock === 0 ? 'Producto agotado sin existencias' : item.name}">
                 <img src="${imgUrl}" alt="${item.name}" class="pos-card-thumb" onerror="this.src='productos/NO_PHOTO.webp'" loading="lazy" decoding="async">
                 <span class="pos-card-code">${item.id}</span>
                 <h4 class="pos-card-name" title="${item.name}">${item.name}</h4>
@@ -490,7 +497,7 @@ if (typeof window !== 'undefined') {
 function addToPOSCart(itemId) {
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
     const inv = NovaDB.getInventory();
-    const invItem = inv[itemId];
+    const invItem = inv[itemId] || Object.values(inv).find(x => x && x.id && x.id.toLowerCase() === String(itemId).toLowerCase());
     const meta = _buildProductMetaLookup(prods)[itemId] || {};
 
     let found = null;
@@ -510,8 +517,28 @@ function addToPOSCart(itemId) {
 
     if (!found) return;
 
-    const existingIdx = posCart.findIndex(item => item.id === itemId);
+    const availableStock = invItem && typeof invItem.stock === 'number' ? invItem.stock : (meta.stock || 0);
+
+    // Validación estricta de existencias: si no hay stock, no permitir agregar
+    if (availableStock <= 0) {
+        showNovaAlert({
+            title: "Producto Agotado",
+            message: `El repuesto "<b>${found.name}</b>" (${found.id}) actualmente <b>no tiene existencias disponibles</b> en almacén (Stock: 0).`,
+            type: "warning"
+        });
+        return;
+    }
+
+    const existingIdx = posCart.findIndex(item => item.id === itemId || item.id === found.id);
     if (existingIdx !== -1) {
+        if (posCart[existingIdx].quantity >= availableStock) {
+            showNovaAlert({
+                title: "Existencias Máximas Alcanzadas",
+                message: `Solo hay <b>${availableStock}</b> unidad(es) disponibles de "<b>${found.name}</b>". No es posible agregar más al ticket de venta.`,
+                type: "warning"
+            });
+            return;
+        }
         posCart[existingIdx].quantity += 1;
     } else {
         posCart.push({
@@ -530,8 +557,20 @@ function addToPOSCart(itemId) {
 
 function changePOSQty(index, diff) {
     if (posCart[index]) {
-        posCart[index].quantity += diff;
-        if (posCart[index].quantity <= 0) {
+        const it = posCart[index];
+        if (diff > 0) {
+            const currentStock = NovaDB.getStock(it.id);
+            if (it.quantity + diff > currentStock) {
+                showNovaAlert({
+                    title: "Stock Insuficiente",
+                    message: `Solo hay <b>${currentStock}</b> unidad(es) disponibles de "<b>${it.name}</b>".`,
+                    type: "warning"
+                });
+                return;
+            }
+        }
+        it.quantity += diff;
+        if (it.quantity <= 0) {
             posCart.splice(index, 1);
         }
         renderPOSCart();
@@ -773,7 +812,7 @@ async function emitPresupuestoFromCart() {
         tasaBCV: settings.tasaBCV,
         totalUSD,
         totalBs,
-        metodosPago: [{ metodo: 'Presupuesto / Cotización', montoUSD: totalUSD }],
+        metodosPago: [],
         vendedor: currentUser.name
     };
 
@@ -900,6 +939,204 @@ function deleteHeldSale(holdId) {
 }
 
 // ==========================================
+// MODAL DE REIMPRESIÓN DE COMPROBANTES (POS-58)
+// ==========================================
+function openReprintModal() {
+    const modal = document.getElementById('reprintInvoiceModal');
+    if (!modal) return;
+
+    // Resetear filtros del buscador
+    const searchInp = document.getElementById('reprintSearchInput');
+    if (searchInp) searchInp.value = '';
+    const typeFilter = document.getElementById('reprintTypeFilter');
+    if (typeFilter) typeFilter.value = 'all';
+
+    // Obtener historial de ventas emitidas
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+
+    // Configurar acción rápida de la última venta
+    const quickCard = document.getElementById('reprintQuickActionCard');
+    const lastSaleInfo = document.getElementById('reprintLastSaleInfo');
+    if (sales.length > 0) {
+        const last = sales[0];
+        const custName = last.cliente?.nombre || 'Cliente Mostrador';
+        if (lastSaleInfo) {
+            lastSaleInfo.innerHTML = `<span class="code-badge">${last.id}</span> · <b>${custName}</b> · <span style="color:var(--accent-red); font-weight:800;">$${(last.totalUSD || 0).toFixed(2)}</span> (Bs. ${(last.totalBs || 0).toFixed(2)}) · <span style="font-size:11px; color:var(--text-muted);">${last.fechaStr || ''} ${last.horaStr || ''}</span>`;
+        }
+        if (quickCard) quickCard.style.display = 'flex';
+    } else {
+        if (quickCard) quickCard.style.display = 'none';
+    }
+
+    renderReprintSalesList(sales);
+    modal.classList.add('active');
+
+    setTimeout(() => {
+        if (searchInp) searchInp.focus();
+    }, 120);
+}
+
+function filterReprintSales() {
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const query = (document.getElementById('reprintSearchInput')?.value || '').toLowerCase().trim();
+    const typeFilter = document.getElementById('reprintTypeFilter')?.value || 'all';
+
+    const filtered = sales.filter(s => {
+        if (typeFilter !== 'all') {
+            if (typeFilter === 'factura' && s.tipoDocumento !== 'factura') return false;
+            if (typeFilter === 'nota_entrega' && s.tipoDocumento !== 'nota_entrega') return false;
+            if (typeFilter === 'presupuesto' && s.tipoDocumento !== 'presupuesto') return false;
+        }
+
+        if (!query) return true;
+
+        const idMatch = (s.id || '').toLowerCase().includes(query);
+        const nameMatch = (s.cliente?.nombre || '').toLowerCase().includes(query);
+        const rifMatch = (s.cliente?.rif || '').toLowerCase().includes(query);
+        const phoneMatch = (s.cliente?.telefono || '').toLowerCase().includes(query);
+        return idMatch || nameMatch || rifMatch || phoneMatch;
+    });
+
+    renderReprintSalesList(filtered);
+}
+
+function renderReprintSalesList(salesList) {
+    const tbody = document.getElementById('reprintSalesTableBody');
+    if (!tbody) return;
+
+    if (!salesList || salesList.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" style="margin-bottom:8px; opacity:0.4;"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    <p style="font-weight: 700; font-size: 14px; margin-bottom: 3px; color: var(--text-main);">No hay comprobantes emitidos</p>
+                    <p style="font-size: 12px; margin: 0;">No se encontraron registros en el historial con los filtros actuales.</p>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    let rowsHtml = '';
+    const slice = salesList.slice(0, 50);
+
+    slice.forEach(s => {
+        let docTypeLabel = 'Factura';
+        let badgeStyle = 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;';
+        if (s.tipoDocumento === 'nota_entrega') {
+            docTypeLabel = 'Nota Despacho';
+            badgeStyle = 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;';
+        } else if (s.tipoDocumento === 'presupuesto') {
+            docTypeLabel = 'Presupuesto';
+            badgeStyle = 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;';
+        }
+
+        const custName = s.cliente?.nombre || 'Cliente Mostrador';
+        const custRif = s.cliente?.rif || 'V-00000000';
+        const totalUSD = (typeof s.totalUSD === 'number') ? s.totalUSD.toFixed(2) : '0.00';
+        const totalBs = (typeof s.totalBs === 'number') ? s.totalBs.toFixed(2) : '0.00';
+        const dateTime = `${s.fechaStr || ''} <span style="color:var(--text-muted); font-size:11px;">${s.horaStr || ''}</span>`;
+
+        rowsHtml += `
+            <tr id="reprint-row-${s.id}">
+                <td style="padding: 7px 12px;"><span class="code-badge" style="font-weight:800;">${s.id}</span></td>
+                <td style="padding: 7px 12px; white-space:nowrap;">${dateTime}</td>
+                <td style="padding: 7px 12px;"><span style="font-size: 10.5px; font-weight:700; padding: 2px 7px; border-radius: 4px; ${badgeStyle}">${docTypeLabel}</span></td>
+                <td style="padding: 7px 12px;">
+                    <div style="font-weight:700; color:var(--text-main);">${custName}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${custRif}</div>
+                </td>
+                <td style="padding: 7px 12px; text-align:right; font-weight:800; color:var(--accent-red);">$${totalUSD}</td>
+                <td style="padding: 7px 12px; text-align:right; font-weight:700; color:var(--text-main);">Bs. ${totalBs}</td>
+                <td style="padding: 7px 12px; text-align:center;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <button type="button" class="ticket-btn-sm" onclick="reprintSaleDirectly('${s.id}')" title="Reimprimir copia directa en impresora térmica POS-58 (Sin descontar inventario)" style="color: #1e40af; border-color: #bfdbfe; background: #eff6ff; font-weight:700; display:inline-flex; align-items:center; gap:4px; padding: 3px 8px;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            Imprimir
+                        </button>
+                        <button type="button" class="ticket-btn-sm" onclick="reprintViewDocument('${s.id}')" title="Ver comprobante en pantalla completa" style="color: var(--text-main); padding: 3px 6px;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
+                            Ver
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+
+    tbody.innerHTML = rowsHtml;
+}
+
+async function reprintLastSaleDirectly() {
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    if (sales.length === 0) {
+        showNovaAlert({ title: "Sin Comprobantes", message: "No hay comprobantes emitidos en el sistema para reimprimir.", type: "warning" });
+        return;
+    }
+    await reprintSaleDirectly(sales[0].id);
+}
+
+async function reprintSaleDirectly(saleId) {
+    if (!saleId) return;
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    let sale = sales.find(s => s.id === saleId);
+
+    // Fallback a Supabase si no está en la memoria local
+    if (!sale && typeof NovaSupabase !== 'undefined' && NovaSupabase.getClient && NovaSupabase.getClient()) {
+        try {
+            const { data, error } = await NovaSupabase.getClient()
+                .from('ventas')
+                .select('*')
+                .eq('id', saleId)
+                .maybeSingle();
+            if (!error && data) {
+                sale = {
+                    id: data.id,
+                    timestamp: Number(data.timestamp) || Date.now(),
+                    fechaStr: data.fecha_str || '',
+                    horaStr: data.hora_str || '',
+                    cliente: data.cliente || { nombre: 'Cliente Mostrador', rif: 'V-00000000' },
+                    items: Array.isArray(data.items) ? data.items : [],
+                    tipoPrecio: data.tipo_precio || 'publico',
+                    tipoDocumento: data.tipo_documento || 'factura',
+                    tasaBCV: parseFloat(data.tasa_bcv) || 0,
+                    totalUSD: parseFloat(data.total_usd) || 0,
+                    totalBs: parseFloat(data.total_bs) || 0,
+                    metodosPago: Array.isArray(data.metodos_pago) ? data.metodos_pago : [],
+                    vendedor: data.vendedor || 'Caja Principal',
+                    cajero: data.cajero || 'MASTER'
+                };
+            }
+        } catch (e) {
+            console.warn('[reprintSaleDirectly] Error consultando Supabase:', e);
+        }
+    }
+
+    if (!sale) {
+        showNovaAlert({
+            title: "Comprobante no encontrado",
+            message: `No se encontró el comprobante <b>${saleId}</b> en la base de datos.`,
+            type: "warning"
+        });
+        return;
+    }
+
+    closeModal('reprintInvoiceModal');
+
+    // Reimprimir directamente vía iframe térmico 58mm nativo (NO altera inventario ni cajas)
+    printThermalReceipt(sale);
+
+    showNovaAlert({
+        title: "Reimpresión Enviada",
+        message: `El comprobante <b>${sale.id}</b> (${sale.cliente?.nombre || 'Cliente'}) fue enviado a reimpresión térmica en la impresora POS-58.<br><br><span style="color:var(--success); font-weight:700;">✓ El inventario se mantuvo intacto (no se descontó stock).</span>`,
+        type: "success"
+    });
+}
+
+function reprintViewDocument(saleId) {
+    closeModal('reprintInvoiceModal');
+    openSaleInvoiceById(saleId);
+}
+
+// ==========================================
 // MODAL DE COBRO Y EMISIÓN DE FACTURA/TICKET
 // ==========================================
 function isDivisaPaymentMethod(method) {
@@ -907,12 +1144,49 @@ function isDivisaPaymentMethod(method) {
     return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance');
 }
 
+function onDocTypeChange() {
+    const docType = document.getElementById('coDocType')?.value || 'factura';
+    const isQuote = (docType === 'presupuesto');
+
+    const payMethodEl = document.getElementById('coPaymentMethod');
+    const payRefEl = document.getElementById('coPaymentRef');
+    const payRowEl = document.getElementById('coPaymentRow');
+    const breakdownEl = document.getElementById('coPaymentBreakdownBox');
+    const payUSD = document.getElementById('payAmountUSD');
+    const payBs = document.getElementById('payAmountBs');
+    const submitBtn = document.getElementById('coSubmitBtn');
+
+    if (payMethodEl) payMethodEl.disabled = isQuote;
+    if (payRefEl) {
+        payRefEl.disabled = isQuote;
+        if (isQuote) payRefEl.value = '';
+    }
+    if (payUSD) payUSD.disabled = isQuote;
+    if (payBs) payBs.disabled = isQuote;
+
+    if (payRowEl) {
+        payRowEl.style.opacity = isQuote ? '0.45' : '1';
+        payRowEl.style.pointerEvents = isQuote ? 'none' : 'auto';
+    }
+    if (breakdownEl) {
+        breakdownEl.style.opacity = isQuote ? '0.45' : '1';
+        breakdownEl.style.pointerEvents = isQuote ? 'none' : 'auto';
+    }
+    if (submitBtn) {
+        submitBtn.innerText = isQuote ? 'Emitir Presupuesto' : 'Emitir y Concluir Venta';
+    }
+
+    updateCheckoutTotals();
+}
+
 function updateCheckoutTotals() {
     if (posCart.length === 0) return;
 
     const settings = NovaDB.getSettings();
+    const docType = document.getElementById('coDocType') ? document.getElementById('coDocType').value : 'factura';
+    const isQuote = (docType === 'presupuesto');
     const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : 'Efectivo USD';
-    const isUSD = isDivisaPaymentMethod(payMethod);
+    const isUSD = !isQuote && isDivisaPaymentMethod(payMethod);
 
     let totalUSD = 0;
     let totalBs = 0;
@@ -923,7 +1197,7 @@ function updateCheckoutTotals() {
             // Descuento automático al pagar en divisas (efectivo $, zelle, binance)
             totalUSD += p.novaClientesUSD * item.quantity;
         } else {
-            // Precio estándar en Bolívares (tarjeta, debito, pago movil, biopago)
+            // Precio estándar en Bolívares (tarjeta, debito, pago movil, biopago o presupuesto)
             totalUSD += p.publicoUSD * item.quantity;
             totalBs += p.publicoBs * item.quantity;
         }
@@ -946,7 +1220,10 @@ function updateCheckoutTotals() {
 
     const inputUSD = document.getElementById('payAmountUSD');
     const inputBs = document.getElementById('payAmountBs');
-    if (isUSD) {
+    if (isQuote) {
+        if (inputUSD) inputUSD.value = "0.00";
+        if (inputBs) inputBs.value = "0.00";
+    } else if (isUSD) {
         if (inputUSD) inputUSD.value = totalUSD.toFixed(2);
         if (inputBs) inputBs.value = "0.00";
     } else {
@@ -974,8 +1251,8 @@ function openCheckoutModal() {
         if (phoneEl) phoneEl.value = posSelectedCustomer.telefono || '';
     }
 
-    // Calcular montos acordes al método de pago seleccionado
-    updateCheckoutTotals();
+    // Sincronizar estado de campos de pago según tipo de documento y recalcular montos
+    onDocTypeChange();
 
     openModal('checkoutModal');
 }
@@ -1027,42 +1304,78 @@ async function finalizeSale() {
     const custRif = document.getElementById('coCustRif').value.trim() || 'V-00000000';
     const custPhone = document.getElementById('coCustPhone').value.trim() || '';
     const docType = document.getElementById('coDocType').value;
+    const isQuote = (docType === 'presupuesto');
     const payMethod = document.getElementById('coPaymentMethod').value;
     const refNum = document.getElementById('coPaymentRef').value.trim();
 
-    const isUSD = isDivisaPaymentMethod(payMethod);
+    // Si no es presupuesto (es Factura o Nota de Entrega), validar existencias disponibles antes de cobrar
+    if (!isQuote) {
+        for (const item of posCart) {
+            const availStock = NovaDB.getStock(item.id);
+            if (item.quantity > availStock) {
+                showNovaAlert({
+                    title: "Stock Insuficiente para Cobrar",
+                    message: `No se puede emitir el documento: El repuesto "<b>${item.name}</b>" solo dispone de <b>${availStock}</b> unidad(es) en inventario (intentas cobrar ${item.quantity}). Ajusta la cantidad antes de concluir.`,
+                    type: "error"
+                });
+                return;
+            }
+        }
+    }
+
+    const isUSD = !isQuote && isDivisaPaymentMethod(payMethod);
     const settings = NovaDB.getSettings();
+    const defaultIvaPct = (settings && typeof settings.porcentajeIva === 'number')
+        ? (settings.porcentajeIva >= 1 ? Math.round((settings.porcentajeIva - 1) * 1000) / 10 : Math.round(settings.porcentajeIva * 1000) / 10)
+        : 16;
 
     let totalUSD = 0;
     let totalBs = 0;
 
-    posCart.forEach(item => {
+    // Congelar instantánea histórica liviana (~600 bytes por factura) para reconstruir
+    // la imagen exacta de la factura en el futuro sin guardar imágenes pesadas en la BD
+    const frozenItems = posCart.map(item => {
         const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
-        if (isUSD) {
-            totalUSD += p.novaClientesUSD * item.quantity;
-        } else {
-            totalUSD += p.publicoUSD * item.quantity;
-            totalBs += p.publicoBs * item.quantity;
-        }
+        const qty = parseInt(item.quantity) || 1;
+        const unitUSD = isUSD ? p.novaClientesUSD : p.publicoUSD;
+        const unitBs = isUSD ? (p.novaClientesUSD * settings.tasaBCV) : p.publicoBs;
+        const subUSD = unitUSD * qty;
+        const subBs = unitBs * qty;
+        const itemIva = (typeof item.iva === 'number' && !isNaN(item.iva)) ? item.iva : defaultIvaPct;
+
+        totalUSD += subUSD;
+        totalBs += subBs;
+
+        return {
+            id: item.id,
+            name: item.name,
+            quantity: qty,
+            costoCompra: Number(item.costoCompra) || 0,
+            porcentajeUtilidad: item.porcentajeUtilidad,
+            iva: itemIva,
+            priceUSD: +unitUSD.toFixed(2),
+            priceBs: +unitBs.toFixed(2),
+            subtotalUSD: +subUSD.toFixed(2),
+            subtotalBs: +subBs.toFixed(2)
+        };
     });
 
-    if (isUSD) {
-        totalBs = totalUSD * settings.tasaBCV;
-    }
+    totalUSD = +totalUSD.toFixed(2);
+    totalBs = +totalBs.toFixed(2);
 
     const activeUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'MASTER', name: 'MASTER' };
     const originalOrigin = window._currentHeldSaleOrigin;
 
     const saleRecord = {
-        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: isUSD ? 'divisas' : 'publico' },
-        items: posCart,
+        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: 'cliente' },
+        items: frozenItems,
         tipoPrecio: isUSD ? 'divisas' : 'publico',
         descuentoDivisas: isUSD,
         tipoDocumento: docType,
         tasaBCV: settings.tasaBCV,
         totalUSD,
         totalBs,
-        metodosPago: [{ metodo: payMethod, montoUSD: totalUSD, montoBs: totalBs, referencia: refNum }],
+        metodosPago: isQuote ? [] : [{ metodo: payMethod, montoUSD: totalUSD, montoBs: totalBs, referencia: refNum }],
         vendedor: originalOrigin ? (originalOrigin.estacion || originalOrigin.vendedor) : activeUser.name,
         cajero: activeUser.name,
         pedIdOriginal: originalOrigin ? originalOrigin.id : null
@@ -1073,13 +1386,154 @@ async function finalizeSale() {
     const saved = NovaDB.registerSale(saleRecord);
     closeModal('checkoutModal');
 
-    // Limpiar carrito de mostrador
+    // Limpiar carrito de mostrador y sincronizar vistas de catálogo e inventario
     posCart = [];
     renderPOSCart();
     renderPOSCatalog();
+    if (typeof renderInventoryView === 'function') {
+        renderInventoryView();
+    }
 
     // Generar documento visual y abrir modal de comprobante directamente
     await generateInvoiceDocument(saved);
+}
+
+/**
+ * Resuelve el precio unitario y total de un ítem respetando primero la instantánea
+ * histórica congelada al emitir el documento (garantiza fidelidad eterna del comprobante).
+ */
+function _resolveHistoricalItemPrices(it, sale, settings, isUSD, tasa) {
+    const qty = parseInt(it.quantity) || 1;
+    const isDivisa = isUSD || sale.tipoPrecio === 'divisas' || sale.descuentoDivisas || sale.tipoPrecio === 'novacliente';
+
+    if (typeof it.priceUSD === 'number' && it.priceUSD > 0) {
+        const unitPriceUSD = it.priceUSD;
+        const unitPriceBs = (typeof it.priceBs === 'number' && it.priceBs > 0) ? it.priceBs : (unitPriceUSD * tasa);
+        return {
+            qty,
+            unitPriceUSD,
+            unitPriceBs,
+            lineTotalUSD: (typeof it.subtotalUSD === 'number' && it.subtotalUSD > 0) ? it.subtotalUSD : (unitPriceUSD * qty),
+            lineTotalBs: (typeof it.subtotalBs === 'number' && it.subtotalBs > 0) ? it.subtotalBs : (unitPriceBs * qty)
+        };
+    }
+
+    const prices = (typeof calcularPreciosSegunAjustes === 'function')
+        ? calcularPreciosSegunAjustes(it.costoCompra, settings, it.porcentajeUtilidad, it.iva)
+        : { publicoUSD: (it.costoCompra || 0) * 1.77, novaClientesUSD: (it.costoCompra || 0) * 1.508, publicoBs: (it.costoCompra || 0) * 1.77 * tasa };
+
+    const unitPriceUSD = isDivisa ? prices.novaClientesUSD : prices.publicoUSD;
+    const unitPriceBs = isDivisa ? (unitPriceUSD * tasa) : (prices.publicoBs || (unitPriceUSD * tasa));
+    return {
+        qty,
+        unitPriceUSD,
+        unitPriceBs,
+        lineTotalUSD: unitPriceUSD * qty,
+        lineTotalBs: unitPriceBs * qty
+    };
+}
+
+/**
+ * Extrae el IVA incluido de los productos de la venta (para Facturas)
+ * Fórmula exacta con IVA incluido: Base = Total / (1 + iva/100); IVA = Total - Base
+ */
+function _computeInvoiceIvaBreakdown(sale, settings, isUSD, tasa) {
+    const defaultIvaPct = (settings && typeof settings.porcentajeIva === 'number')
+        ? (settings.porcentajeIva >= 1 ? Math.round((settings.porcentajeIva - 1) * 1000) / 10 : Math.round(settings.porcentajeIva * 1000) / 10)
+        : 16;
+
+    let baseImponible = 0;
+    let exento = 0;
+    let ivaTotal = 0;
+
+    if (Array.isArray(sale.items) && sale.items.length > 0) {
+        sale.items.forEach(it => {
+            const p = _resolveHistoricalItemPrices(it, sale, settings, isUSD, tasa);
+            const lineTotal = isUSD ? p.lineTotalUSD : p.lineTotalBs;
+            const itemIvaPct = (typeof it.iva === 'number' && !isNaN(it.iva)) ? it.iva : defaultIvaPct;
+
+            if (itemIvaPct > 0) {
+                const base = lineTotal / (1 + itemIvaPct / 100);
+                baseImponible += base;
+                ivaTotal += (lineTotal - base);
+            } else {
+                exento += lineTotal;
+            }
+        });
+    } else {
+        const total = isUSD ? (Number(sale.totalUSD) || 0) : (Number(sale.totalBs) || 0);
+        if (defaultIvaPct > 0) {
+            baseImponible = total / (1 + defaultIvaPct / 100);
+            ivaTotal = total - baseImponible;
+        } else {
+            exento = total;
+        }
+    }
+
+    return {
+        ivaPctLabel: defaultIvaPct,
+        baseImponible,
+        exento,
+        ivaTotal,
+        total: baseImponible + exento + ivaTotal
+    };
+}
+
+/**
+ * Abre la imagen exacta (y lista para re-imprimir o descargar) de cualquier factura
+ * o nota de despacho guardada en la base de datos local o en Supabase.
+ */
+async function openSaleInvoiceById(saleId) {
+    if (!saleId) return;
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    let sale = sales.find(s => s.id === saleId);
+
+    // Si no está en caché local, consultar directamente la tabla 'ventas' en Supabase
+    if (!sale && typeof NovaSupabase !== 'undefined' && NovaSupabase.getClient && NovaSupabase.getClient()) {
+        try {
+            const { data, error } = await NovaSupabase.getClient()
+                .from('ventas')
+                .select('*')
+                .eq('id', saleId)
+                .maybeSingle();
+            if (!error && data) {
+                sale = {
+                    id: data.id,
+                    timestamp: Number(data.timestamp) || Date.now(),
+                    fechaStr: data.fecha_str || '',
+                    horaStr: data.hora_str || '',
+                    cliente: data.cliente || { nombre: 'Cliente Mostrador', rif: 'V-00000000' },
+                    items: Array.isArray(data.items) ? data.items : [],
+                    tipoPrecio: data.tipo_precio || 'publico',
+                    tipoDocumento: data.tipo_documento || 'factura',
+                    tasaBCV: parseFloat(data.tasa_bcv) || 0,
+                    totalUSD: parseFloat(data.total_usd) || 0,
+                    totalBs: parseFloat(data.total_bs) || 0,
+                    metodosPago: Array.isArray(data.metodos_pago) ? data.metodos_pago : [],
+                    vendedor: data.vendedor || 'Caja Principal',
+                    cajero: data.cajero || 'MASTER'
+                };
+            }
+        } catch (e) {
+            console.warn('[openSaleInvoiceById] Error consultando Supabase:', e);
+        }
+    }
+
+    // Fallback a caché temporal del reporte (ej. registros demostrativos cuando aún no hay ventas reales)
+    if (!sale && window._reportSalesCache && window._reportSalesCache[saleId]) {
+        sale = window._reportSalesCache[saleId];
+    }
+
+    if (!sale) {
+        showNovaAlert({
+            title: "Comprobante No Encontrado",
+            message: `No se encontró el registro del documento <b>${saleId}</b> en la base de datos.`,
+            type: "warning"
+        });
+        return;
+    }
+
+    await generateInvoiceDocument(sale);
 }
 
 // ==========================================
@@ -1110,6 +1564,7 @@ function loadTicketImage(src) {
 }
 
 async function generateInvoiceDocument(sale) {
+    window._lastGeneratedSale = sale;
     const modal = document.getElementById('invoiceDocModal');
     const titleEl = document.getElementById('docModalBadge');
 
@@ -1125,17 +1580,20 @@ async function generateInvoiceDocument(sale) {
 
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02, tasaInterna: 1050 };
 
+        const isPresupuesto = (sale.tipoDocumento === 'presupuesto');
+        const isFactura = (sale.tipoDocumento === 'factura');
+
         // Determinar método de pago principal y moneda (Dólares vs Bolívares)
-        let primaryMethod = 'Efectivo USD';
+        let primaryMethod = '';
         let refNum = '';
-        if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+        if (!isPresupuesto && Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
             primaryMethod = sale.metodosPago[0].metodo || 'Efectivo USD';
             refNum = sale.metodosPago[0].referencia || '';
         }
 
         const methodLower = primaryMethod.toLowerCase();
-        // Métodos en divisas: Efectivo USD, Zelle, Binance Pay
-        const isUSD = isDivisaPaymentMethod(primaryMethod);
+        // Métodos en divisas: Efectivo USD, Zelle, Binance Pay (nunca en presupuesto)
+        const isUSD = !isPresupuesto && isDivisaPaymentMethod(primaryMethod);
         const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 914.02;
 
         let methodLabel = primaryMethod.toUpperCase();
@@ -1152,6 +1610,7 @@ async function generateInvoiceDocument(sale) {
         }
 
         const totalProductosVendidos = (sale.items || []).reduce((acc, it) => acc + (parseInt(it.quantity) || 1), 0);
+        const ivaData = isFactura ? _computeInvoiceIvaBreakdown(sale, settings, isUSD, tasa) : null;
 
         // Cargar logotipo oficial para encabezado (prioriza Data URI Base64 seguro)
         let headerImg = null;
@@ -1168,8 +1627,9 @@ async function generateInvoiceDocument(sale) {
         const PAD = 16 * SCALE;
         const FONT_MONO = "'Courier New', Consolas, 'Lucida Console', Monaco, monospace";
 
-        // Estimación dinámica de altura
-        const estimatedH = Math.ceil((470 + ((sale.items ? sale.items.length : 0) * 36) + (PAD * 2)) * SCALE);
+        // Estimación dinámica de altura (ajusta espacio extra para IVA en factura o menos en presupuesto)
+        const extraFacturaH = isFactura ? (ivaData && ivaData.exento > 0.005 ? 54 : 38) : (isPresupuesto ? -18 : 0);
+        const estimatedH = Math.ceil((415 + extraFacturaH + ((sale.items ? sale.items.length : 0) * 36) + (PAD * 2)) * SCALE);
         canvas.width = WIDTH;
         canvas.height = estimatedH;
 
@@ -1225,13 +1685,9 @@ async function generateInvoiceDocument(sale) {
         ctx.fillText(custRif, colValX, curY);
         curY += 16 * SCALE;
 
-        ctx.fillText("DIRECCION:", PAD, curY);
-        ctx.fillText(custDir.length > 25 ? custDir.substring(0, 24) + '..' : custDir, colValX, curY);
-        curY += 16 * SCALE;
-
         if (custPhone) {
-            ctx.fillText("%DEL", PAD, curY);
-            ctx.fillText(`TLF: ${custPhone}`, colValX, curY);
+            ctx.fillText("TELEFONO:", PAD, curY);
+            ctx.fillText(custPhone, colValX, curY);
             curY += 16 * SCALE;
         }
         curY += 6 * SCALE;
@@ -1274,44 +1730,66 @@ async function generateInvoiceDocument(sale) {
 
         if (Array.isArray(sale.items)) {
             sale.items.forEach(it => {
-                const prices = (typeof calcularPreciosSegunAjustes === 'function')
-                    ? calcularPreciosSegunAjustes(it.costoCompra, settings, it.porcentajeUtilidad, it.iva)
-                    : { publicoUSD: (it.costoCompra || 0) * 1.77, novaClientesUSD: (it.costoCompra || 0) * 1.508, publicoBs: (it.costoCompra || 0) * 1.77 * 914.02 };
-                // Si el pago es en divisas ($ efectivo, zelle, binance), el precio unitario refleja el descuento en divisas
-                const isDivisa = isUSD || sale.tipoPrecio === 'divisas' || sale.descuentoDivisas || sale.tipoPrecio === 'novacliente';
-                const unitPriceUSD = isDivisa ? prices.novaClientesUSD : prices.publicoUSD;
-                const lineTotalUSD = unitPriceUSD * it.quantity;
+                const hp = _resolveHistoricalItemPrices(it, sale, settings, isUSD, tasa);
 
                 // Renglón 1: Descripción en mayúsculas
                 ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
                 ctx.textAlign = 'left';
-                const itName = it.name.toUpperCase();
+                const itName = (it.name || it.id || '').toUpperCase();
                 ctx.fillText(itName.length > 34 ? itName.substring(0, 32) + '..' : itName, PAD, curY);
                 curY += 14 * SCALE;
 
-                // Renglón 2: Código   Cant x PrecioUnit                    Total
+                // Renglón 2: Código   Cant x PrecioUnit (sin duplicar total cuando cant = 1)
                 ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
                 ctx.textAlign = 'left';
 
                 if (isUSD) {
-                    ctx.fillText(`${it.id}    ${it.quantity} x $${unitPriceUSD.toFixed(2)}`, PAD, curY);
-                    ctx.textAlign = 'right';
-                    ctx.fillText(`$${lineTotalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+                    ctx.fillText(`${it.id}    ${hp.qty} x $${hp.unitPriceUSD.toFixed(2)}`, PAD, curY);
+                    if (hp.qty > 1) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`$${hp.lineTotalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+                    }
                 } else {
-                    const unitPriceBs = prices.publicoBs || (unitPriceUSD * tasa);
-                    const lineTotalBs = unitPriceBs * it.quantity;
-                    ctx.fillText(`${it.id}    ${it.quantity} x Bs. ${unitPriceBs.toFixed(2)}`, PAD, curY);
-                    ctx.textAlign = 'right';
-                    ctx.fillText(`Bs. ${lineTotalBs.toFixed(2)}`, WIDTH - PAD, curY);
+                    ctx.fillText(`${it.id}    ${hp.qty} x Bs. ${hp.unitPriceBs.toFixed(2)}`, PAD, curY);
+                    if (hp.qty > 1) {
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`Bs. ${hp.lineTotalBs.toFixed(2)}`, WIDTH - PAD, curY);
+                    }
                 }
                 curY += 18 * SCALE;
             });
         }
         curY += 4 * SCALE;
 
-        // 5. LÍNEA DISCONTINUA & TOTAL Y FORMA DE PAGO SELECCIONADA
+        // 5. LÍNEA DISCONTINUA & DESGLOSE IVA (SOLO FACTURA) + TOTAL Y FORMA DE PAGO
         drawDashedLine(curY);
         curY += 12 * SCALE;
+
+        // DESGLOSE DE IVA INCLUIDO ÚNICAMENTE PARA FACTURA
+        if (isFactura && ivaData) {
+            const fmtVal = (v) => isUSD ? `$${v.toFixed(2)}` : `Bs. ${v.toFixed(2)}`;
+            ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
+
+            ctx.textAlign = 'left';
+            ctx.fillText("BASE IMPONIBLE:", PAD, curY);
+            ctx.textAlign = 'right';
+            ctx.fillText(fmtVal(ivaData.baseImponible), WIDTH - PAD, curY);
+            curY += 16 * SCALE;
+
+            if (ivaData.exento > 0.005) {
+                ctx.textAlign = 'left';
+                ctx.fillText("EXENTO:", PAD, curY);
+                ctx.textAlign = 'right';
+                ctx.fillText(fmtVal(ivaData.exento), WIDTH - PAD, curY);
+                curY += 16 * SCALE;
+            }
+
+            ctx.textAlign = 'left';
+            ctx.fillText(`IVA (${ivaData.ivaPctLabel}%):`, PAD, curY);
+            ctx.textAlign = 'right';
+            ctx.fillText(fmtVal(ivaData.ivaTotal), WIDTH - PAD, curY);
+            curY += 18 * SCALE;
+        }
 
         // TOTAL EN LA MONEDA DE PAGO
         ctx.font = `bold ${13 * SCALE}px ${FONT_MONO}`;
@@ -1325,39 +1803,31 @@ async function generateInvoiceDocument(sale) {
         }
         curY += 18 * SCALE;
 
-        // ÚNICO SLOT: FORMA DE PAGO UTILIZADA
-        ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(methodLabel, PAD, curY);
-        ctx.textAlign = 'right';
-        if (isUSD) {
-            ctx.fillText(`$${sale.totalUSD.toFixed(2)}`, WIDTH - PAD, curY);
-        } else {
-            ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
+        // FORMA DE PAGO UTILIZADA (OCULTA SI ES PRESUPUESTO)
+        if (!isPresupuesto && methodLabel) {
+            ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
+            ctx.textAlign = 'left';
+            ctx.fillText(methodLabel, PAD, curY);
+            ctx.textAlign = 'right';
+            if (isUSD) {
+                ctx.fillText(`$${sale.totalUSD.toFixed(2)}`, WIDTH - PAD, curY);
+            } else {
+                ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
+            }
+            curY += 18 * SCALE;
         }
-        curY += 18 * SCALE;
 
-        // TOTAL PRODUCTOS VENDIDOS
+        // TOTAL PRODUCTOS
         ctx.font = `bold ${12 * SCALE}px ${FONT_MONO}`;
         ctx.textAlign = 'left';
-        ctx.fillText("TOTAL PRODUCTOS VENDIDOS:", PAD, curY);
+        ctx.fillText(isPresupuesto ? "TOTAL PRODUCTOS COTIZADOS:" : "TOTAL PRODUCTOS VENDIDOS:", PAD, curY);
         ctx.textAlign = 'right';
         ctx.fillText(String(totalProductosVendidos), WIDTH - PAD, curY);
         curY += 18 * SCALE;
 
-        // 6. LÍNEA DISCONTINUA & DATOS DE CAJERO / VENDEDOR
+        // 6. LÍNEA DISCONTINUA & AVISO LEGAL INFERIOR (CENTRALIZADO)
         drawDashedLine(curY);
-        curY += 12 * SCALE;
-
-        ctx.font = `bold ${11 * SCALE}px ${FONT_MONO}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(`USUARIO: ${(sale.vendedor || '0.11-CAJA PRINCIPAL').toUpperCase()}`, PAD, curY);
-        curY += 15 * SCALE;
-
-        ctx.fillText("VENDEDOR: 01 MOSTRADOR", PAD, curY);
-        curY += 22 * SCALE;
-
-        // 7. AVISO LEGAL INFERIOR (CENTRALIZADO)
+        curY += 14 * SCALE;
         ctx.font = `bold ${9.5 * SCALE}px ${FONT_MONO}`;
         ctx.textAlign = 'center';
         ctx.fillText("*** CONSERVE SU RECIBO PARA CUALQUIER RECLAMO ***", WIDTH / 2, curY);
@@ -1411,7 +1881,379 @@ async function generateInvoiceDocument(sale) {
     }
 }
 
+function _escThermal(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Genera el HTML vectorial de alta nitidez para impresora térmica POS-58
+ * Calibrado para Jaltech 40021 / OCPP-586-U — Papel 58(48) x 210 mm a 203 DPI
+ */
+function buildThermal58mmHTML(sale) {
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings)
+        ? NovaDB.getSettings()
+        : { tasaBCV: 915.75, tasaInterna: 1050, empresa: {} };
+    const emp = settings.empresa || {};
+
+    const isPresupuesto = (sale.tipoDocumento === 'presupuesto');
+    const isFactura = (sale.tipoDocumento === 'factura');
+
+    let docHeaderTitle = "NOTA DE DESPACHO";
+    if (isFactura) docHeaderTitle = "FACTURA";
+    else if (isPresupuesto) docHeaderTitle = "PRESUPUESTO";
+    else if (sale.tipoDocumento === 'nota_entrega') docHeaderTitle = "NOTA DE DESPACHO";
+
+    let primaryMethod = '';
+    let refNum = '';
+    if (!isPresupuesto && Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+        primaryMethod = sale.metodosPago[0].metodo || 'Efectivo USD';
+        refNum = sale.metodosPago[0].referencia || '';
+    }
+
+    const methodLower = primaryMethod.toLowerCase();
+    const isUSD = !isPresupuesto && isDivisaPaymentMethod(primaryMethod);
+    const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 915.75;
+
+    let methodLabel = primaryMethod.toUpperCase();
+    if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
+    else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
+    else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA";
+    else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL";
+    else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA";
+    else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
+    else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
+
+    const ivaData = isFactura ? _computeInvoiceIvaBreakdown(sale, settings, isUSD, tasa) : null;
+    const fmtThermalVal = (v) => isUSD ? `$${v.toFixed(2)}` : `Bs.${v.toFixed(2)}`;
+    const ivaBlockHtml = (isFactura && ivaData)
+        ? `
+        <div class="row">
+            <span>BASE IMPONIBLE:</span>
+            <span class="nowrap">${fmtThermalVal(ivaData.baseImponible)}</span>
+        </div>
+        ${ivaData.exento > 0.005 ? `<div class="row"><span>EXENTO:</span><span class="nowrap">${fmtThermalVal(ivaData.exento)}</span></div>` : ''}
+        <div class="row">
+            <span>IVA (${ivaData.ivaPctLabel}%):</span>
+            <span class="nowrap">${fmtThermalVal(ivaData.ivaTotal)}</span>
+        </div>
+        `
+        : '';
+
+    const docNumStr = String(sale.id || '1').replace(/\D/g, '').padStart(8, '0');
+    const custNombre = (sale.cliente && sale.cliente.nombre ? sale.cliente.nombre : 'CLIENTE MOSTRADOR').toUpperCase();
+    const custRif = (sale.cliente && sale.cliente.rif ? sale.cliente.rif : 'V-00000000').toUpperCase();
+    const custDir = (sale.cliente && sale.cliente.direccion ? sale.cliente.direccion : 'CABIMAS, EDO. ZULIA').toUpperCase();
+    const custPhone = (sale.cliente && sale.cliente.telefono ? sale.cliente.telefono : '').toUpperCase();
+    const totalProductosVendidos = (sale.items || []).reduce((acc, it) => acc + (parseInt(it.quantity) || 1), 0);
+
+    const empRif = (emp.rif || 'J-50440199-4').toUpperCase();
+    const empTel = emp.telefono || '+58 424-6192394';
+    const empDir = emp.direccion || 'Av. Carabobo, Cabimas, Zulia';
+
+    const logoSrc = (typeof NOVA_FACTURA_BASE64 !== 'undefined' && NOVA_FACTURA_BASE64)
+        ? NOVA_FACTURA_BASE64
+        : 'assets/nova-factura.png';
+
+    let itemsHtml = '';
+    if (Array.isArray(sale.items)) {
+        sale.items.forEach(it => {
+            const hp = _resolveHistoricalItemPrices(it, sale, settings, isUSD, tasa);
+
+            let leftCalc = '';
+            let rightTotal = '';
+            if (isUSD) {
+                leftCalc = hp.qty > 1
+                    ? `${_escThermal(it.id)} &nbsp; ${hp.qty}x$${hp.unitPriceUSD.toFixed(2)}`
+                    : `${_escThermal(it.id)} &nbsp; ${hp.qty} und.`;
+                rightTotal = `$${hp.lineTotalUSD.toFixed(2)}`;
+            } else {
+                leftCalc = `${_escThermal(it.id)} &nbsp; ${hp.qty} und.`;
+                rightTotal = `Bs.${hp.lineTotalBs.toFixed(2)}`;
+            }
+
+            itemsHtml += `
+                <div class="item-block">
+                    <div class="item-name">${_escThermal((it.name || it.id || '').toUpperCase())}</div>
+                    <div class="item-calc">
+                        <span class="nowrap">${leftCalc}</span>
+                        <span class="nowrap">${rightTotal}</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    const totalFormatted = isUSD
+        ? `$${(Number(sale.totalUSD) || 0).toFixed(2)}`
+        : `Bs.${(Number(sale.totalBs) || 0).toFixed(2)}`;
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>${_escThermal(docHeaderTitle)} ${docNumStr}</title>
+<style>
+    @page {
+        size: 58mm auto;
+        margin: 0mm;
+    }
+    * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 47mm;
+        max-width: 47mm;
+        background: #ffffff;
+        color: #000000;
+        font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+        font-size: 8.5pt;
+        line-height: 1.24;
+        font-weight: 600;
+    }
+    .ticket-58 {
+        width: 47mm;
+        padding: 1mm 1.2mm 10mm 1.2mm;
+    }
+    .logo {
+        display: block;
+        width: 34mm;
+        max-width: 100%;
+        height: auto;
+        margin: 0 auto 1.2mm auto;
+        filter: grayscale(100%) contrast(400%);
+    }
+    .company-meta {
+        font-size: 7.4pt;
+        font-weight: 700;
+        line-height: 1.22;
+        text-align: center;
+        color: #000000;
+        margin-bottom: 1.5mm;
+    }
+    .doc-title {
+        font-size: 10.5pt;
+        font-weight: 800;
+        text-align: center;
+        letter-spacing: 0.4px;
+        margin: 1.5mm 0;
+        padding: 1mm 0;
+        border-top: 1.5px solid #000000;
+        border-bottom: 1.5px solid #000000;
+    }
+    .divider {
+        border: none;
+        border-top: 1.2px dashed #000000;
+        margin: 1.8mm 0;
+    }
+    .divider-solid {
+        border: none;
+        border-top: 1.5px solid #000000;
+        margin: 1.8mm 0;
+    }
+    .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1.5mm;
+        font-size: 8pt;
+        font-weight: 700;
+        margin-bottom: 0.6mm;
+    }
+    .row-wrap {
+        font-size: 7.8pt;
+        font-weight: 700;
+        margin-bottom: 0.6mm;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    .nowrap {
+        white-space: nowrap;
+    }
+    .section-head {
+        display: flex;
+        justify-content: space-between;
+        font-size: 7.8pt;
+        font-weight: 800;
+        margin-bottom: 1.2mm;
+        padding-bottom: 0.6mm;
+        border-bottom: 1px solid #000000;
+    }
+    .item-block {
+        margin-bottom: 1.6mm;
+        padding-bottom: 1mm;
+        border-bottom: 1px dotted #000000;
+    }
+    .item-block:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    .item-name {
+        font-size: 7.8pt;
+        font-weight: 700;
+        line-height: 1.18;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        margin-bottom: 0.5mm;
+    }
+    .item-calc {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1mm;
+        font-size: 7.8pt;
+        font-weight: 700;
+    }
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 11pt;
+        font-weight: 800;
+        margin: 1.5mm 0 1mm 0;
+    }
+    .footer-note {
+        font-size: 7.2pt;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.28;
+        margin-top: 2mm;
+    }
+</style>
+</head>
+<body>
+    <div class="ticket-58">
+        <img class="logo" src="${logoSrc}" alt="NOVA REFRIMOTORS">
+        <div class="company-meta">
+            RIF: ${_escThermal(empRif)}<br>
+            ${_escThermal(empDir)}<br>
+            TELF: ${_escThermal(empTel)}
+        </div>
+
+        <div class="doc-title">${_escThermal(docHeaderTitle)}</div>
+
+        <div class="row">
+            <span>NRO:</span>
+            <span class="nowrap">${docNumStr}</span>
+        </div>
+        <div class="row">
+            <span>FECHA: ${_escThermal(sale.fechaStr || '')}</span>
+            <span class="nowrap">${_escThermal(sale.horaStr || '')}</span>
+        </div>
+        ${!isUSD ? `<div class="row"><span>TASA BCV:</span><span class="nowrap">Bs. ${tasa.toFixed(2)}</span></div>` : ''}
+
+        <hr class="divider">
+
+        <div class="row-wrap"><b>CLIENTE:</b> ${_escThermal(custNombre)}</div>
+        <div class="row-wrap"><b>RIF/CI:</b> ${_escThermal(custRif)}</div>
+        ${custPhone ? `<div class="row-wrap"><b>TELF:</b> ${_escThermal(custPhone)}</div>` : ''}
+
+        <hr class="divider">
+
+        <div class="section-head">
+            <span>DESCRIPCION / CANT</span>
+            <span>TOTAL</span>
+        </div>
+
+        ${itemsHtml}
+
+        <hr class="divider-solid">
+
+        ${ivaBlockHtml}
+
+        <div class="total-row">
+            <span>TOTAL:</span>
+            <span class="nowrap">${totalFormatted}</span>
+        </div>
+
+        ${!isPresupuesto && methodLabel ? `
+        <div class="row">
+            <span>${_escThermal(methodLabel)}</span>
+            <span class="nowrap">${totalFormatted}</span>
+        </div>
+        ${refNum ? `<div class="row-wrap"><b>REF:</b> ${_escThermal(refNum)}</div>` : ''}
+        ` : ''}
+        <div class="row">
+            <span>${isPresupuesto ? 'PRODUCTOS COTIZADOS:' : 'PRODUCTOS VENDIDOS:'}</span>
+            <span>${totalProductosVendidos}</span>
+        </div>
+
+        <hr class="divider">
+
+        <div class="footer-note">
+            CONSERVE SU RECIBO PARA RECLAMOS<br>
+            PIEZAS ELECTRICAS SIN GARANTIA<br>
+            *** GRACIAS POR SU COMPRA ***
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+function printThermalReceipt(sale) {
+    if (!sale) return;
+    const html = buildThermal58mmHTML(sale);
+
+    let iframe = document.getElementById('thermalPrintIframe');
+    if (iframe) iframe.remove();
+
+    iframe = document.createElement('iframe');
+    iframe.id = 'thermalPrintIframe';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '58mm';
+    iframe.style.height = '1px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const triggerPrint = () => {
+        try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } catch (e) {
+            console.warn("Error al invocar impresión térmica:", e);
+        }
+    };
+
+    const logoEl = doc.querySelector('img.logo');
+    if (logoEl && !logoEl.complete) {
+        let printed = false;
+        const safePrint = () => {
+            if (!printed) {
+                printed = true;
+                setTimeout(triggerPrint, 120);
+            }
+        };
+        logoEl.onload = safePrint;
+        logoEl.onerror = safePrint;
+        setTimeout(safePrint, 600);
+    } else {
+        setTimeout(triggerPrint, 150);
+    }
+}
+
 function printCurrentDocument() {
+    // Priorizar impresión vectorial nativa 58mm (alta nitidez en impresora térmica Jaltech POS-58)
+    if (window._lastGeneratedSale) {
+        printThermalReceipt(window._lastGeneratedSale);
+        return;
+    }
+
+    // Fallback a imagen solo si no existe el objeto de venta
     let docUrl = window._lastGeneratedDocUrl;
     if (!docUrl) {
         const fbCanvas = document.getElementById('invoiceDocCanvasFallback');
@@ -1434,9 +2276,9 @@ function printCurrentDocument() {
     <meta charset="UTF-8">
     <title>Imprimir Comprobante</title>
     <style>
-        @page { margin: 0; size: auto; }
-        body { margin: 0; padding: 0; background: #ffffff; display: flex; justify-content: center; }
-        img { width: 100%; max-width: 380px; height: auto; image-rendering: crisp-edges; image-rendering: pixelated; }
+        @page { margin: 0; size: 58mm auto; }
+        body { margin: 0; padding: 0; width: 47mm; background: #ffffff; }
+        img { width: 47mm; height: auto; filter: grayscale(100%) contrast(300%); }
     </style>
 </head>
 <body>
@@ -1444,6 +2286,33 @@ function printCurrentDocument() {
 </body>
 </html>`);
     w.document.close();
+}
+
+function printTestReceipt58mm() {
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 915.75 };
+    const now = new Date();
+    const testSale = {
+        id: 'PRUEBA-0001',
+        fechaStr: now.toLocaleDateString('es-VE'),
+        horaStr: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        tipoDocumento: 'factura',
+        tasaBCV: settings.tasaBCV || 915.75,
+        cliente: {
+            nombre: 'CLIENTE DE PRUEBA POS-58',
+            rif: 'V-12345678',
+            direccion: 'CABIMAS, EDO. ZULIA',
+            telefono: '0424-0000000'
+        },
+        items: [
+            { id: 'GAS002', name: 'Recarga de Gas Refrigerante R134a (Por Kilo)', quantity: 1, costoCompra: 13.26, porcentajeUtilidad: 30, iva: 16 },
+            { id: 'CAP001', name: 'Capacitor 45uF 440V Maxwell', quantity: 2, costoCompra: 4.31, porcentajeUtilidad: 30, iva: 16 }
+        ],
+        totalUSD: 33.00,
+        totalBs: +(33.00 * (settings.tasaBCV || 915.75)).toFixed(2),
+        metodosPago: [{ metodo: 'Efectivo USD' }],
+        vendedor: 'MASTER'
+    };
+    printThermalReceipt(testSale);
 }
 
 function downloadCurrentDocument() {
@@ -2489,6 +3358,39 @@ async function triggerSeedCatalog() {
     }
 }
 
+async function triggerPurgeTestData() {
+    const confirm1 = confirm("⚠️ ATENCIÓN: LIMPIEZA TOTAL DE REGISTROS DE PRUEBA ⚠️\n\n¿Estás seguro de que deseas purgar los registros de prueba?\n\n• Se borrarán todas las ventas y facturas demo\n• Se borrarán todos los egresos y compras de prueba\n• Se borrarán todos los proveedores de prueba\n• Se borrarán todos los clientes demo (dejando únicamente Cliente Mostrador CLI-001)\n• Se reiniciará el turno de caja a 0\n\n🔒 EL INVENTARIO DE PRODUCTOS Y EXISTENCIAS NO SE TOCARÁ NI SE BORRARÁ.\n\n¿Deseas continuar?");
+    if (!confirm1) return;
+
+    const confirm2 = confirm("CONFIRMACIÓN FINAL:\n\nEsta acción dejará la base de datos totalmente limpia y pura para iniciar operaciones reales.\n\n¿Proceder con la purga?");
+    if (!confirm2) return;
+
+    try {
+        // 1. Purga local en NovaDB
+        if (typeof NovaDB !== 'undefined' && typeof NovaDB.purgeTestData === 'function') {
+            NovaDB.purgeTestData();
+        }
+
+        // 2. Purga en Supabase (si hay conexión)
+        if (typeof NovaSupabase !== 'undefined' && typeof NovaSupabase.purgeCloudTestData === 'function') {
+            await NovaSupabase.purgeCloudTestData();
+        }
+
+        showNovaAlert({
+            title: "Limpieza Completada",
+            message: "La base de datos ha sido purgada con éxito. Se eliminaron todos los registros de prueba y se conservó el inventario completo. El sistema se recargará ahora.",
+            type: "success",
+            onConfirm: () => location.reload()
+        });
+    } catch (err) {
+        showNovaAlert({
+            title: "Error en Limpieza",
+            message: "Ocurrió un error al purgar: " + (err.message || err),
+            type: "error"
+        });
+    }
+}
+
 // ==========================================
 // UTILIDADES GENERALES DE MODALES
 // ==========================================
@@ -2566,5 +3468,13 @@ function closeNovaAlert(event) {
         _localAlertCallback = null;
         try { cb(); } catch (err) { console.error(err); }
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.openReprintModal = openReprintModal;
+    window.filterReprintSales = filterReprintSales;
+    window.reprintLastSaleDirectly = reprintLastSaleDirectly;
+    window.reprintSaleDirectly = reprintSaleDirectly;
+    window.reprintViewDocument = reprintViewDocument;
 }
 

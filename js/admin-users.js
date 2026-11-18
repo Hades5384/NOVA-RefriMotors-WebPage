@@ -208,15 +208,14 @@ const NovaUsers = (function () {
             }
         }
 
-        // 5. Botón de "En Espera" en Header: Solo visible o destacado en MASTER
+        // 5. Botón de "En Espera" y "Reimprimir" en Header: Solo visible o destacado en MASTER
         const btnHeld = document.getElementById('btnHeldSales');
         if (btnHeld) {
-            if (user.role === 'admin') {
-                btnHeld.style.display = 'inline-flex';
-            } else {
-                // En vendedores ocultar o mantener informativo
-                btnHeld.style.display = 'none';
-            }
+            btnHeld.style.display = (user.role === 'admin') ? 'inline-flex' : 'none';
+        }
+        const btnReprint = document.getElementById('btnReprintInvoice');
+        if (btnReprint) {
+            btnReprint.style.display = (user.role === 'admin') ? 'inline-flex' : 'none';
         }
 
         // Re-evaluar estado del botón según ítems en el carrito

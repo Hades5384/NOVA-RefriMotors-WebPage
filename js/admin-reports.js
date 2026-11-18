@@ -1102,11 +1102,20 @@ const NovaReports = (function () {
         return rawSales.filter(s => (s.timestamp || 0) >= startTimestamp || !s.timestamp);
     }
 
+    function _buildInvoiceLinkHtml(saleId) {
+        const safeId = String(saleId || '').replace(/'/g, "\\'");
+        return `<button type="button" class="report-doc-link-btn" onclick="openSaleInvoiceById('${safeId}')" title="Haz clic para ver la imagen exacta de esta factura o nota de despacho">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            ${saleId}
+        </button>`;
+    }
+
     // 1. Libro de Ventas (IVA) - Sin IGTF
     function generateLibroVentas(rangeKey) {
         const sales = _getFilteredSales(rangeKey);
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
+        if (typeof window !== 'undefined') window._reportSalesCache = window._reportSalesCache || {};
 
         let totalBaseUSD = 0;
         let totalBaseBs = 0;
@@ -1119,6 +1128,7 @@ const NovaReports = (function () {
             const num = (idx + 1).toString().padStart(3, '0');
             const fecha = s.fechaStr || new Date(s.timestamp || Date.now()).toLocaleDateString('es-VE');
             const docId = s.id || `FAC-${(1000 + idx)}`;
+            if (typeof window !== 'undefined') window._reportSalesCache[docId] = s;
             const control = `00-${(20000 + idx)}`;
             const cust = s.cliente || { nombre: "Cliente Mostrador", rif: "V-00000000" };
 
@@ -1140,7 +1150,7 @@ const NovaReports = (function () {
             return [
                 { val: num, align: 'center' },
                 { val: fecha, align: 'center' },
-                { val: docId, align: 'center', bold: true },
+                { val: _buildInvoiceLinkHtml(docId), align: 'center', bold: true },
                 { val: control, align: 'center' },
                 { val: `${cust.nombre} (${cust.rif})`, align: 'left' },
                 { val: `$${baseUSD.toFixed(2)}`, align: 'right' },
@@ -1233,50 +1243,22 @@ const NovaReports = (function () {
 
     // 3. Retenciones de IVA e ISLR
     function generateRetencionesReport(rangeKey) {
-        const rows = [
-            [
-                { val: "001", align: 'center' },
-                { val: "15/11/2026", align: 'center' },
-                { val: "20261100000001", align: 'center', bold: true },
-                { val: "Distribuidora Steinmann C.A.", align: 'left' },
-                { val: "J-31002299", align: 'center' },
-                { val: "FC-99120", align: 'center' },
-                { val: "Bs. 12.500,00", align: 'right' },
-                { val: "Bs. 2.000,00", align: 'right' },
-                { val: "75%", align: 'center' },
-                { val: "Bs. 1.500,00", align: 'right', bold: true },
-                { val: "Procesado", align: 'center' }
-            ],
-            [
-                { val: "002", align: 'center' },
-                { val: "12/11/2026", align: 'center' },
-                { val: "20261100000002", align: 'center', bold: true },
-                { val: "Importaciones Maxwell Gold", align: 'left' },
-                { val: "J-40223311", align: 'center' },
-                { val: "FC-88411", align: 'center' },
-                { val: "Bs. 8.400,00", align: 'right' },
-                { val: "Bs. 1.344,00", align: 'right' },
-                { val: "75%", align: 'center' },
-                { val: "Bs. 1.008,00", align: 'right', bold: true },
-                { val: "Procesado", align: 'center' }
-            ]
-        ];
-
+        const rows = [];
         return {
             title: "RELACIÓN DE COMPROBANTES DE RETENCIÓN DE IVA E ISLR",
             periodStr: "Quincena Fiscal Activa",
             kpis: [
-                { label: "Comprobantes Emitidos", value: "2", sub: "Correlativo 202611" },
-                { label: "Total IVA Retenido", value: "Bs. 2.508,00", highlight: 'text-primary', sub: "Enterado al Fisco" },
-                { label: "Base Comprobantes", value: "Bs. 20.900,00" },
-                { label: "Estatus de Retenciones", value: "Conforme", sub: "Al día con proveedores" }
+                { label: "Comprobantes Emitidos", value: "0", sub: "Sin retenciones pendientes" },
+                { label: "Total IVA Retenido", value: "Bs. 0,00", highlight: 'text-primary', sub: "Enterado al Fisco" },
+                { label: "Base Comprobantes", value: "Bs. 0,00" },
+                { label: "Estatus de Retenciones", value: "Conforme", sub: "Al día" }
             ],
             headers: ["Ítem", "Fecha", "N° Comprobante", "Proveedor", "RIF", "Factura Afectada", "Base Imponible", "Total IVA", "% Ret.", "IVA Retenido Bs.", "Estatus"],
             rows: rows,
             totals: [
                 { val: "<b>TOTAL IVA RETENIDO A ENTERAR AL SENIAT</b>", colspan: 9, align: 'left' },
-                { val: "<b>Bs. 2.508,00</b>", align: 'right' },
-                { val: "Comprobado", align: 'center' }
+                { val: "<b>Bs. 0,00</b>", align: 'right' },
+                { val: "Conforme", align: 'center' }
             ]
         };
     }
@@ -1284,57 +1266,48 @@ const NovaReports = (function () {
     // 4. Cortes Z y X de Caja Fiscal
     function generateCortesZX(rangeKey) {
         const shifts = (typeof NovaDB !== 'undefined' && NovaDB.getCashShifts) ? NovaDB.getCashShifts() : [];
+        let totalAcumUSD = 0;
+        let totalAcumBs = 0;
+
         const rows = shifts.map((s, idx) => {
             const zNum = `Z-${(100 + idx)}`;
             const cajero = s.usuario || "MASTER";
             const est = s.estacion || "MASTER";
             const fecha = s.fechaApertura || new Date().toLocaleDateString('es-VE');
-            const totalUSD = s.totalesPorMetodo ? Object.values(s.totalesPorMetodo).reduce((a, b) => a + (parseFloat(b) || 0), 0) : 340.50;
+            const totalUSD = s.totalesPorMetodo ? Object.values(s.totalesPorMetodo).reduce((a, b) => a + (parseFloat(b) || 0), 0) : 0;
             const totalBs = totalUSD * 914.02;
+
+            totalAcumUSD += totalUSD;
+            totalAcumBs += totalBs;
 
             return [
                 { val: zNum, align: 'center', bold: true },
                 { val: fecha, align: 'center' },
                 { val: s.horaApertura || "08:00 a. m.", align: 'center' },
-                { val: s.horaCierre || "06:30 p. m.", align: 'center' },
+                { val: s.horaCierre || "En Turno", align: 'center' },
                 { val: `${cajero} (${est})`, align: 'left' },
-                { val: "FAC-0001", align: 'center' },
-                { val: `FAC-00${(s.ventasIds ? s.ventasIds.length : 12)}`, align: 'center' },
+                { val: s.ventasIds && s.ventasIds[0] ? s.ventasIds[0] : "-", align: 'center' },
+                { val: s.ventasIds && s.ventasIds.length ? s.ventasIds[s.ventasIds.length - 1] : "-", align: 'center' },
                 { val: `$${totalUSD.toFixed(2)}`, align: 'right' },
                 { val: `Bs. ${totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right', bold: true },
                 { val: s.estado === 'cerrada' ? 'Cierre Z OK' : 'Corte X Parcial', align: 'center' }
             ];
         });
 
-        if (rows.length === 0) {
-            rows.push([
-                { val: "Z-001", align: 'center', bold: true },
-                { val: new Date().toLocaleDateString('es-VE'), align: 'center' },
-                { val: "08:00 a. m.", align: 'center' },
-                { val: "En Turno", align: 'center' },
-                { val: "MASTER (Caja Principal)", align: 'left' },
-                { val: "FAC-0001", align: 'center' },
-                { val: "FAC-0008", align: 'center' },
-                { val: "$240.00", align: 'right' },
-                { val: "Bs. 219.364,80", align: 'right', bold: true },
-                { val: "Corte X Parcial", align: 'center' }
-            ]);
-        }
-
         return {
             title: "HISTORIAL DE REPORTES FISCALES: CORTES Z (DIARIOS) Y CONSULTAS X",
             periodStr: "Jornadas Fiscales",
             kpis: [
-                { label: "Último Reporte Z", value: "Z-001", sub: "Caja Fiscal Mostrador" },
-                { label: "Cortes Registrados", value: rows.length, sub: "Sin saltos en memoria" },
-                { label: "Venta Acumulada Fiscal", value: "$480.00 USD", sub: "Sincronizado" }
+                { label: "Reportes Z Emitidos", value: shifts.filter(s => s.estado === 'cerrada').length, sub: "Caja Fiscal Mostrador" },
+                { label: "Cortes Registrados", value: rows.length, sub: "Turnos auditados" },
+                { label: "Venta Acumulada Fiscal", value: `$${totalAcumUSD.toFixed(2)} USD`, sub: "Sincronizado" }
             ],
             headers: ["N° Reporte", "Fecha", "Apertura", "Cierre", "Cajero / Estación", "Factura Inicial", "Factura Final", "Ventas USD", "Total Fiscal Bs.", "Tipo Reporte"],
             rows: rows,
             totals: [
                 { val: "<b>TOTAL FISCAL ACUMULADO</b>", colspan: 7, align: 'left' },
-                { val: "<b>$480.00</b>", align: 'right' },
-                { val: "<b>Bs. 438.729,60</b>", align: 'right' },
+                { val: `<b>$${totalAcumUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalAcumBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: "Auditado", align: 'center' }
             ]
         };
@@ -1347,36 +1320,17 @@ const NovaReports = (function () {
             periodStr: "Histórico Inalterable 2026",
             kpis: [
                 { label: "Serial Fiscal", value: "NOV-J504401994", sub: "Memoria Fiscal ERP" },
-                { label: "Total Reportes Z", value: "12 Cierres", sub: "Sin interrupciones" },
-                { label: "Venta Bruta Histórica", value: "$12.450,00 USD", sub: "Total Registrado" }
+                { label: "Total Reportes Z", value: "0 Cierres", sub: "Sin saltos" },
+                { label: "Venta Bruta Histórica", value: "$0.00 USD", sub: "Total Registrado" }
             ],
             headers: ["Rango Z", "Período Fechas", "Cant. Facturas", "Exento Bs.", "Base 16% Bs.", "Débito Fiscal Bs.", "Total Bruto Bs."],
-            rows: [
-                [
-                    { val: "Z-001 a Z-005", align: 'center', bold: true },
-                    { val: "01/11/2026 al 05/11/2026", align: 'center' },
-                    { val: "48", align: 'center' },
-                    { val: "Bs. 0,00", align: 'right' },
-                    { val: "Bs. 84.500,00", align: 'right' },
-                    { val: "Bs. 13.520,00", align: 'right' },
-                    { val: "Bs. 98.020,00", align: 'right', bold: true }
-                ],
-                [
-                    { val: "Z-006 a Z-010", align: 'center', bold: true },
-                    { val: "06/11/2026 al 10/11/2026", align: 'center' },
-                    { val: "62", align: 'center' },
-                    { val: "Bs. 0,00", align: 'right' },
-                    { val: "Bs. 112.400,00", align: 'right' },
-                    { val: "Bs. 17.984,00", align: 'right' },
-                    { val: "Bs. 130.384,00", align: 'right', bold: true }
-                ]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL ACUMULADO MEMORIA FISCAL</b>", colspan: 3, align: 'left' },
                 { val: "Bs. 0,00", align: 'right' },
-                { val: "Bs. 196.900,00", align: 'right' },
-                { val: "Bs. 31.504,00", align: 'right' },
-                { val: "Bs. 228.404,00", align: 'right' }
+                { val: "Bs. 0,00", align: 'right' },
+                { val: "Bs. 0,00", align: 'right' },
+                { val: "Bs. 0,00", align: 'right' }
             ]
         };
     }
@@ -1419,27 +1373,46 @@ const NovaReports = (function () {
 
     // 7. Arqueo y Cierre de Caja
     function generateArqueoCajaReport(rangeKey) {
+        const shifts = (typeof NovaDB !== 'undefined' && NovaDB.getCashShifts) ? NovaDB.getCashShifts() : [];
+        const active = (typeof NovaDB !== 'undefined' && NovaDB.getActiveShift) ? NovaDB.getActiveShift() : null;
+        const targetShift = active || (shifts.length > 0 ? shifts[0] : null);
+
+        let efUsd = 0, efBs = 0, ptBs = 0, pmBs = 0, zlUsd = 0;
+        if (targetShift && targetShift.totalesPorMetodo) {
+            efUsd = parseFloat(targetShift.totalesPorMetodo["Dólares Efectivo"] || 0);
+            efBs = parseFloat(targetShift.totalesPorMetodo["Bolívares Efectivo"] || 0);
+            ptBs = parseFloat(targetShift.totalesPorMetodo["Punto de Venta"] || targetShift.totalesPorMetodo["Punto de Venta (Tarjeta de Débito)"] || 0);
+            pmBs = parseFloat(targetShift.totalesPorMetodo["Pago Móvil"] || 0);
+            zlUsd = parseFloat(targetShift.totalesPorMetodo["Zelle"] || targetShift.totalesPorMetodo["Zelle / Divisas Digitales"] || 0);
+        }
+
+        const totalUSD = efUsd + zlUsd;
+        const totalBs = efBs + ptBs + pmBs;
+
+        const rows = [];
+        if (totalUSD > 0 || totalBs > 0) {
+            if (efUsd > 0) rows.push([{ val: "Dólares en Efectivo", align: 'left', bold: true }, { val: "USD", align: 'center' }, { val: `$${efUsd.toFixed(2)}`, align: 'right' }, { val: `$${efUsd.toFixed(2)}`, align: 'right' }, { val: "$0.00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+            if (efBs > 0) rows.push([{ val: "Bolívares en Efectivo", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${efBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${efBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+            if (ptBs > 0) rows.push([{ val: "Punto de Venta Bancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${ptBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${ptBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+            if (pmBs > 0) rows.push([{ val: "Pago Móvil Interbancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${pmBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${pmBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+            if (zlUsd > 0) rows.push([{ val: "Zelle / Divisas", align: 'left', bold: true }, { val: "USD", align: 'center' }, { val: `$${zlUsd.toFixed(2)}`, align: 'right' }, { val: `$${zlUsd.toFixed(2)}`, align: 'right' }, { val: "$0.00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+        }
+
         return {
             title: "ARQUEO Y CIERRE DE CAJA POR TURNO Y CAJERO",
-            periodStr: "Turno Actual",
+            periodStr: targetShift ? `Turno ${targetShift.id || 'Activo'}` : "Sin Turnos Registrados",
             kpis: [
-                { label: "Efectivo USD en Caja", value: "$180.00", highlight: 'text-success', sub: "Físico contado" },
-                { label: "Efectivo Bs en Caja", value: "Bs. 14.500,00", sub: "Billetes y cambio" },
-                { label: "Puntos de Venta y Pago Móvil", value: "Bs. 62.400,00", sub: "Banesco / BDV" },
+                { label: "Efectivo USD en Caja", value: `$${efUsd.toFixed(2)}`, highlight: 'text-success', sub: "Físico contado" },
+                { label: "Efectivo Bs en Caja", value: `Bs. ${efBs.toFixed(2)}`, sub: "Billetes y cambio" },
+                { label: "Puntos y Pago Móvil", value: `Bs. ${(ptBs + pmBs).toFixed(2)}`, sub: "Bancos" },
                 { label: "Diferencia de Caja", value: "$0.00 (Exacto)", highlight: 'text-primary', sub: "Cuadre 100% limpio" }
             ],
             headers: ["Método de Pago", "Moneda", "Monto Registrado en Sistema", "Monto Físico Auditado", "Diferencia", "Estatus"],
-            rows: [
-                [{ val: "Dólares en Efectivo", align: 'left', bold: true }, { val: "USD", align: 'center' }, { val: "$180.00", align: 'right' }, { val: "$180.00", align: 'right' }, { val: "$0.00", align: 'right' }, { val: "Cuadrado", align: 'center' }],
-                [{ val: "Bolívares en Efectivo", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: "Bs. 14.500,00", align: 'right' }, { val: "Bs. 14.500,00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }],
-                [{ val: "Punto de Venta Bancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: "Bs. 42.000,00", align: 'right' }, { val: "Bs. 42.000,00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }],
-                [{ val: "Pago Móvil Interbancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: "Bs. 20.400,00", align: 'right' }, { val: "Bs. 20.400,00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }],
-                [{ val: "Zelle / Transferencia USD", align: 'left', bold: true }, { val: "USD", align: 'center' }, { val: "$60.00", align: 'right' }, { val: "$60.00", align: 'right' }, { val: "$0.00", align: 'right' }, { val: "Cuadrado", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTALES CONSOLIDADOS DE ARQUEO</b>", colspan: 2, align: 'left' },
-                { val: "<b>$240.00 / Bs. 76.900</b>", align: 'right' },
-                { val: "<b>$240.00 / Bs. 76.900</b>", align: 'right' },
+                { val: `<b>$${totalUSD.toFixed(2)} / Bs. ${totalBs.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>$${totalUSD.toFixed(2)} / Bs. ${totalBs.toFixed(2)}</b>`, align: 'right' },
                 { val: "<b>$0.00</b>", align: 'right' },
                 { val: "Cierre Conforme", align: 'center' }
             ]
@@ -1448,28 +1421,75 @@ const NovaReports = (function () {
 
     // 8. Ventas por Método de Pago
     function generateVentasMetodos(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
 
+        const totalsByMethod = {};
+        let grandTotalUSD = 0;
+        let grandTotalBs = 0;
+
+        sales.forEach(s => {
+            const saleTasa = Number(s.tasaBCV) || tasa;
+            if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
+                s.metodosPago.forEach(mp => {
+                    const mName = mp.metodo || 'Otros';
+                    if (!totalsByMethod[mName]) {
+                        totalsByMethod[mName] = { usd: 0, bs: 0, count: 0, moneda: mp.moneda || 'USD' };
+                    }
+                    const monto = parseFloat(mp.monto) || 0;
+                    if (mp.moneda === 'Bs') {
+                        totalsByMethod[mName].bs += monto;
+                        totalsByMethod[mName].usd += (monto / saleTasa);
+                        grandTotalBs += monto;
+                        grandTotalUSD += (monto / saleTasa);
+                    } else {
+                        totalsByMethod[mName].usd += monto;
+                        totalsByMethod[mName].bs += (monto * saleTasa);
+                        grandTotalUSD += monto;
+                        grandTotalBs += (monto * saleTasa);
+                    }
+                    totalsByMethod[mName].count++;
+                });
+            } else if (s.totalUSD > 0 || s.totalBs > 0) {
+                const mName = 'Contado Mostrador';
+                if (!totalsByMethod[mName]) totalsByMethod[mName] = { usd: 0, bs: 0, count: 0, moneda: 'USD' };
+                const u = s.totalUSD || 0;
+                const b = s.totalBs || (u * saleTasa);
+                totalsByMethod[mName].usd += u;
+                totalsByMethod[mName].bs += b;
+                grandTotalUSD += u;
+                grandTotalBs += b;
+            }
+        });
+
+        const rows = Object.keys(totalsByMethod).map(mName => {
+            const data = totalsByMethod[mName];
+            const pct = grandTotalUSD > 0 ? ((data.usd / grandTotalUSD) * 100).toFixed(1) + '%' : '0.0%';
+            return [
+                { val: mName, align: 'left', bold: true },
+                { val: "Caja Mostrador / Banco", align: 'left' },
+                { val: data.moneda, align: 'center' },
+                { val: `$${data.usd.toFixed(2)}`, align: 'right' },
+                { val: `Bs. ${data.bs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                { val: pct, align: 'center' }
+            ];
+        });
+
         return {
             title: "CONCILIACIÓN DE VENTAS POR MÉTODO DE PAGO Y TASA BCV",
-            periodStr: "Período Activo",
+            periodStr: rangeKey === 'mes' ? 'Mes en Curso' : 'Período Activo',
             kpis: [
-                { label: "Cobros en Efectivo USD", value: "65%", sub: "Principal flujo mostrador" },
-                { label: "Cobros Digitales Bs", value: "30%", sub: "Pago Móvil y Punto" },
+                { label: "Total Recaudado USD", value: `$${grandTotalUSD.toFixed(2)}`, sub: "Ventas reales" },
+                { label: "Total Recaudado Bs", value: `Bs. ${grandTotalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, sub: "En bolívares" },
                 { label: "Tasa Promedio BCV", value: `Bs. ${tasa.toFixed(2)}`, sub: "Sin pérdidas cambiarias" }
             ],
             headers: ["Método de Pago", "Canal / Banco", "Moneda", "Total Cobrado USD", "Total Cobrado Bs.", "% del Total"],
-            rows: [
-                [{ val: "Efectivo Dólares", align: 'left', bold: true }, { val: "Caja Física Mostrador", align: 'left' }, { val: "USD", align: 'center' }, { val: "$340.00", align: 'right' }, { val: `Bs. ${(340 * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "62.4%", align: 'center' }],
-                [{ val: "Pago Móvil", align: 'left', bold: true }, { val: "Banco de Venezuela / Banesco", align: 'left' }, { val: "Bs", align: 'center' }, { val: "$110.00", align: 'right' }, { val: `Bs. ${(110 * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "20.2%", align: 'center' }],
-                [{ val: "Punto de Venta", align: 'left', bold: true }, { val: "Terminal Bancario", align: 'left' }, { val: "Bs", align: 'center' }, { val: "$65.00", align: 'right' }, { val: `Bs. ${(65 * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "11.9%", align: 'center' }],
-                [{ val: "Zelle / Binance", align: 'left', bold: true }, { val: "Cuenta Internacional", align: 'left' }, { val: "USD", align: 'center' }, { val: "$30.00", align: 'right' }, { val: `Bs. ${(30 * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "5.5%", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTAL INGRESOS RECAUDADOS</b>", colspan: 3, align: 'left' },
-                { val: "<b>$545.00</b>", align: 'right' },
-                { val: `<b>Bs. ${(545 * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>$${grandTotalUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>Bs. ${grandTotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: "100.0%", align: 'center' }
             ]
         };
@@ -1477,24 +1497,49 @@ const NovaReports = (function () {
 
     // 9. Ventas por Línea (Repuestos vs Servicios)
     function generateVentasPorLinea(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+        const tasa = settings.tasaBCV || 914.02;
+
+        let totalRepuestosUSD = 0;
+        let totalServiciosUSD = 0;
+
+        sales.forEach(s => {
+            (s.items || []).forEach(it => {
+                const subUSD = it.subtotalUSD || ((it.priceUSD || 0) * (it.quantity || 1));
+                const cat = (it.category || '').toLowerCase();
+                if (cat.includes('servicio') || (it.name || '').toLowerCase().includes('servicio') || (it.name || '').toLowerCase().includes('recarga')) {
+                    totalServiciosUSD += subUSD;
+                } else {
+                    totalRepuestosUSD += subUSD;
+                }
+            });
+        });
+
+        const totalUSD = totalRepuestosUSD + totalServiciosUSD;
+        const totalBs = totalUSD * tasa;
+
+        const rows = [];
+        if (totalUSD > 0) {
+            rows.push([{ val: "Repuestos y Accesorios", align: 'left', bold: true }, { val: "Venta al mayor y detal de partes de refrigeración y lavado", align: 'left' }, { val: "1.50%", align: 'center' }, { val: `$${totalRepuestosUSD.toFixed(2)}`, align: 'right' }, { val: `Bs. ${(totalRepuestosUSD * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${(totalRepuestosUSD * tasa * 0.015).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right', bold: true }]);
+            rows.push([{ val: "Servicios y Reparaciones", align: 'left', bold: true }, { val: "Mano de obra, recargas y diagnósticos técnicos", align: 'left' }, { val: "2.50%", align: 'center' }, { val: `$${totalServiciosUSD.toFixed(2)}`, align: 'right' }, { val: `Bs. ${(totalServiciosUSD * tasa).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${(totalServiciosUSD * tasa * 0.025).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right', bold: true }]);
+        }
+
         return {
             title: "VENTAS POR LÍNEA: REPUESTOS TANGIBLES VS. SERVICIOS TÉCNICOS (PATENTE MUNICIPAL)",
             periodStr: "Mes de Declaración",
             kpis: [
-                { label: "Ventas Repuestos (Bienes)", value: "$4.120,00 USD", sub: "Alícuota Comercio 1.5%" },
-                { label: "Servicios Técnicos (Taller)", value: "$980,00 USD", sub: "Alícuota Servicios 2.5%" },
-                { label: "Ingreso Bruto Total", value: "$5.100,00 USD", highlight: 'text-primary' }
+                { label: "Ventas Repuestos (Bienes)", value: `$${totalRepuestosUSD.toFixed(2)} USD`, sub: "Alícuota Comercio 1.5%" },
+                { label: "Servicios Técnicos (Taller)", value: `$${totalServiciosUSD.toFixed(2)} USD`, sub: "Alícuota Servicios 2.5%" },
+                { label: "Ingreso Bruto Total", value: `$${totalUSD.toFixed(2)} USD`, highlight: 'text-primary' }
             ],
             headers: ["Línea Operativa", "Descripción", "Alícuota Patente", "Venta Total USD", "Venta Total Bs.", "Impuesto Municipal Estimado"],
-            rows: [
-                [{ val: "Repuestos y Accesorios", align: 'left', bold: true }, { val: "Venta al mayor y detal de partes de refrigeración y lavado", align: 'left' }, { val: "1.50%", align: 'center' }, { val: "$4.120,00", align: 'right' }, { val: "Bs. 3.765.762,40", align: 'right' }, { val: "Bs. 56.486,44", align: 'right', bold: true }],
-                [{ val: "Servicios y Reparaciones", align: 'left', bold: true }, { val: "Mano de obra, recargas, mantenimiento y diagnósticos técnicos", align: 'left' }, { val: "2.50%", align: 'center' }, { val: "$980,00", align: 'right' }, { val: "Bs. 895.739,60", align: 'right' }, { val: "Bs. 22.393,49", align: 'right', bold: true }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTAL DECLARACIÓN ACTIVIDADES ECONÓMICAS</b>", colspan: 3, align: 'left' },
-                { val: "<b>$5.100,00</b>", align: 'right' },
-                { val: "<b>Bs. 4.661.502,00</b>", align: 'right' },
-                { val: "<b>Bs. 78.879,93</b>", align: 'right' }
+                { val: `<b>$${totalUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${(totalRepuestosUSD * tasa * 0.015 + totalServiciosUSD * tasa * 0.025).toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' }
             ]
         };
     }
@@ -1505,34 +1550,15 @@ const NovaReports = (function () {
             title: "AUDITORÍA DE FACTURAS ANULADAS, DEVOLUCIONES Y DESCUENTOS OTORGADOS",
             periodStr: "Auditoría de Control Interno",
             kpis: [
-                { label: "Facturas Anuladas", value: "1", sub: "Con Nota de Crédito" },
-                { label: "Descuentos por Divisas", value: "8 Tickets", sub: "Tarifa Contado" },
-                { label: "Monto Anulado", value: "$36.10 USD", highlight: 'text-danger' }
+                { label: "Facturas Anuladas", value: "0", sub: "Sin anulaciones" },
+                { label: "Descuentos Otorgados", value: "0 Tickets", sub: "Tarifa estándar" },
+                { label: "Monto Anulado", value: "$0.00 USD", highlight: 'text-success' }
             ],
             headers: ["Fecha", "Documento", "N° Nota Crédito", "Cliente", "Monto USD", "Usuario Autorizante", "Motivo de Anulación / Descuento"],
-            rows: [
-                [
-                    { val: "14/11/2026", align: 'center' },
-                    { val: "FAC-00042", align: 'center', bold: true },
-                    { val: "NC-00001", align: 'center' },
-                    { val: "Cliente Mostrador", align: 'left' },
-                    { val: "$36.10", align: 'right', bold: true },
-                    { val: "MASTER", align: 'center' },
-                    { val: "Cliente cambió modelo de capacitor en mostrador antes de retirar", align: 'left' }
-                ],
-                [
-                    { val: "15/11/2026", align: 'center' },
-                    { val: "FAC-00055", align: 'center' },
-                    { val: "Desc. Divisa", align: 'center' },
-                    { val: "Taller Frío Express", align: 'left' },
-                    { val: "$12.00", align: 'right' },
-                    { val: "VENTAS01", align: 'center' },
-                    { val: "Descuento por pronto pago 100% en dólares efectivo", align: 'left' }
-                ]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL DEVOLUCIONES Y ANULACIONES REGISTRADAS</b>", colspan: 4, align: 'left' },
-                { val: "<b>$48.10</b>", align: 'right' },
+                { val: "<b>$0.00</b>", align: 'right' },
                 { val: "Supervisado por MASTER", colspan: 2, align: 'center' }
             ]
         };
@@ -1545,66 +1571,6 @@ const NovaReports = (function () {
 
         const allCustomers = (typeof NovaDB !== 'undefined' && NovaDB.getCustomers) ? NovaDB.getCustomers() : [];
         let sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
-
-        // Si no hay ventas o hay muy pocas en base de datos local, proveer transacciones representativas
-        if (sales.length === 0) {
-            sales = [
-                {
-                    id: "FAC-00001",
-                    timestamp: Date.now() - 3600000 * 24 * 3,
-                    fechaStr: "14/11/2026",
-                    horaStr: "09:30 a. m.",
-                    cliente: { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas" },
-                    items: [
-                        { id: "GAS002", name: "Recarga de Gas Refrigerante R134a", quantity: 2, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 48.14 },
-                        { id: "CAP001", name: "Capacitor 45uF 440V Maxwell", quantity: 4, priceUSD: 6.50, priceBs: 5941.13, subtotalUSD: 26.00 }
-                    ],
-                    totalUSD: 74.14,
-                    totalBs: 67762.72,
-                    metodosPago: [{ metodo: "Transferencia Banesco", moneda: "Bs", monto: 67762.72 }]
-                },
-                {
-                    id: "FAC-00002",
-                    timestamp: Date.now() - 3600000 * 24 * 2,
-                    fechaStr: "15/11/2026",
-                    horaStr: "11:15 a. m.",
-                    cliente: { id: "CLI-002", nombre: "Técnico Luis González (Frío Express)", rif: "V-18456123", telefono: "0424-6112233", direccion: "Sector Delicias Nuevas, Calle Rosario, Cabimas" },
-                    items: [
-                        { id: "GAS003", name: "Recarga de Gas Refrigerante R410a", quantity: 1, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 24.07 },
-                        { id: "PROT01", name: "Protector de Voltaje 220V Aire", quantity: 1, priceUSD: 18.50, priceBs: 16909.37, subtotalUSD: 18.50 }
-                    ],
-                    totalUSD: 42.57,
-                    totalBs: 38907.61,
-                    metodosPago: [{ metodo: "Dólares Efectivo", moneda: "USD", monto: 40.00 }, { metodo: "Pago Móvil", moneda: "Bs", monto: 2351.49 }]
-                },
-                {
-                    id: "FAC-00003",
-                    timestamp: Date.now() - 3600000 * 24,
-                    fechaStr: "16/11/2026",
-                    horaStr: "02:40 p. m.",
-                    cliente: { id: "CLI-003", nombre: "Refrigeración Industrial Serviluz C.A.", rif: "J-309988771", telefono: "0412-5544332", direccion: "Av. Intercomunal con Carretera H, Cabimas" },
-                    items: [
-                        { id: "GAS007", name: "Recarga de Gas Refrigerante R404a", quantity: 3, priceUSD: 24.07, priceBs: 21998.24, subtotalUSD: 72.21 }
-                    ],
-                    totalUSD: 72.21,
-                    totalBs: 65994.72,
-                    metodosPago: [{ metodo: "Transferencia Banesco", moneda: "Bs", monto: 65994.72 }]
-                },
-                {
-                    id: "FAC-00004",
-                    timestamp: Date.now() - 3600000 * 5,
-                    fechaStr: "17/11/2026",
-                    horaStr: "10:20 a. m.",
-                    cliente: { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia" },
-                    items: [
-                        { id: "FIL001", name: "Filtro Secador Soldable 1/4", quantity: 3, priceUSD: 3.20, priceBs: 2924.86, subtotalUSD: 9.60 }
-                    ],
-                    totalUSD: 9.60,
-                    totalBs: 8774.58,
-                    metodosPago: [{ metodo: "Pago Móvil", moneda: "Bs", monto: 8774.58 }]
-                }
-            ];
-        }
 
         // Obtener término de búsqueda del cliente
         const query = (customClientQuery !== undefined ? customClientQuery : activeClientReportFilter).trim().toLowerCase();
@@ -1663,17 +1629,35 @@ const NovaReports = (function () {
         let totalBs = 0;
         let totalItemsCount = 0;
         const rows = [];
+        if (typeof window !== 'undefined') window._reportSalesCache = window._reportSalesCache || {};
 
         filteredSales.forEach(s => {
+            if (typeof window !== 'undefined' && s.id) window._reportSalesCache[s.id] = s;
             const c = s.cliente || { nombre: "Cliente Mostrador", rif: "V-00000000" };
             const items = s.items || [];
-            const payMethod = (s.metodosPago && s.metodosPago.length > 0) ? s.metodosPago.map(m => m.metodo).join(' / ') : 'Contado Mostrador';
+            const saleTasa = Number(s.tasaBCV) || tasa;
+            const payMethod = (s.tipoDocumento === 'presupuesto')
+                ? 'Presupuesto'
+                : ((s.metodosPago && s.metodosPago.length > 0) ? s.metodosPago.map(m => m.metodo).join(' / ') : 'Contado Mostrador');
 
             items.forEach((item) => {
-                const qty = item.quantity || 1;
-                const priceUSD = item.priceUSD || (item.priceBs ? item.priceBs / tasa : 0);
-                const subUSD = item.subtotalUSD || (priceUSD * qty);
-                const subBs = item.subtotalBs || (subUSD * tasa);
+                const qty = parseInt(item.quantity) || 1;
+                let priceUSD = (typeof item.priceUSD === 'number' && item.priceUSD > 0) ? item.priceUSD : 0;
+                let subUSD = (typeof item.subtotalUSD === 'number' && item.subtotalUSD > 0) ? item.subtotalUSD : 0;
+                let subBs = (typeof item.subtotalBs === 'number' && item.subtotalBs > 0) ? item.subtotalBs : 0;
+
+                if (priceUSD <= 0) {
+                    if (typeof item.priceBs === 'number' && item.priceBs > 0) {
+                        priceUSD = item.priceBs / saleTasa;
+                    } else if (typeof calcularPreciosSegunAjustes === 'function' && item.costoCompra) {
+                        const calcP = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+                        const isDiv = s.tipoPrecio === 'divisas' || s.descuentoDivisas;
+                        priceUSD = isDiv ? calcP.novaClientesUSD : calcP.publicoUSD;
+                        if (subBs <= 0) subBs = (isDiv ? (priceUSD * saleTasa) : calcP.publicoBs) * qty;
+                    }
+                }
+                if (subUSD <= 0) subUSD = priceUSD * qty;
+                if (subBs <= 0) subBs = (typeof item.priceBs === 'number' && item.priceBs > 0) ? (item.priceBs * qty) : (subUSD * saleTasa);
 
                 totalUSD += subUSD;
                 totalBs += subBs;
@@ -1681,7 +1665,7 @@ const NovaReports = (function () {
 
                 rows.push([
                     { val: `${s.fechaStr} <span style="font-size:10px; color:#64748b;">${s.horaStr || ''}</span>`, align: 'center' },
-                    { val: s.id, align: 'center', bold: true },
+                    { val: _buildInvoiceLinkHtml(s.id), align: 'center', bold: true },
                     { val: `<b>${c.nombre}</b><br><span style="font-size:10.5px; color:#64748b;">${c.rif}</span>`, align: 'left' },
                     { val: item.name || item.id, align: 'left' },
                     { val: qty.toString(), align: 'center', bold: true },
@@ -1720,27 +1704,29 @@ const NovaReports = (function () {
 
     // 11. Kardex de Inventario
     function generateKardexReport(rangeKey) {
+        const logs = (typeof NovaDB !== 'undefined' && NovaDB.getStockLogs) ? NovaDB.getStockLogs() : [];
+        const rows = logs.map(l => [
+            { val: l.fechaStr || new Date(l.timestamp).toLocaleDateString('es-VE'), align: 'center' },
+            { val: l.reason || 'Ajuste de Stock', align: 'left' },
+            { val: l.docId || '-', align: 'center' },
+            { val: l.diff > 0 ? l.diff.toString() : '-', align: 'center' },
+            { val: l.diff < 0 ? Math.abs(l.diff).toString() : '-', align: 'center' },
+            { val: (l.newStock || 0).toString(), align: 'center', bold: true },
+            { val: l.costUSD ? `$${l.costUSD.toFixed(2)}` : '-', align: 'right' },
+            { val: l.totalUSD ? `$${l.totalUSD.toFixed(2)}` : '-', align: 'right' }
+        ]);
+
         return {
             title: "KARDEX CRONOLÓGICO DE INVENTARIO (MOVIMIENTOS DE ALMACÉN)",
-            periodStr: "Historial de Repuestos Clave",
+            periodStr: "Historial de Movimientos",
             kpis: [
-                { label: "SKU Seleccionado", value: "GAS002", sub: "Gas R134a Cilindro" },
-                { label: "Saldo Inicial", value: "20 Unid.", sub: "01/11/2026" },
-                { label: "Salidas / Ventas", value: "-5 Unid.", sub: "Mostrador POS" },
-                { label: "Saldo Actual Almacén", value: "15 Unid.", highlight: 'text-success' }
+                { label: "Movimientos Registrados", value: `${rows.length}`, sub: "Kardex de almacén" },
+                { label: "Estatus", value: "Auditado", highlight: 'text-success', sub: "Sin diferencias" }
             ],
             headers: ["Fecha", "Tipo Operación", "N° Comprobante", "Entradas (+)", "Salidas (-)", "Saldo Stock", "Costo Unit. USD", "Saldo Valorizado USD"],
-            rows: [
-                [{ val: "01/11/2026", align: 'center' }, { val: "Inventario Inicial", align: 'left' }, { val: "INI-2026", align: 'center' }, { val: "20", align: 'center' }, { val: "-", align: 'center' }, { val: "20", align: 'center', bold: true }, { val: "$24.00", align: 'right' }, { val: "$480.00", align: 'right' }],
-                [{ val: "08/11/2026", align: 'center' }, { val: "Venta Mostrador", align: 'left' }, { val: "FAC-00012", align: 'center' }, { val: "-", align: 'center' }, { val: "2", align: 'center' }, { val: "18", align: 'center', bold: true }, { val: "$24.00", align: 'right' }, { val: "$432.00", align: 'right' }],
-                [{ val: "12/11/2026", align: 'center' }, { val: "Venta Mostrador", align: 'left' }, { val: "FAC-00028", align: 'center' }, { val: "-", align: 'center' }, { val: "2", align: 'center' }, { val: "16", align: 'center', bold: true }, { val: "$24.00", align: 'right' }, { val: "$384.00", align: 'right' }],
-                [{ val: "15/11/2026", align: 'center' }, { val: "Uso Servicio Taller", align: 'left' }, { val: "ORD-001", align: 'center' }, { val: "-", align: 'center' }, { val: "1", align: 'center' }, { val: "15", align: 'center', bold: true }, { val: "$24.00", align: 'right' }, { val: "$360.00", align: 'right' }]
-            ],
+            rows: rows,
             totals: [
-                { val: "<b>SALDO FINAL EN ALMACÉN AL DÍA DE HOY</b>", colspan: 5, align: 'left' },
-                { val: "<b>15 Unid.</b>", align: 'center' },
-                { val: "-", align: 'center' },
-                { val: "<b>$360.00 USD</b>", align: 'right' }
+                { val: "<b>TOTAL REGISTROS KARDEX AUDITADOS</b>", colspan: 8, align: 'center' }
             ]
         };
     }
@@ -1751,24 +1737,27 @@ const NovaReports = (function () {
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
 
-        let totalItems = 0;
         let totalUnidades = 0;
         let totalCostoUSD = 0;
 
-        const keys = Object.keys(inv).slice(0, 15);
-        const rows = keys.map(k => {
+        const allKeys = Object.keys(inv);
+        allKeys.forEach(k => {
             const it = inv[k];
             const stock = it.stock || 0;
-            const cost = it.costoCompra || 10;
-            const subtotal = stock * cost;
-
-            totalItems++;
+            const cost = it.costoCompra || 0;
             totalUnidades += stock;
-            totalCostoUSD += subtotal;
+            totalCostoUSD += (stock * cost);
+        });
+
+        const rows = allKeys.slice(0, 30).map(k => {
+            const it = inv[k];
+            const stock = it.stock || 0;
+            const cost = it.costoCompra || 0;
+            const subtotal = stock * cost;
 
             return [
                 { val: k, align: 'center', bold: true },
-                { val: `Repuesto [${k}]`, align: 'left' },
+                { val: it.name || `Repuesto [${k}]`, align: 'left' },
                 { val: stock.toString(), align: 'center' },
                 { val: `$${cost.toFixed(2)}`, align: 'right' },
                 { val: `Bs. ${(cost * tasa).toFixed(2)}`, align: 'right' },
@@ -1777,23 +1766,23 @@ const NovaReports = (function () {
             ];
         });
 
-        const valorTotalUSD = 18450.00;
+        const valorTotalUSD = totalCostoUSD;
         const valorTotalBs = valorTotalUSD * tasa;
 
         return {
             title: "VALORACIÓN DE INVENTARIO Y PATRIMONIO DE ALMACÉN (MÉTODO PEPS Y PROMEDIO)",
             periodStr: "Cierre Contable ISLR",
             kpis: [
-                { label: "Repuestos en Catálogo", value: "1.309 SKUs", sub: "Almacén Central Cabimas" },
-                { label: "Existencia Total Física", value: "3.480 Unidades", sub: "Stock auditado" },
-                { label: "Valor Patrimonial USD", value: `$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: 'text-primary' },
+                { label: "Repuestos en Catálogo", value: `${allKeys.length} SKUs`, sub: "Almacén Central Cabimas" },
+                { label: "Existencia Total Física", value: `${totalUnidades.toLocaleString('es-VE')} Unidades`, sub: "Stock auditado" },
+                { label: "Valor Patrimonial USD", value: `$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, highlight: 'text-primary' },
                 { label: "Valor Patrimonial Bs", value: `Bs. ${valorTotalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, highlight: 'text-success' }
             ],
             headers: ["Código SKU", "Descripción del Repuesto", "Stock en Almacén", "Costo Unit. USD", "Costo Unit. Bs", "Costo Total USD", "Costo Total Bs."],
             rows: rows,
             totals: [
                 { val: "<b>VALOR PATRIMONIAL TOTAL DE INVENTARIO</b>", colspan: 5, align: 'left' },
-                { val: `<b>$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: `<b>Bs. ${valorTotalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' }
             ]
         };
@@ -1803,20 +1792,17 @@ const NovaReports = (function () {
     function generateMermasAjustes(rangeKey) {
         return {
             title: "REPORTE DE AJUSTES, MERMAS Y BAJAS DE STOCK JUSTIFICADAS",
-            periodStr: "Mes Actual",
+            periodStr: "Auditoría de Almacén",
             kpis: [
-                { label: "Mermas Registradas", value: "2 Casos", sub: "Sin impacto fiscal" },
-                { label: "Costo de Pérdida", value: "$18.50 USD", highlight: 'text-warning' },
+                { label: "Mermas Registradas", value: "0 Casos", sub: "Sin impacto" },
+                { label: "Costo de Pérdida", value: "$0.00 USD", highlight: 'text-success' },
                 { label: "Aprobación", value: "Firma MASTER OK", sub: "Auditado" }
             ],
             headers: ["Fecha", "Código SKU", "Descripción", "Cantidad Dada de Baja", "Costo Unit.", "Pérdida Total USD", "Motivo de la Baja", "Autorizado Por"],
-            rows: [
-                [{ val: "10/11/2026", align: 'center' }, { val: "CAP004", align: 'center', bold: true }, { val: "Capacitor 45uF 440V", align: 'left' }, { val: "1", align: 'center' }, { val: "$4.50", align: 'right' }, { val: "$4.50", align: 'right' }, { val: "Golpe en terminal durante descarga de camión", align: 'left' }, { val: "MASTER", align: 'center' }],
-                [{ val: "14/11/2026", align: 'center' }, { val: "GAS007", align: 'center', bold: true }, { val: "Gas R404a Cilindro", align: 'left' }, { val: "0.5 Kg", align: 'center' }, { val: "$28.00/Kg", align: 'right' }, { val: "$14.00", align: 'right' }, { val: "Merma en manguera manómetro de recarga taller", align: 'left' }, { val: "MASTER", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL PÉRDIDAS POR MERMA REGISTRADAS</b>", colspan: 5, align: 'left' },
-                { val: "<b>$18.50 USD</b>", align: 'right' },
+                { val: "<b>$0.00 USD</b>", align: 'right' },
                 { val: "Justificado ante Fisco", colspan: 2, align: 'center' }
             ]
         };
@@ -1826,18 +1812,14 @@ const NovaReports = (function () {
     function generateConteoFisicoReport(rangeKey) {
         return {
             title: "AUDITORÍA DE CONTEO FÍSICO VS. STOCK TEÓRICO EN SISTEMA",
-            periodStr: "Toma Cíclica Semanal",
+            periodStr: "Toma Cíclica de Inventario",
             kpis: [
-                { label: "Repuestos Contados", value: "45 SKUs", sub: "Estantería A y B" },
-                { label: "Coincidencias Exactas", value: "98.2%", highlight: 'text-success', sub: "Nivel óptimo" },
+                { label: "Repuestos Auditados", value: "0 SKUs", sub: "Estanterías" },
+                { label: "Coincidencias Exactas", value: "100%", highlight: 'text-success', sub: "Nivel óptimo" },
                 { label: "Descuadre Neto", value: "$0.00", sub: "Sin diferencias monetarias" }
             ],
             headers: ["SKU", "Repuesto", "Ubicación", "Stock en ERP", "Conteo Físico Real", "Diferencia", "Costo Unit.", "Impacto Monetario"],
-            rows: [
-                [{ val: "GAS002", align: 'center', bold: true }, { val: "Gas R134a Cilindro 13.6kg", align: 'left' }, { val: "Estante A-01", align: 'center' }, { val: "15", align: 'center' }, { val: "15", align: 'center' }, { val: "0", align: 'center' }, { val: "$24.07", align: 'right' }, { val: "$0.00", align: 'right', bold: true }],
-                [{ val: "CMS010", align: 'center', bold: true }, { val: "Camisa Tubo Centrifugado", align: 'left' }, { val: "Estante B-04", align: 'center' }, { val: "12", align: 'center' }, { val: "12", align: 'center' }, { val: "0", align: 'center' }, { val: "$15.63", align: 'right' }, { val: "$0.00", align: 'right', bold: true }],
-                [{ val: "EJE007", align: 'center', bold: true }, { val: "Eje Central Agitación", align: 'left' }, { val: "Estante C-02", align: 'center' }, { val: "12", align: 'center' }, { val: "12", align: 'center' }, { val: "0", align: 'center' }, { val: "$6.28", align: 'right' }, { val: "$0.00", align: 'right', bold: true }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>CONCILIACIÓN FÍSICA AUDITADA: SIN DESCUADRES</b>", colspan: 8, align: 'center' }
             ]
@@ -1850,18 +1832,15 @@ const NovaReports = (function () {
             title: "ÓRDENES DE SERVICIO TÉCNICO: ABIERTAS, ENTREGADAS Y FACTURADAS",
             periodStr: "Control de Taller",
             kpis: [
-                { label: "Órdenes Abiertas", value: "2 Pendientes", highlight: 'text-warning', sub: "En taller" },
-                { label: "Órdenes Facturadas", value: "14 Listas", highlight: 'text-success' },
-                { label: "Mano de Obra Facturada", value: "$740.00 USD", sub: "100% Cobrada" }
+                { label: "Órdenes Abiertas", value: "0 Pendientes", highlight: 'text-success', sub: "En taller" },
+                { label: "Órdenes Facturadas", value: "0 Listas", highlight: 'text-success' },
+                { label: "Mano de Obra Facturada", value: "$0.00 USD", sub: "Al día" }
             ],
             headers: ["N° Orden", "Fecha Ingreso", "Cliente / Equipo", "Trabajo Técnico Realizado", "Técnico Asignado", "Monto Servicio", "Estatus"],
-            rows: [
-                [{ val: "ORD-0012", align: 'center', bold: true }, { val: "14/11/2026", align: 'center' }, { val: "Clínica Cabimas (Nevera Industrial)", align: 'left' }, { val: "Cambio de compresor y recarga de R134a", align: 'left' }, { val: "Luis González", align: 'center' }, { val: "$120.00", align: 'right' }, { val: "Facturada (FAC-00038)", align: 'center' }],
-                [{ val: "ORD-0013", align: 'center', bold: true }, { val: "16/11/2026", align: 'center' }, { val: "Panadería La Espiga (Cava Cuarto)", align: 'left' }, { val: "Sustitución de válvula de expansión y filtro", align: 'left' }, { val: "Carlos Vivas", align: 'center' }, { val: "$95.00", align: 'right' }, { val: "En Reparación", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL FACTURACIÓN DE SERVICIOS</b>", colspan: 5, align: 'left' },
-                { val: "<b>$215.00 USD</b>", align: 'right' },
+                { val: "<b>$0.00 USD</b>", align: 'right' },
                 { val: "Sin fugas operativas", align: 'center' }
             ]
         };
@@ -1873,71 +1852,102 @@ const NovaReports = (function () {
             title: "CONSUMO DE INSUMOS Y REPUESTOS DESCARGADOS POR SERVICIO TÉCNICO",
             periodStr: "Trazabilidad Taller",
             kpis: [
-                { label: "Materiales Descargados", value: "8 Repuestos", sub: "Órdenes de servicio" },
-                { label: "Costo Total Insumos", value: "$68.50 USD", sub: "Descargado de stock" }
+                { label: "Materiales Descargados", value: "0 Repuestos", sub: "Órdenes de servicio" },
+                { label: "Costo Total Insumos", value: "$0.00 USD", sub: "Descargado de stock" }
             ],
             headers: ["N° Orden", "Fecha", "Repuesto Descargado", "SKU", "Cantidad", "Costo Compra USD", "Precio Cobrado Cliente", "Margen %"],
-            rows: [
-                [{ val: "ORD-0012", align: 'center', bold: true }, { val: "14/11/2026", align: 'center' }, { val: "Gas R134a (Kilos)", align: 'left' }, { val: "GAS002", align: 'center' }, { val: "2 Kg", align: 'center' }, { val: "$24.00", align: 'right' }, { val: "$48.14", align: 'right' }, { val: "100.5%", align: 'center' }],
-                [{ val: "ORD-0012", align: 'center', bold: true }, { val: "14/11/2026", align: 'center' }, { val: "Filtro Soldable 30gr", align: 'left' }, { val: "FLT001", align: 'center' }, { val: "1", align: 'center' }, { val: "$3.50", align: 'right' }, { val: "$7.00", align: 'right' }, { val: "100.0%", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL INSUMOS CONSUMIDOS EN ÓRDENES</b>", colspan: 5, align: 'left' },
-                { val: "<b>$27.50 USD</b>", align: 'right' },
-                { val: "<b>$55.14 USD</b>", align: 'right' },
-                { val: "100.5%", align: 'center' }
+                { val: "<b>$0.00 USD</b>", align: 'right' },
+                { val: "<b>$0.00 USD</b>", align: 'right' },
+                { val: "0.0%", align: 'center' }
             ]
         };
     }
 
     // 17. Rentabilidad y Margen Bruto
     function generateRentabilidadReport(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
+        const itemStats = {};
+        sales.forEach(s => {
+            (s.items || []).forEach(it => {
+                if (!itemStats[it.id]) {
+                    itemStats[it.id] = { name: it.name || it.id, cost: it.costoCompra || 0, price: it.priceUSD || 0, qty: 0 };
+                }
+                itemStats[it.id].qty += (parseInt(it.quantity) || 1);
+            });
+        });
+
+        const rows = Object.keys(itemStats).map(id => {
+            const it = itemStats[id];
+            const util = it.price - it.cost;
+            const pct = it.cost > 0 ? ((util / it.cost) * 100).toFixed(1) + '%' : '0.0%';
+            return [
+                { val: "Repuesto", align: 'center' },
+                { val: it.name, align: 'left', bold: true },
+                { val: `$${it.cost.toFixed(2)}`, align: 'right' },
+                { val: `$${it.price.toFixed(2)}`, align: 'right' },
+                { val: `$${util.toFixed(2)}`, align: 'right' },
+                { val: pct, align: 'center' },
+                { val: "Óptimo", align: 'center' }
+            ];
+        });
+
         return {
             title: "ANÁLISIS DE RENTABILIDAD Y MARGEN BRUTO POR PRODUCTO Y SERVICIO",
-            periodStr: "Mes Actual",
+            periodStr: rangeKey === 'mes' ? 'Mes en Curso' : 'Período Activo',
             kpis: [
-                { label: "Margen Bruto Promedio", value: "32.8%", highlight: 'text-success', sub: "Meta comercial superada" },
+                { label: "Repuestos Vendidos", value: `${rows.length}`, sub: "Ítems analizados" },
                 { label: "Ventas a Pérdida", value: "0 Casos", highlight: 'text-success', sub: "Precios protegidos" },
-                { label: "Ganancia Bruta Mes", value: "$1.680,00 USD", sub: "En bolívares y divisas" }
+                { label: "Estatus", value: "Rentable", sub: "Control de márgenes" }
             ],
             headers: ["Línea", "Descripción del Ítem", "Costo Real USD", "Precio Venta USD", "Utilidad Neta USD", "Margen Bruto %", "Estatus"],
-            rows: [
-                [{ val: "Repuesto", align: 'center' }, { val: "Gas Refrigerante R134a", align: 'left', bold: true }, { val: "$18.50", align: 'right' }, { val: "$24.07", align: 'right' }, { val: "$5.57", align: 'right' }, { val: "30.1%", align: 'center' }, { val: "Óptimo", align: 'center' }],
-                [{ val: "Repuesto", align: 'center' }, { val: "Capacitor 45uF", align: 'left', bold: true }, { val: "$3.20", align: 'right' }, { val: "$5.50", align: 'right' }, { val: "$2.30", align: 'right' }, { val: "71.8%", align: 'center' }, { val: "Excelente", align: 'center' }],
-                [{ val: "Servicio", align: 'center' }, { val: "Mantenimiento Preventivo Cava", align: 'left', bold: true }, { val: "$25.00", align: 'right' }, { val: "$80.00", align: 'right' }, { val: "$55.00", align: 'right' }, { val: "220.0%", align: 'center' }, { val: "Alto Margen", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
-                { val: "<b>PROMEDIO PONDERADO DE RENTABILIDAD</b>", colspan: 4, align: 'left' },
-                { val: "<b>$62.87 USD</b>", align: 'right' },
-                { val: "<b>42.4%</b>", align: 'center' },
-                { val: "Rentable", align: 'center' }
+                { val: "<b>RESUMEN DE RENTABILIDAD</b>", colspan: 4, align: 'left' },
+                { val: "<b>-</b>", align: 'right' },
+                { val: "<b>-</b>", align: 'center' },
+                { val: "Auditado", align: 'center' }
             ]
         };
     }
 
     // 18. Estados Financieros Básicos
     function generateEstadosFinancierosReport(rangeKey) {
+        const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+        const tasa = settings.tasaBCV || 914.02;
+
+        let totalInvUSD = 0;
+        Object.values(inv).forEach(it => {
+            totalInvUSD += ((it.stock || 0) * (it.costoCompra || 0));
+        });
+        const totalInvBs = totalInvUSD * tasa;
+
+        const rows = [
+            [{ val: "1.1.01", align: 'center', bold: true }, { val: "Caja Principal y Moneda Extranjera", align: 'left' }, { val: "$0.00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "0.0%", align: 'center' }],
+            [{ val: "1.1.02", align: 'center', bold: true }, { val: "Bancos Nacionales (Banesco / BDV)", align: 'left' }, { val: "$0.00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "0.0%", align: 'center' }],
+            [{ val: "1.1.03", align: 'center', bold: true }, { val: "Inventario de Mercancía en Almacén", align: 'left' }, { val: `$${totalInvUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "100.0%", align: 'center' }],
+            [{ val: "1.1.04", align: 'center', bold: true }, { val: "Cuentas por Cobrar Clientes", align: 'left' }, { val: "$0.00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "0.0%", align: 'center' }],
+            [{ val: "2.1.01", align: 'center', bold: true }, { val: "Cuentas por Pagar Proveedores (Pasivo)", align: 'left' }, { val: "$0.00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "0.0%", align: 'center' }]
+        ];
+
         return {
             title: "ESTADOS FINANCIEROS BÁSICOS: BALANCE GENERAL Y GANANCIAS Y PÉRDIDAS",
             periodStr: "Ejercicio Económico 2026",
             kpis: [
-                { label: "Activos Totales", value: "$28.450,00 USD", highlight: 'text-primary' },
-                { label: "Pasivos Totales", value: "$4.120,00 USD", sub: "Proveedores y cuentas" },
-                { label: "Patrimonio Neto", value: "$24.330,00 USD", highlight: 'text-success' },
-                { label: "Utilidad del Ejercicio", value: "$3.840,00 USD", sub: "Ganancia neta" }
+                { label: "Activos Totales", value: `$${totalInvUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`, highlight: 'text-primary' },
+                { label: "Pasivos Totales", value: "$0.00 USD", sub: "Sin deudas" },
+                { label: "Patrimonio Neto", value: `$${totalInvUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`, highlight: 'text-success' },
+                { label: "Utilidad del Ejercicio", value: "$0.00 USD", sub: "Inicio de período" }
             ],
             headers: ["Cuenta Contable", "Nombre de la Cuenta", "Saldo USD", "Saldo Bs. (BCV)", "Participación %"],
-            rows: [
-                [{ val: "1.1.01", align: 'center', bold: true }, { val: "Caja Principal y Moneda Extranjera", align: 'left' }, { val: "$4.200,00", align: 'right' }, { val: "Bs. 3.838.884,00", align: 'right' }, { val: "14.7%", align: 'center' }],
-                [{ val: "1.1.02", align: 'center', bold: true }, { val: "Bancos Nacionales (Banesco / BDV)", align: 'left' }, { val: "$3.800,00", align: 'right' }, { val: "Bs. 3.473.276,00", align: 'right' }, { val: "13.3%", align: 'center' }],
-                [{ val: "1.1.03", align: 'center', bold: true }, { val: "Inventario de Mercancía en Almacén", align: 'left' }, { val: "$18.450,00", align: 'right' }, { val: "Bs. 16.863.669,00", align: 'right' }, { val: "64.8%", align: 'center' }],
-                [{ val: "1.1.04", align: 'center', bold: true }, { val: "Cuentas por Cobrar Clientes", align: 'left' }, { val: "$2.000,00", align: 'right' }, { val: "Bs. 1.828.040,00", align: 'right' }, { val: "7.2%", align: 'center' }],
-                [{ val: "2.1.01", align: 'center', bold: true }, { val: "Cuentas por Pagar Proveedores (Pasivo)", align: 'left' }, { val: "($4.120,00)", align: 'right' }, { val: "(Bs. 3.765.762,40)", align: 'right' }, { val: "-14.4%", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>PATRIMONIO NETO TOTAL (ACTIVO - PASIVO)</b>", colspan: 2, align: 'left' },
-                { val: "<b>$24.330,00 USD</b>", align: 'right' },
-                { val: "<b>Bs. 22.238.106,60</b>", align: 'right' },
+                { val: `<b>$${totalInvUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: "100.0%", align: 'center' }
             ]
         };
@@ -1945,49 +1955,81 @@ const NovaReports = (function () {
 
     // 19. Balance de Comprobación
     function generateBalanceComprobacion(rangeKey) {
+        const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+        const tasa = settings.tasaBCV || 914.02;
+
+        let totalInvBs = 0;
+        Object.values(inv).forEach(it => {
+            totalInvBs += ((it.stock || 0) * (it.costoCompra || 0) * tasa);
+        });
+
+        const rows = [
+            [{ val: "1.1.01", align: 'center' }, { val: "Caja y Bancos", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Bs. 0,00", align: 'right', bold: true }, { val: "-", align: 'center' }],
+            [{ val: "1.1.03", align: 'center' }, { val: "Inventario de Mercancía", align: 'left' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right', bold: true }, { val: "-", align: 'center' }],
+            [{ val: "2.1.01", align: 'center' }, { val: "Cuentas por Pagar Proveedores", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "-", align: 'center' }, { val: "Bs. 0,00", align: 'right', bold: true }],
+            [{ val: "3.1.01", align: 'center' }, { val: "Capital Social / Patrimonio", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, align: 'right', bold: true }]
+        ];
+
         return {
             title: "BALANCE DE COMPROBACIÓN DE SUMAS Y SALDOS (PARTIDA DOBLE)",
             periodStr: "Mes Actual",
             kpis: [
-                { label: "Total Débitos (Debe)", value: "Bs. 28.540.110,00", sub: "Suma debito" },
-                { label: "Total Créditos (Haber)", value: "Bs. 28.540.110,00", sub: "Suma credito" },
+                { label: "Total Débitos (Debe)", value: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, sub: "Suma debito" },
+                { label: "Total Créditos (Haber)", value: `Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, sub: "Suma credito" },
                 { label: "Diferencia de Balance", value: "Bs. 0,00 (Exacto)", highlight: 'text-success', sub: "Debe = Haber" }
             ],
             headers: ["Código", "Cuenta Contable", "Sumas Debe Bs.", "Sumas Haber Bs.", "Saldo Deudor Bs.", "Saldo Acreedor Bs."],
-            rows: [
-                [{ val: "1.1.01", align: 'center' }, { val: "Caja y Bancos", align: 'left' }, { val: "Bs. 8.500.000,00", align: 'right' }, { val: "Bs. 2.100.000,00", align: 'right' }, { val: "Bs. 6.400.000,00", align: 'right', bold: true }, { val: "-", align: 'center' }],
-                [{ val: "1.1.03", align: 'center' }, { val: "Inventario de Mercancía", align: 'left' }, { val: "Bs. 16.800.000,00", align: 'right' }, { val: "Bs. 3.200.000,00", align: 'right' }, { val: "Bs. 13.600.000,00", align: 'right', bold: true }, { val: "-", align: 'center' }],
-                [{ val: "2.1.01", align: 'center' }, { val: "Cuentas por Pagar Proveedores", align: 'left' }, { val: "Bs. 1.200.000,00", align: 'right' }, { val: "Bs. 4.965.762,00", align: 'right' }, { val: "-", align: 'center' }, { val: "Bs. 3.765.762,00", align: 'right', bold: true }],
-                [{ val: "4.1.01", align: 'center' }, { val: "Ventas de Repuestos (Ingresos)", align: 'left' }, { val: "-", align: 'center' }, { val: "Bs. 16.234.348,00", align: 'right' }, { val: "-", align: 'center' }, { val: "Bs. 16.234.348,00", align: 'right', bold: true }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTALES CONSOLIDADOS CUADRADOS</b>", colspan: 2, align: 'left' },
-                { val: "<b>Bs. 28.540.110,00</b>", align: 'right' },
-                { val: "<b>Bs. 28.540.110,00</b>", align: 'right' },
-                { val: "<b>Bs. 20.000.000,00</b>", align: 'right' },
-                { val: "<b>Bs. 20.000.000,00</b>", align: 'right' }
+                { val: `<b>Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalInvBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' }
             ]
         };
     }
 
     // 20. Libro Diario y Mayor
     function generateLibroDiarioMayor(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
+        const rows = [];
+        let totalDebe = 0;
+        let totalHaber = 0;
+
+        sales.forEach((s, idx) => {
+            const num = (idx + 1).toString().padStart(3, '0');
+            const totalBs = s.totalBs || 0;
+            const baseBs = totalBs / 1.16;
+            const ivaBs = totalBs - baseBs;
+
+            totalDebe += totalBs;
+            totalHaber += totalBs;
+
+            rows.push([
+                { val: `ASI-${num}`, align: 'center', bold: true },
+                { val: s.fechaStr || new Date().toLocaleDateString('es-VE'), align: 'center' },
+                { val: "Caja Principal USD / Bs <br> a Ventas Repuestos <br> a Débito Fiscal IVA 16%", align: 'left' },
+                { val: `Venta ${s.id}`, align: 'center' },
+                { val: `Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <br> - <br> -`, align: 'right' },
+                { val: `- <br> Bs. ${baseBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <br> Bs. ${ivaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }
+            ]);
+        });
+
         return {
             title: "LIBRO DIARIO LEGAL Y LIBRO MAYOR GENERAL DE CONTABILIDAD",
             periodStr: "Asientos del Período",
             kpis: [
-                { label: "Asientos Generados", value: "32 Asientos", sub: "Auto-generados por POS" },
-                { label: "Libro Registrado", value: "Folio 48", sub: "Conforme Código Comercio" }
+                { label: "Asientos Generados", value: `${rows.length} Asientos`, sub: "Auto-generados por POS" },
+                { label: "Libro Registrado", value: "Conforme", sub: "Código de Comercio" }
             ],
             headers: ["Asiento N°", "Fecha", "Cuentas Contables Afectadas", "Referencia / Documento", "Debe Bs.", "Haber Bs."],
-            rows: [
-                [{ val: "ASI-001", align: 'center', bold: true }, { val: "14/11/2026", align: 'center' }, { val: "Caja Principal USD <br> a Ventas Repuestos <br> a Débito Fiscal IVA 16%", align: 'left' }, { val: "Venta FAC-00001", align: 'center' }, { val: "Bs. 21.998,24 <br> - <br> -", align: 'right' }, { val: "- <br> Bs. 18.964,00 <br> Bs. 3.034,24", align: 'right' }],
-                [{ val: "ASI-002", align: 'center', bold: true }, { val: "15/11/2026", align: 'center' }, { val: "Costo de Ventas <br> a Inventario de Mercancía", align: 'left' }, { val: "Salida Stock FAC-00001", align: 'center' }, { val: "Bs. 10.970,00 <br> -", align: 'right' }, { val: "- <br> Bs. 10.970,00", align: 'right' }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTAL ASIENTOS DEL DIARIO CUADRADOS</b>", colspan: 4, align: 'left' },
-                { val: "<b>Bs. 32.968,24</b>", align: 'right' },
-                { val: "<b>Bs. 32.968,24</b>", align: 'right' }
+                { val: `<b>Bs. ${totalDebe.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalHaber.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' }
             ]
         };
     }
@@ -1998,21 +2040,18 @@ const NovaReports = (function () {
             title: "CUENTAS POR COBRAR: ANTIGÜEDAD DE SALDOS Y CRÉDITOS A CLIENTES",
             periodStr: "Cartera Activa",
             kpis: [
-                { label: "Total por Cobrar", value: "$850.00 USD", sub: "3 Clientes con saldo" },
-                { label: "Cartera Vigente (0-15 d)", value: "$620.00", highlight: 'text-success' },
-                { label: "En Mora (>30 días)", value: "$0.00", highlight: 'text-success', sub: "0% morosidad crítica" }
+                { label: "Total por Cobrar", value: "$0.00 USD", sub: "0 Clientes con saldo" },
+                { label: "Cartera Vigente", value: "$0.00", highlight: 'text-success' },
+                { label: "En Mora (>30 días)", value: "$0.00", highlight: 'text-success', sub: "0% morosidad" }
             ],
             headers: ["Cliente / RIF", "Teléfono", "Factura", "Fecha Emisión", "Total Factura", "Abonos", "Saldo Pendiente", "Tramo Mora"],
-            rows: [
-                [{ val: "Refrigeración Serviluz C.A. <br><small>J-309988771</small>", align: 'left', bold: true }, { val: "0412-5544332", align: 'center' }, { val: "FAC-00021", align: 'center' }, { val: "08/11/2026", align: 'center' }, { val: "$450.00", align: 'right' }, { val: "$150.00", align: 'right' }, { val: "$300.00", align: 'right', bold: true }, { val: "Vigente (8 días)", align: 'center' }],
-                [{ val: "Taller Frío Express <br><small>V-18456123</small>", align: 'left', bold: true }, { val: "0424-6112233", align: 'center' }, { val: "FAC-00030", align: 'center' }, { val: "12/11/2026", align: 'center' }, { val: "$320.00", align: 'right' }, { val: "$0.00", align: 'right' }, { val: "$320.00", align: 'right', bold: true }, { val: "Vigente (4 días)", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL CARTERA POR COBRAR</b>", colspan: 4, align: 'left' },
-                { val: "<b>$770.00</b>", align: 'right' },
-                { val: "<b>$150.00</b>", align: 'right' },
-                { val: "<b>$620.00 USD</b>", align: 'right' },
-                { val: "Saludable", align: 'center' }
+                { val: "<b>$0.00</b>", align: 'right' },
+                { val: "<b>$0.00</b>", align: 'right' },
+                { val: "<b>$0.00 USD</b>", align: 'right' },
+                { val: "Al Día", align: 'center' }
             ]
         };
     }
@@ -2023,20 +2062,17 @@ const NovaReports = (function () {
             title: "CUENTAS POR PAGAR A PROVEEDORES Y CALENDARIO DE VENCIMIENTOS",
             periodStr: "Obligaciones Comerciales",
             kpis: [
-                { label: "Total por Pagar", value: "$1.450,00 USD", sub: "Compras de repuestos" },
-                { label: "Próximo Vencimiento", value: "25/11/2026", sub: "Steinmann C.A." },
+                { label: "Total por Pagar", value: "$0.00 USD", sub: "Compras de repuestos" },
+                { label: "Próximo Vencimiento", value: "-", sub: "Sin obligaciones" },
                 { label: "Compromisos al Día", value: "100%", highlight: 'text-success' }
             ],
             headers: ["Proveedor / RIF", "Factura Proveedor", "Fecha Recepción", "Fecha Vencimiento", "Total Compra", "Abonado", "Saldo por Pagar", "Estatus"],
-            rows: [
-                [{ val: "Distribuidora Steinmann C.A. <br><small>J-31002299</small>", align: 'left', bold: true }, { val: "FC-99120", align: 'center' }, { val: "05/11/2026", align: 'center' }, { val: "25/11/2026", align: 'center' }, { val: "$950.00", align: 'right' }, { val: "$200.00", align: 'right' }, { val: "$750.00", align: 'right', bold: true }, { val: "Por Vencer (9 días)", align: 'center' }],
-                [{ val: "Importaciones Maxwell Gold <br><small>J-40223311</small>", align: 'left', bold: true }, { val: "FC-88411", align: 'center' }, { val: "10/11/2026", align: 'center' }, { val: "30/11/2026", align: 'center' }, { val: "$700.00", align: 'right' }, { val: "$0.00", align: 'right' }, { val: "$700.00", align: 'right', bold: true }, { val: "Por Vencer (14 días)", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>TOTAL OBLIGACIONES CON PROVEEDORES</b>", colspan: 4, align: 'left' },
-                { val: "<b>$1.650,00</b>", align: 'right' },
-                { val: "<b>$200.00</b>", align: 'right' },
-                { val: "<b>$1.450,00 USD</b>", align: 'right' },
+                { val: "<b>$0.00</b>", align: 'right' },
+                { val: "<b>$0.00</b>", align: 'right' },
+                { val: "<b>$0.00 USD</b>", align: 'right' },
                 { val: "Al Día", align: 'center' }
             ]
         };
@@ -2044,23 +2080,41 @@ const NovaReports = (function () {
 
     // 23. Conciliación Bancaria
     function generateConciliacionBancaria(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
+        const rows = [];
+        let totalBs = 0;
+        sales.forEach(s => {
+            (s.metodosPago || []).forEach(mp => {
+                if (mp.metodo && (mp.metodo.includes('Pago Móvil') || mp.metodo.includes('Punto') || mp.metodo.includes('Transferencia'))) {
+                    const monto = parseFloat(mp.monto) || 0;
+                    totalBs += monto;
+                    rows.push([
+                        { val: s.fechaStr || new Date().toLocaleDateString('es-VE'), align: 'center' },
+                        { val: `REF-${s.id}`, align: 'center', bold: true },
+                        { val: `${mp.metodo} Venta ${s.id}`, align: 'left' },
+                        { val: `Bs. ${monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                        { val: `Bs. ${monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                        { val: "Bs. 0,00", align: 'right' },
+                        { val: "Conciliado", align: 'center' }
+                    ]);
+                }
+            });
+        });
+
         return {
             title: "CONCILIACIÓN BANCARIA Y CRUCE DE EXTRACTOS CON ERP",
-            periodStr: "Mes Actual",
+            periodStr: rangeKey === 'mes' ? 'Mes en Curso' : 'Período Activo',
             kpis: [
-                { label: "Saldo en Libros ERP", value: "Bs. 75.400,00", sub: "Movimientos registrados" },
-                { label: "Saldo en Banco Oficial", value: "Bs. 75.400,00", sub: "Estado de cuenta Banesco" },
+                { label: "Saldo en Libros ERP", value: `Bs. ${totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, sub: "Movimientos registrados" },
+                { label: "Saldo en Banco Oficial", value: `Bs. ${totalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, sub: "Conciliado" },
                 { label: "Diferencia de Conciliación", value: "Bs. 0,00", highlight: 'text-success', sub: "Conciliado 100%" }
             ],
             headers: ["Fecha", "Referencia Bancaria", "Concepto de Operación", "Monto en ERP", "Monto en Extracto Banco", "Diferencia", "Estatus"],
-            rows: [
-                [{ val: "14/11/2026", align: 'center' }, { val: "REF-992144", align: 'center', bold: true }, { val: "Pago Móvil Venta FAC-00001", align: 'left' }, { val: "Bs. 21.998,24", align: 'right' }, { val: "Bs. 21.998,24", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Conciliado", align: 'center' }],
-                [{ val: "15/11/2026", align: 'center' }, { val: "REF-114402", align: 'center', bold: true }, { val: "Lote Punto de Venta Banesco", align: 'left' }, { val: "Bs. 53.401,76", align: 'right' }, { val: "Bs. 53.401,76", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Conciliado", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
                 { val: "<b>TOTALES BANCO CONCILIADOS</b>", colspan: 3, align: 'left' },
-                { val: "<b>Bs. 75.400,00</b>", align: 'right' },
-                { val: "<b>Bs. 75.400,00</b>", align: 'right' },
+                { val: `<b>Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: "<b>Bs. 0,00</b>", align: 'right' },
                 { val: "Conforme", align: 'center' }
             ]
@@ -2073,16 +2127,12 @@ const NovaReports = (function () {
             title: "BITÁCORA DE AUDITORÍA Y TRAZABILIDAD DE ACCIONES DE USUARIO",
             periodStr: "Registro Inmutable",
             kpis: [
-                { label: "Eventos Auditados", value: "148 Acciones", sub: "Log del sistema" },
+                { label: "Eventos Auditados", value: "0 Acciones", sub: "Log del sistema" },
                 { label: "Estaciones Activas", value: "4 Equipos", sub: "MASTER, V01, V02, V03" },
                 { label: "Acciones Críticas", value: "0 Errores", highlight: 'text-success' }
             ],
             headers: ["Fecha y Hora", "Estación / Usuario", "Módulo", "Acción Ejecutada", "Documento / Registro", "Detalles Técnicos"],
-            rows: [
-                [{ val: "16/11/2026 10:45 a. m.", align: 'center' }, { val: "MASTER", align: 'center', bold: true }, { val: "POS", align: 'center' }, { val: "COBRO Y FACTURACIÓN", align: 'left' }, { val: "FAC-00001", align: 'center' }, { val: "Cobro multimoneda $24.07 en efectivo USD", align: 'left' }],
-                [{ val: "16/11/2026 10:30 a. m.", align: 'center' }, { val: "VENTAS01", align: 'center', bold: true }, { val: "POS", align: 'center' }, { val: "ENVÍO A CAJA", align: 'left' }, { val: "HOLD-3312", align: 'center' }, { val: "Pedido de Cliente Mostrador enviado a MASTER", align: 'left' }],
-                [{ val: "15/11/2026 05:15 p. m.", align: 'center' }, { val: "MASTER", align: 'center', bold: true }, { val: "CAJA", align: 'center' }, { val: "CIERRE DE CAJA Z", align: 'left' }, { val: "TURNO-001", align: 'center' }, { val: "Arqueo cerrado con cero diferencias", align: 'left' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>REGISTRO DE SEGURIDAD OPERATIVO: SIN EVENTOS SOSPECHOSOS</b>", colspan: 6, align: 'center' }
             ]
@@ -2095,14 +2145,11 @@ const NovaReports = (function () {
             title: "HISTORIAL DE MODIFICACIONES DE PRECIOS DE VENTA Y COSTOS DE COMPRA",
             periodStr: "Auditoría de Tarifas",
             kpis: [
-                { label: "Precios Modificados", value: "3 Ajustes", sub: "Por variación de proveedor" },
+                { label: "Precios Modificados", value: "0 Ajustes", sub: "Catálogo estándar" },
                 { label: "Usuario Autorizante", value: "MASTER", sub: "Exclusivo estación principal" }
             ],
             headers: ["Fecha y Hora", "Código SKU", "Nombre del Repuesto", "Costo Anterior", "Costo Nuevo", "Precio Venta Anterior", "Precio Venta Nuevo", "Usuario"],
-            rows: [
-                [{ val: "14/11/2026 09:30 a. m.", align: 'center' }, { val: "GAS002", align: 'center', bold: true }, { val: "Gas Refrigerante R134a", align: 'left' }, { val: "$17.00", align: 'right' }, { val: "$18.50", align: 'right', bold: true }, { val: "$22.10", align: 'right' }, { val: "$24.07", align: 'right', bold: true }, { val: "MASTER", align: 'center' }],
-                [{ val: "10/11/2026 03:20 p. m.", align: 'center' }, { val: "CMS010", align: 'center', bold: true }, { val: "Camisa Tubo Centrifugado", align: 'left' }, { val: "$11.00", align: 'right' }, { val: "$12.00", align: 'right', bold: true }, { val: "$14.30", align: 'right' }, { val: "$15.63", align: 'right', bold: true }, { val: "MASTER", align: 'center' }]
-            ],
+            rows: [],
             totals: [
                 { val: "<b>MODIFICACIONES EXCLUSIVAS DE SUPERVISIÓN: AUTORIZADAS</b>", colspan: 8, align: 'center' }
             ]
@@ -2111,21 +2158,40 @@ const NovaReports = (function () {
 
     // 26. Alertas de Ventas Anómalas
     function generateVentasAnomalasReport(rangeKey) {
+        const sales = _getFilteredSales(rangeKey);
+        const rows = [];
+        sales.forEach(s => {
+            (s.items || []).forEach(it => {
+                const cost = it.costoCompra || 0;
+                const price = it.priceUSD || 0;
+                if (price < cost && cost > 0) {
+                    const margin = (((price - cost) / cost) * 100).toFixed(1) + '%';
+                    rows.push([
+                        { val: s.fechaStr || new Date().toLocaleDateString('es-VE'), align: 'center' },
+                        { val: s.id, align: 'center', bold: true },
+                        { val: it.name || it.id, align: 'left' },
+                        { val: `$${cost.toFixed(2)}`, align: 'right' },
+                        { val: `$${price.toFixed(2)}`, align: 'right' },
+                        { val: margin, align: 'center' },
+                        { val: s.vendedor || "MASTER", align: 'center' },
+                        { val: "<span style='color:#dc2626; font-weight:700;'>Alerta: Bajo Costo</span>", align: 'center' }
+                    ]);
+                }
+            });
+        });
+
         return {
             title: "MONITOREO DE VENTAS ANÓMALAS: ALERTAS DE BAJO MARGEN O VENTA BAJO COSTO",
             periodStr: "Protección de Capital",
             kpis: [
-                { label: "Alertas Críticas", value: "0 Casos", highlight: 'text-success', sub: "Sin ventas a pérdida" },
+                { label: "Alertas Críticas", value: `${rows.length} Casos`, highlight: rows.length > 0 ? 'text-danger' : 'text-success', sub: rows.length > 0 ? "Revisar ventas" : "Sin ventas a pérdida" },
                 { label: "Margen Mínimo Permitido", value: "15.0%", sub: "Regla del sistema" },
-                { label: "Diagnóstico", value: "Seguridad Óptima", highlight: 'text-success' }
+                { label: "Diagnóstico", value: rows.length === 0 ? "Seguridad Óptima" : "Revisión Requerida", highlight: 'text-success' }
             ],
             headers: ["Fecha", "Factura", "Repuesto", "Costo Compra USD", "Precio Venta USD", "Margen %", "Vendedor", "Nivel de Alerta"],
-            rows: [
-                [{ val: "16/11/2026", align: 'center' }, { val: "FAC-00001", align: 'center', bold: true }, { val: "Gas R134a Cilindro", align: 'left' }, { val: "$18.50", align: 'right' }, { val: "$24.07", align: 'right' }, { val: "30.1%", align: 'center' }, { val: "MASTER", align: 'center' }, { val: "<span style='color:#15803d; font-weight:700;'>Normal</span>", align: 'center' }],
-                [{ val: "15/11/2026", align: 'center' }, { val: "FAC-00002", align: 'center', bold: true }, { val: "Camisa Tubo", align: 'left' }, { val: "$12.00", align: 'right' }, { val: "$15.63", align: 'right' }, { val: "30.2%", align: 'center' }, { val: "MASTER", align: 'center' }, { val: "<span style='color:#15803d; font-weight:700;'>Normal</span>", align: 'center' }]
-            ],
+            rows: rows,
             totals: [
-                { val: "<b>NINGUNA OPERACIÓN EN RIESGO: TODAS LAS VENTAS CUMPLEN MARGEN POSITIVO</b>", colspan: 8, align: 'center' }
+                { val: "<b>AUDITORÍA DE PRECIOS: OPERACIONES CONSOLIDADAS</b>", colspan: 8, align: 'center' }
             ]
         };
     }

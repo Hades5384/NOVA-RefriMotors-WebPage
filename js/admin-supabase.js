@@ -216,6 +216,40 @@ const NovaSupabase = (function () {
             return res;
         };
 
+        // Hook de Deducción Directa de Stock
+        const origDeductStock = window.NovaDB.deductStock;
+        if (origDeductStock) {
+            window.NovaDB.deductStock = function (productId, qtyToDeduct, reason) {
+                const res = origDeductStock.apply(this, arguments);
+                if (res) {
+                    const newStock = window.NovaDB.getStock(productId);
+                    _enqueue('update_stock', 'productos', {
+                        id: productId,
+                        stock: newStock,
+                        reason: reason || 'Deducción de existencias'
+                    });
+                }
+                return res;
+            };
+        }
+
+        // Hook de Entrada de Stock
+        const origAddStock = window.NovaDB.addStock;
+        if (origAddStock) {
+            window.NovaDB.addStock = function (productId, qtyToAdd, reason) {
+                const res = origAddStock.apply(this, arguments);
+                if (res) {
+                    const newStock = window.NovaDB.getStock(productId);
+                    _enqueue('update_stock', 'productos', {
+                        id: productId,
+                        stock: newStock,
+                        reason: reason || 'Entrada de existencias'
+                    });
+                }
+                return res;
+            };
+        }
+
         // Hook de Egresos
         const origAddExpense = window.NovaDB.addExpense;
         window.NovaDB.addExpense = function (expenseData) {
@@ -464,8 +498,8 @@ const NovaSupabase = (function () {
 
     async function processQueue() {
         if (!_client || !_isOnline || _isSyncing) return;
-        const queue = _getQueue();
-        if (queue.length === 0) {
+        const initialQueue = _getQueue();
+        if (initialQueue.length === 0) {
             _lastSyncError = null;
             _updateUIStatus();
             return;
@@ -474,11 +508,12 @@ const NovaSupabase = (function () {
         _isSyncing = true;
         _updateUIStatus(true); // Sincronizando...
 
-        const remaining = [];
+        const processedIds = new Set();
+        const failedItemsMap = new Map();
         let successCount = 0;
 
-        for (let i = 0; i < queue.length; i++) {
-            const item = queue[i];
+        for (let i = 0; i < initialQueue.length; i++) {
+            const item = initialQueue[i];
             try {
                 let err = null;
                 // En tablas relacionales con primary key 'id', usamos upsert
@@ -512,14 +547,13 @@ const NovaSupabase = (function () {
                                 reason: item.data.reason || 'Sincronización'
                             }]);
                         } catch (kardexErr) {
-                            console.warn("[NovaSupabase] Aviso kardex opcional:", kardexErr);
+                            console.warn("[NovaSupabase] Kardex opcional:", kardexErr);
                         }
                     }
                 }
 
                 // Si el error es por clave duplicada (código 23505), el registro ya está en Supabase
                 if (err && (err.code === '23505' || (err.message && err.message.toLowerCase().includes('duplicate key')))) {
-                    console.log(`[NovaSupabase] Item ${item.id} ya existe en Supabase (${item.table}). Marcado como sincronizado.`);
                     err = null;
                 }
 
@@ -533,29 +567,50 @@ const NovaSupabase = (function () {
                     // se purga de la cola para no dejar el sistema congelado permanentemente
                     if (item.retries >= 3) {
                         console.error(`[NovaSupabase] Registro atascado ${item.id} en ${item.table} descartado tras ${item.retries} intentos:`, item.lastError);
+                        processedIds.add(item.id);
                     } else {
-                        remaining.push(item);
+                        failedItemsMap.set(item.id, item);
                     }
                 } else {
                     successCount++;
+                    processedIds.add(item.id);
                 }
             } catch (e) {
                 console.error(`Fallo en conexión al procesar ${item.id}:`, e);
                 item.retries = (item.retries || 0) + 1;
                 item.lastError = e.message || String(e);
                 _lastSyncError = item.lastError;
-                if ((item.retries || 0) < 3) {
-                    remaining.push(item);
+                if ((item.retries || 0) >= 3) {
+                    processedIds.add(item.id);
+                } else {
+                    failedItemsMap.set(item.id, item);
                 }
             }
         }
 
-        _saveQueue(remaining);
+        // Actualizar la cola en localStorage preservando ítems encolados concurrentemente
+        const latestQueue = _getQueue();
+        const updatedQueue = [];
+        latestQueue.forEach(it => {
+            if (processedIds.has(it.id)) return; // Completado con éxito o descartado
+            if (failedItemsMap.has(it.id)) {
+                updatedQueue.push(failedItemsMap.get(it.id)); // Con reintentos incrementados
+            } else {
+                updatedQueue.push(it); // Ítem nuevo encolado durante el await asíncrono
+            }
+        });
+
+        _saveQueue(updatedQueue);
         _isSyncing = false;
         _updateUIStatus();
 
         if (successCount > 0) {
             console.log(`[NovaSupabase] ${successCount} registros sincronizados con la nube.`);
+        }
+
+        // Si entraron nuevos ítems a la cola durante el ciclo, procesarlos inmediatamente
+        if (updatedQueue.length > 0 && updatedQueue.some(it => !it.retries || it.retries < 3)) {
+            setTimeout(processQueue, 250);
         }
     }
 
@@ -942,12 +997,15 @@ const NovaSupabase = (function () {
                         v.iva = item.iva;
                         v.price = item.precioFinalUSD;
                         v.precioVentaUSD = item.precioFinalUSD;
+                        v.stock = typeof item.stock === 'number' ? item.stock : 0;
+                        v.stockMinimo = typeof item.stockMinimo === 'number' ? item.stockMinimo : 3;
                         keptVariants.push(v);
                         existingIds.add(v.id);
                     }
                 });
                 if (keptVariants.length > 0) {
                     p.variants = keptVariants;
+                    p.stock = keptVariants.reduce((sum, cv) => sum + (cv.stock || 0), 0);
                     updatedProducts.push(p);
                 }
             } else if (inv[p.id]) {
@@ -961,6 +1019,8 @@ const NovaSupabase = (function () {
                 p.iva = item.iva;
                 p.price = item.precioFinalUSD;
                 p.precioVentaUSD = item.precioFinalUSD;
+                p.stock = typeof item.stock === 'number' ? item.stock : 0;
+                p.stockMinimo = typeof item.stockMinimo === 'number' ? item.stockMinimo : 3;
                 updatedProducts.push(p);
                 existingIds.add(p.id);
             }
@@ -1057,8 +1117,8 @@ const NovaSupabase = (function () {
                 .select('id, nombre, rif, telefono, direccion, tipo, notas')
                 .order('id', { ascending: true });
 
-            if (!custErr && Array.isArray(remoteCust) && remoteCust.length > 0) {
-                const mappedCust = remoteCust.map(rc => ({
+            if (!custErr && Array.isArray(remoteCust)) {
+                let mappedCust = remoteCust.map(rc => ({
                     id: rc.id,
                     nombre: rc.nombre,
                     rif: rc.rif,
@@ -1067,6 +1127,9 @@ const NovaSupabase = (function () {
                     tipo: 'cliente',
                     notas: rc.notas || ''
                 }));
+                if (mappedCust.length === 0) {
+                    mappedCust = [{ id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" }];
+                }
                 // Garantizar que CLI-001 quede primero si existe
                 mappedCust.sort((a, b) => (a.id === 'CLI-001' ? -1 : b.id === 'CLI-001' ? 1 : a.id.localeCompare(b.id)));
                 const newCustJson = JSON.stringify(mappedCust);
@@ -1139,7 +1202,7 @@ const NovaSupabase = (function () {
                 .select('*')
                 .order('id', { ascending: true });
 
-            if (!suppErr && Array.isArray(remoteSupp) && remoteSupp.length > 0) {
+            if (!suppErr && Array.isArray(remoteSupp)) {
                 const mappedSupp = remoteSupp.map(s => ({
                     id: s.id,
                     razonSocial: s.razon_social || '',
@@ -1305,6 +1368,41 @@ const NovaSupabase = (function () {
     }
 
     // ==========================================
+    // 5.2 PURGA Y LIMPIEZA TOTAL DE DATOS DE PRUEBA EN LA NUBE
+    // ==========================================
+    async function purgeCloudTestData() {
+        if (!_client || !_isOnline) return false;
+        try {
+            console.log("[NovaSupabase] Iniciando purga segura de datos de prueba en la nube...");
+            await _client.from('ventas').delete().neq('id', '___NONE___');
+            await _client.from('pedidos_mostrador').delete().neq('id', '___NONE___');
+            await _client.from('egresos').delete().neq('id', '___NONE___');
+            await _client.from('compras').delete().neq('id', '___NONE___');
+            await _client.from('proveedores').delete().neq('id', '___NONE___');
+            await _client.from('turnos_caja').delete().neq('id', '___NONE___');
+            await _client.from('movimientos_stock').delete().neq('id', 0);
+            await _client.from('clientes').delete().neq('id', 'CLI-001');
+
+            await _client.from('clientes').upsert([{
+                id: "CLI-001",
+                nombre: "Cliente Mostrador (Contado)",
+                rif: "V-00000000",
+                telefono: "0424-0000000",
+                direccion: "Cabimas, Edo. Zulia",
+                tipo: "cliente",
+                notas: "Cliente general"
+            }], { onConflict: 'id' });
+
+            clearQueue();
+            console.log("[NovaSupabase] Purga en la nube finalizada con éxito.");
+            return true;
+        } catch (e) {
+            console.error("[NovaSupabase] Error en purgeCloudTestData:", e);
+            throw e;
+        }
+    }
+
+    // ==========================================
     // 6. MÉTODOS PÚBLICOS
     // ==========================================
     return {
@@ -1321,6 +1419,7 @@ const NovaSupabase = (function () {
         markCounterOrderServed,
         seedFullCatalog,
         checkAndSeedCatalog,
+        purgeCloudTestData,
         isOnline: () => _isOnline,
         updateUIStatus: _updateUIStatus
     };
