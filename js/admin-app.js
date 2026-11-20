@@ -116,7 +116,7 @@ function updateHeaderTitles(viewName) {
         pos: { title: "Punto de Venta y Facturación", subtitle: "Mostrador rápido multimoneda, emisión de tickets y presupuestos" },
         inventory: { title: "Gestión de Inventario y Almacén", subtitle: "Control de existencias, stock mínimo, alertas y valorización" },
         purchases: { title: "Compras y Proveedores", subtitle: "Recepción de mercancía, órdenes de compra y costos" },
-        cash: { title: "Caja y Finanzas Operativas", subtitle: "Arqueo diario, control de métodos de pago y egresos" },
+        cash: { title: "Caja y Arqueo de Operaciones", subtitle: "Control de ventas en bolívares y divisas, utilidad de repuestos y auditoría" },
         customers: { title: "Directorio de Clientes (CRM)", subtitle: "Fichas de técnicos, talleres e historial de compras" },
         marketing: { title: "Marketing y Promociones", subtitle: "Campañas WhatsApp, combos y difusión comercial" },
         reports: { title: "Centro de Reportes y Auditoría Fiscal", subtitle: "Libros legales de IVA, control de caja, kardex de inventario, finanzas y auditoría interna" },
@@ -3581,56 +3581,714 @@ function submitMasterPin() {
 }
 
 // ==============================================================================
-// 4. MÓDULO: CAJA Y FINANZAS
+// 4. MÓDULO: CAJA, ARQUEO Y CONTROL DE OPERACIONES
 // ==============================================================================
-function renderCashView() {
-    const activeShift = NovaDB.getActiveShift();
-    const sales = NovaDB.getSales();
-    const expenses = NovaDB.getExpenses();
-    const settings = NovaDB.getSettings();
+let currentCashTab = 'sales';
 
-    const shiftSales = activeShift ? sales.filter(s => activeShift.ventasIds.includes(s.id)) : [];
-    const shiftExpenses = activeShift ? expenses.filter(e => activeShift.egresosIds && activeShift.egresosIds.includes(e.id)) : [];
+function switchCashTab(tab) {
+    currentCashTab = tab;
+    const tabSales = document.getElementById('tabCashSales');
+    const tabAudit = document.getElementById('tabCashAudit');
+    const boxSales = document.getElementById('cashSalesContainer');
+    const boxAudit = document.getElementById('cashAuditContainer');
+    const titleEl = document.getElementById('cashTableTitle');
 
-    let totalVentasUSD = shiftSales.reduce((acc, s) => acc + s.totalUSD, 0);
-    let totalEgresosUSD = shiftExpenses.reduce((acc, e) => acc + e.montoUSD, 0);
-    let gananciaNetaUSD = totalVentasUSD - totalEgresosUSD;
-
-    document.getElementById('cashKpiVentas').innerText = `$${totalVentasUSD.toFixed(2)}`;
-    document.getElementById('cashKpiVentasBs').innerText = `Bs. ${(totalVentasUSD * settings.tasaBCV).toFixed(2)}`;
-    document.getElementById('cashKpiEgresos').innerText = `$${totalEgresosUSD.toFixed(2)}`;
-    document.getElementById('cashKpiNeto').innerText = `$${gananciaNetaUSD.toFixed(2)}`;
-
-    // Renderizar lista de egresos
-    const egresosTbody = document.getElementById('expensesTableBody');
-    if (egresosTbody) {
-        if (shiftExpenses.length === 0) {
-            egresosTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--text-muted);">Sin egresos registrados en este turno.</td></tr>`;
-        } else {
-            let egHtml = '';
-            shiftExpenses.forEach(eg => {
-                egHtml += `
-                    <tr>
-                        <td><b>${eg.concepto}</b></td>
-                        <td><span style="font-size:12px; color:var(--text-muted);">${eg.categoria}</span></td>
-                        <td>${eg.metodoPago}</td>
-                        <td><b style="color:var(--danger);">$${eg.montoUSD.toFixed(2)}</b></td>
-                    </tr>`;
-            });
-            egresosTbody.innerHTML = egHtml;
-        }
+    if (tab === 'sales') {
+        if (tabSales) tabSales.classList.add('active');
+        if (tabAudit) tabAudit.classList.remove('active');
+        if (boxSales) boxSales.style.display = 'block';
+        if (boxAudit) boxAudit.style.display = 'none';
+        if (titleEl) titleEl.innerText = 'Ventas y Comprobantes del Turno Activo';
+    } else {
+        if (tabSales) tabSales.classList.remove('active');
+        if (tabAudit) tabAudit.classList.add('active');
+        if (boxSales) boxSales.style.display = 'none';
+        if (boxAudit) boxAudit.style.display = 'block';
+        if (titleEl) titleEl.innerText = 'Auditoría de Anulaciones y Cambios de Mercancía';
+        renderCashAuditTable();
     }
 }
 
+function isPaymentNational(sale) {
+    if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+        const first = sale.metodosPago[0];
+        const m = String((typeof first === 'object' && first) ? (first.metodo || first.name || '') : first).toLowerCase();
+        if (m.includes('punto') || m.includes('pago móvil') || m.includes('pago movil') || m.includes('transferencia') || m.includes('bs') || m.includes('bolívares') || m.includes('bolivares')) {
+            return true;
+        }
+        if (m.includes('usd') || m.includes('dólar') || m.includes('dolar') || m.includes('zelle') || m.includes('binance') || m.includes('$')) {
+            return false;
+        }
+    }
+    // Fallback por tipo de precio o descuento divisas
+    if (sale.descuentoDivisas || sale.tipoPrecio === 'divisas') return false;
+    return true;
+}
+
+function renderCashView() {
+    const activeShift = NovaDB.getActiveShift();
+    const allSales = NovaDB.getSales();
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78, tasaInterna: 1050 };
+    const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
+
+    const shiftSales = activeShift ? allSales.filter(s => activeShift.ventasIds && activeShift.ventasIds.includes(s.id)) : [];
+    const activeSales = shiftSales.filter(s => !s.anulada);
+
+    // 1. Clasificación: Ventas Moneda Nacional (Bolívares / BCV)
+    const nacSales = activeSales.filter(s => isPaymentNational(s));
+    let totalNacUSD = 0;
+    let totalNacBs = 0;
+    nacSales.forEach(s => {
+        const u = parseFloat(s.totalUSD) || 0;
+        const b = (parseFloat(s.totalBs) && !isNaN(s.totalBs)) ? parseFloat(s.totalBs) : (u * bcvRate);
+        totalNacUSD += u;
+        totalNacBs += b;
+    });
+    const countNac = nacSales.length;
+
+    // 2. Clasificación: Ventas Facturadas en Divisas
+    const divSales = activeSales.filter(s => !isPaymentNational(s));
+    let totalDivUSD = 0;
+    divSales.forEach(s => {
+        totalDivUSD += (parseFloat(s.totalUSD) || 0);
+    });
+    const totalDivBs = totalDivUSD * bcvRate;
+    const countDiv = divSales.length;
+
+    // 3. Cálculo de Ganancia Neta en Productos (Precio Venta - Costo Reposición)
+    let totalProfitUSD = 0;
+    const inventory = NovaDB.getInventory();
+    activeSales.forEach(s => {
+        if (Array.isArray(s.items)) {
+            s.items.forEach(it => {
+                const qty = parseFloat(it.quantity) || 1;
+                const salePrice = (it.priceUSD !== undefined && !isNaN(it.priceUSD))
+                    ? parseFloat(it.priceUSD)
+                    : ((it.subtotalUSD !== undefined) ? parseFloat(it.subtotalUSD) / qty : 0);
+
+                let cost = (it.costoCompra !== undefined && it.costoCompra !== null && !isNaN(it.costoCompra))
+                    ? parseFloat(it.costoCompra)
+                    : 0;
+                if (cost <= 0 && inventory && inventory[it.id] && inventory[it.id].costoCompra) {
+                    cost = parseFloat(inventory[it.id].costoCompra) || 0;
+                }
+                const lineRev = (it.subtotalUSD !== undefined && !isNaN(it.subtotalUSD))
+                    ? parseFloat(it.subtotalUSD)
+                    : salePrice * qty;
+                const lineCost = cost * qty;
+                totalProfitUSD += (lineRev - lineCost);
+            });
+        }
+    });
+    const totalProfitBs = totalProfitUSD * bcvRate;
+
+    // Actualización de KPIs en el DOM
+    const kpiNacUSD = document.getElementById('cashKpiVentasNac');
+    if (kpiNacUSD) kpiNacUSD.innerText = `$${totalNacUSD.toFixed(2)}`;
+    const kpiNacBs = document.getElementById('cashKpiVentasNacBs');
+    if (kpiNacBs) kpiNacBs.innerText = `Bs. ${totalNacBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const kpiNacCount = document.getElementById('cashKpiVentasNacCount');
+    if (kpiNacCount) kpiNacCount.innerText = `${countNac} venta${countNac === 1 ? '' : 's'} (Bolívares / BCV)`;
+
+    const kpiDivUSD = document.getElementById('cashKpiVentasDiv');
+    if (kpiDivUSD) kpiDivUSD.innerText = `$${totalDivUSD.toFixed(2)}`;
+    const kpiDivBs = document.getElementById('cashKpiVentasDivBs');
+    if (kpiDivBs) kpiDivBs.innerText = `Bs. ${totalDivBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa BCV)`;
+    const kpiDivCount = document.getElementById('cashKpiVentasDivCount');
+    if (kpiDivCount) kpiDivCount.innerText = `${countDiv} venta${countDiv === 1 ? '' : 's'} (Divisas)`;
+
+    const kpiProfitUSD = document.getElementById('cashKpiGanancia');
+    if (kpiProfitUSD) kpiProfitUSD.innerText = `$${totalProfitUSD.toFixed(2)}`;
+    const kpiProfitBs = document.getElementById('cashKpiGananciaBs');
+    if (kpiProfitBs) kpiProfitBs.innerText = `Bs. ${totalProfitBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Renderizar tabla de comprobantes del turno activo
+    renderCashSalesTable(shiftSales);
+
+    // Actualizar tabla de auditoría si está activa
+    if (currentCashTab === 'audit') {
+        renderCashAuditTable();
+    }
+}
+
+function renderCashSalesTable(shiftSales) {
+    const tbody = document.getElementById('cashSalesTableBody');
+    if (!tbody) return;
+
+    if (!shiftSales || shiftSales.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" style="margin-bottom:8px; opacity:0.4;"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    <p style="font-weight: 700; font-size: 14px; margin-bottom: 3px; color: var(--text-main);">No hay ventas en este turno</p>
+                    <p style="font-size: 12px; margin: 0;">Las facturas y notas de despacho emitidas en mostrador aparecerán aquí automáticamente.</p>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    let rowsHtml = '';
+    shiftSales.forEach(s => {
+        const isVoid = !!s.anulada;
+        const custName = s.cliente?.nombre || 'Cliente Mostrador';
+        const totalUSD = (typeof s.totalUSD === 'number') ? s.totalUSD.toFixed(2) : '0.00';
+        const totalBs = (typeof s.totalBs === 'number') ? s.totalBs.toFixed(2) : '0.00';
+
+        let payBadge = 'Divisas';
+        let payBadgeStyle = 'background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;';
+        if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
+            const m = String(s.metodosPago[0].metodo || s.metodosPago[0] || '');
+            payBadge = m;
+            if (isPaymentNational(s)) {
+                payBadgeStyle = 'background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;';
+            }
+        } else if (isPaymentNational(s)) {
+            payBadge = 'Moneda Nacional';
+            payBadgeStyle = 'background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;';
+        }
+
+        const statusHtml = isVoid
+            ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:800; border:1px solid #fca5a5; font-size:11px;" title="Motivo: ${s.motivoAnulacion || 'Anulada'}">ANULADA</span>`
+            : `<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:800; border:1px solid #bbf7d0; font-size:11px;">Cobrada</span>`;
+
+        const actionsHtml = isVoid
+            ? `<div style="display:flex; justify-content:flex-end; align-items:center; gap:6px;">
+                 <span style="font-size:11px; color:#be123c; font-weight:700;">Reversada</span>
+                 <button type="button" class="ticket-btn-sm" onclick="reprintSaleDirectly('${s.id}')" title="Ver comprobante anulado">Ver</button>
+               </div>`
+            : `<div style="display:flex; justify-content:flex-end; align-items:center; gap:6px;">
+                 <button type="button" class="ticket-btn-sm" style="color:#b91c1c; border-color:#fca5a5; background:#fff1f2; font-weight:700;" onclick="openVoidSaleModal('${s.id}')" title="Anular esta factura y devolver inventario">Anular</button>
+                 <button type="button" class="ticket-btn-sm" style="color:#0369a1; border-color:#bae6fd; background:#f0f9ff; font-weight:700;" onclick="openProductExchangeModal('${s.id}')" title="Registrar cambio de repuesto de esta factura">Cambio</button>
+                 <button type="button" class="ticket-btn-sm" onclick="reprintSaleDirectly('${s.id}')" title="Imprimir o ver">Ver</button>
+               </div>`;
+
+        const textStyle = isVoid ? 'text-decoration: line-through; opacity: 0.65;' : '';
+
+        rowsHtml += `
+            <tr style="${isVoid ? 'background:#fffafa;' : ''}">
+                <td style="padding: 7px 10px;"><span class="code-badge" style="font-weight:800; font-size:11px;">${s.id}</span></td>
+                <td style="padding: 7px 10px; font-size:12px; color:var(--text-muted);">${s.horaStr || ''}</td>
+                <td style="padding: 7px 10px; font-size:12px; font-weight:700; color:var(--text-main);"><span style="${textStyle}">${custName}</span></td>
+                <td style="padding: 7px 10px;"><span style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; ${payBadgeStyle}">${payBadge}</span></td>
+                <td style="padding: 7px 10px; font-weight:800; color:#0f172a; font-size:12.5px; ${textStyle}">$${totalUSD}</td>
+                <td style="padding: 7px 10px; font-weight:700; color:#475569; font-size:12px; ${textStyle}">Bs. ${totalBs}</td>
+                <td style="padding: 7px 10px;">${statusHtml}</td>
+                <td style="padding: 7px 10px; text-align:right;">${actionsHtml}</td>
+            </tr>`;
+    });
+
+    tbody.innerHTML = rowsHtml;
+}
+
+function renderCashAuditTable() {
+    const tbody = document.getElementById('cashAuditTableBody');
+    if (!tbody) return;
+
+    const voidLogs = (typeof NovaDB !== 'undefined' && NovaDB.getVoidSales) ? NovaDB.getVoidSales() : [];
+    const exchanges = (typeof NovaDB !== 'undefined' && NovaDB.getProductExchanges) ? NovaDB.getProductExchanges() : [];
+
+    // Combinar y ordenar cronológicamente descendente
+    const events = [];
+    voidLogs.forEach(v => {
+        events.push({
+            type: 'ANULACION',
+            timestamp: v.timestamp || 0,
+            fechaHora: `${v.fechaStr || ''} ${v.horaStr || ''}`,
+            docId: v.saleId || v.id,
+            details: (v.items || []).map(it => `[${it.id}] ${it.name || ''} (x${it.quantity})`).join(', ') || 'Todos los ítems',
+            montoStr: `-$${(v.totalUSD || 0).toFixed(2)} USD`,
+            motivo: v.motivo || 'Anulación de venta',
+            responsable: v.responsable || 'MASTER'
+        });
+    });
+
+    exchanges.forEach(ex => {
+        const ret = ex.returnedItem ? `Dev: [${ex.returnedItem.id}] x${ex.returnedItem.quantity || 1}` : '';
+        const ent = ex.newItem ? `Ent: [${ex.newItem.id}] x${ex.newItem.quantity || 1}` : '';
+        const diff = parseFloat(ex.diferenciaUSD) || 0;
+        let diffStr = '$0.00 (Mano a mano)';
+        if (diff > 0) diffStr = `+$${diff.toFixed(2)} (Cobrado)`;
+        else if (diff < 0) diffStr = `-$${Math.abs(diff).toFixed(2)} (Reembolso)`;
+
+        events.push({
+            type: 'CAMBIO',
+            timestamp: ex.timestamp || 0,
+            fechaHora: `${ex.fechaStr || ''} ${ex.horaStr || ''}`,
+            docId: ex.saleId || ex.id,
+            details: `${ret} ➔ ${ent}`,
+            montoStr: diffStr,
+            motivo: ex.motivo || 'Cambio de repuesto',
+            responsable: ex.responsable || 'MASTER'
+        });
+    });
+
+    events.sort((a, b) => b.timestamp - a.timestamp);
+
+    if (events.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 36px 16px; color: var(--text-muted);">
+                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" style="margin-bottom:8px; opacity:0.4;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                    <p style="font-weight: 700; font-size: 14px; margin-bottom: 3px; color: var(--text-main);">Sin anulaciones ni cambios registrados</p>
+                    <p style="font-size: 12px; margin: 0;">Cuando anules una factura o efectúes un cambio de producto, el registro de auditoría aparecerá aquí con trazabilidad completa.</p>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    let rowsHtml = '';
+    events.forEach(ev => {
+        const isVoid = (ev.type === 'ANULACION');
+        const badgeStyle = isVoid
+            ? 'background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;'
+            : 'background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;';
+        const label = isVoid ? 'Anulación Total' : 'Cambio de Repuesto';
+
+        rowsHtml += `
+            <tr>
+                <td style="padding: 7px 10px; font-size:11.5px; white-space:nowrap; color:#475569;">${ev.fechaHora}</td>
+                <td style="padding: 7px 10px;"><span style="font-size:10.5px; font-weight:800; padding:2px 7px; border-radius:4px; ${badgeStyle}">${label}</span></td>
+                <td style="padding: 7px 10px;"><span class="code-badge" style="font-weight:800; font-size:11px;">${ev.docId}</span></td>
+                <td style="padding: 7px 10px; font-size:12px; color:#1e293b; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${ev.details}">${ev.details}</td>
+                <td style="padding: 7px 10px; font-weight:800; font-size:12px; color:${isVoid ? '#dc2626' : '#0369a1'};">${ev.montoStr}</td>
+                <td style="padding: 7px 10px; font-size:12px; color:#475569;">${ev.motivo}</td>
+                <td style="padding: 7px 10px; font-size:11.5px; font-weight:700; color:#0f172a;">${ev.responsable}</td>
+            </tr>`;
+    });
+
+    tbody.innerHTML = rowsHtml;
+}
+
+// ------------------------------------------------------------------------------
+// MODAL: ANULACIÓN DE FACTURA / COMPROBANTE
+// ------------------------------------------------------------------------------
+function openVoidSaleModal(preselectedSaleId = null) {
+    const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const select = document.getElementById('voidSaleSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Selecciona una factura o comprobante emitido --</option>';
+
+    // Solo comprobantes NO presupuestos que no estén ya anulados
+    const validSales = allSales.filter(s => s.tipoDocumento !== 'presupuesto' && !s.anulada);
+
+    if (validSales.length === 0) {
+        select.innerHTML = '<option value="">No hay facturas activas disponibles para anular</option>';
+    } else {
+        validSales.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.id} - ${s.cliente?.nombre || 'Cliente'} ($${(s.totalUSD || 0).toFixed(2)} USD) - ${s.fechaStr || ''}`;
+            select.appendChild(opt);
+        });
+    }
+
+    const detailsBox = document.getElementById('voidSaleDetailsBox');
+    if (detailsBox) detailsBox.style.display = 'none';
+
+    const reasonInput = document.getElementById('voidSaleReason');
+    if (reasonInput) reasonInput.value = '';
+
+    const respInput = document.getElementById('voidSaleResponsible');
+    if (respInput) {
+        const curUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
+        respInput.value = (curUser && curUser.name) ? curUser.name : 'MASTER';
+    }
+
+    if (preselectedSaleId) {
+        select.value = preselectedSaleId;
+        onVoidSaleSelected(preselectedSaleId);
+    }
+
+    openModal('voidSaleModal');
+}
+
+function onVoidSaleSelected(saleId) {
+    const detailsBox = document.getElementById('voidSaleDetailsBox');
+    if (!saleId) {
+        if (detailsBox) detailsBox.style.display = 'none';
+        return;
+    }
+
+    const allSales = NovaDB.getSales();
+    const sale = allSales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    if (detailsBox) detailsBox.style.display = 'block';
+
+    const custName = document.getElementById('voidSaleCustName');
+    if (custName) custName.innerText = sale.cliente?.nombre || 'Cliente Mostrador';
+    const custRif = document.getElementById('voidSaleCustRif');
+    if (custRif) custRif.innerText = sale.cliente?.rif || 'V-00000000';
+    const dateEl = document.getElementById('voidSaleDate');
+    if (dateEl) dateEl.innerText = `${sale.fechaStr || ''} ${sale.horaStr || ''}`;
+    const totalEl = document.getElementById('voidSaleTotal');
+    if (totalEl) totalEl.innerText = `$${(sale.totalUSD || 0).toFixed(2)} (Bs. ${(sale.totalBs || 0).toFixed(2)})`;
+
+    const itemsTbody = document.getElementById('voidSaleItemsList');
+    if (itemsTbody) {
+        let itHtml = '';
+        (sale.items || []).forEach(it => {
+            const qty = it.quantity || 1;
+            const price = (typeof it.priceUSD === 'number') ? it.priceUSD : ((it.subtotalUSD || 0) / qty);
+            const sub = it.subtotalUSD || (price * qty);
+            itHtml += `
+                <tr>
+                    <td style="padding:5px 8px;"><span class="code-badge" style="font-size:10.5px;">${it.id}</span></td>
+                    <td style="padding:5px 8px; font-weight:600; color:#0f172a;">${it.name || it.id}</td>
+                    <td style="padding:5px 8px; text-align:center;"><b style="color:#16a34a;">+${qty}</b></td>
+                    <td style="padding:5px 8px; text-align:right;">$${price.toFixed(2)}</td>
+                    <td style="padding:5px 8px; text-align:right; font-weight:700;">$${sub.toFixed(2)}</td>
+                </tr>`;
+        });
+        itemsTbody.innerHTML = itHtml;
+    }
+}
+
+function submitVoidSale() {
+    const saleId = document.getElementById('voidSaleSelect')?.value;
+    if (!saleId) {
+        showNovaAlert({ title: "Selecciona una Factura", message: "Debe seleccionar la factura o comprobante que desea anular.", type: "warning" });
+        return;
+    }
+
+    const reason = document.getElementById('voidSaleReason')?.value.trim();
+    if (!reason) {
+        showNovaAlert({ title: "Motivo Requerido", message: "Por favor indique el motivo o justificativo de la anulación para los registros de auditoría.", type: "warning" });
+        return;
+    }
+
+    const resp = document.getElementById('voidSaleResponsible')?.value.trim() || 'MASTER';
+
+    const res = NovaDB.voidSale(saleId, reason, resp);
+    if (!res.success) {
+        showNovaAlert({ title: "Error al Anular", message: res.message, type: "error" });
+        return;
+    }
+
+    closeModal('voidSaleModal');
+    renderCashView();
+
+    // Actualizar vista de inventario y catálogo para reflejar reposición de existencias
+    if (typeof renderInventoryView === 'function') renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+
+    showNovaAlert({
+        title: "¡Factura Anulada con Éxito!",
+        message: `El comprobante <b>${saleId}</b> ha sido anulado. Las existencias de sus repuestos fueron restituidas al catálogo y los montos descontados de la caja.`,
+        type: "success"
+    });
+}
+
+// ------------------------------------------------------------------------------
+// MODAL: REGISTRO DE CAMBIO DE PRODUCTO / REPUESTO
+// ------------------------------------------------------------------------------
+let currentExchangeNewProduct = null;
+
+function openProductExchangeModal(preselectedSaleId = null) {
+    const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const select = document.getElementById('exchangeSaleSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Cambio libre de mostrador / Sin comprobante previo --</option>';
+    allSales.filter(s => !s.anulada && s.tipoDocumento !== 'presupuesto').forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.id} - ${s.cliente?.nombre || 'Cliente'} ($${(s.totalUSD || 0).toFixed(2)}) - ${s.fechaStr || ''}`;
+        select.appendChild(opt);
+    });
+
+    if (preselectedSaleId) {
+        select.value = preselectedSaleId;
+    }
+
+    onExchangeSaleSelected(select.value);
+
+    // Resetear producto nuevo
+    currentExchangeNewProduct = null;
+    const searchInput = document.getElementById('exchangeNewSearchInput');
+    if (searchInput) searchInput.value = '';
+    const selBox = document.getElementById('exchangeNewProductSelectedBox');
+    if (selBox) selBox.style.display = 'none';
+    const newQty = document.getElementById('exchangeNewQty');
+    if (newQty) newQty.value = '1';
+    const newPrice = document.getElementById('exchangeNewPrice');
+    if (newPrice) newPrice.value = '';
+
+    const reasonInput = document.getElementById('exchangeReason');
+    if (reasonInput) reasonInput.value = '';
+    const respInput = document.getElementById('exchangeResponsible');
+    if (respInput) {
+        const curUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
+        respInput.value = (curUser && curUser.name) ? curUser.name : 'MASTER';
+    }
+
+    updateExchangePreview();
+    openModal('exchangeProductModal');
+}
+
+function onExchangeSaleSelected(saleId) {
+    const retSelect = document.getElementById('exchangeReturnedSelect');
+    if (!retSelect) return;
+
+    retSelect.innerHTML = '<option value="">-- Selecciona repuesto --</option>';
+
+    if (saleId) {
+        const allSales = NovaDB.getSales();
+        const sale = allSales.find(s => s.id === saleId);
+        if (sale && Array.isArray(sale.items) && sale.items.length > 0) {
+            sale.items.forEach(it => {
+                const opt = document.createElement('option');
+                opt.value = it.id;
+                const price = (typeof it.priceUSD === 'number') ? it.priceUSD : ((it.subtotalUSD || 0) / (it.quantity || 1));
+                opt.textContent = `[${it.id}] ${it.name} ($${price.toFixed(2)})`;
+                opt.dataset.price = price;
+                opt.dataset.maxQty = it.quantity || 1;
+                retSelect.appendChild(opt);
+            });
+            retSelect.selectedIndex = 1;
+            onExchangeReturnedProductChange();
+            return;
+        }
+    }
+
+    // Si no hay venta seleccionada o es cambio libre, poblar desde catálogo
+    const inv = NovaDB.getInventory();
+    Object.keys(inv).slice(0, 80).forEach(key => {
+        const p = inv[key];
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const price = p.precioFinalUSD || p.price || 0;
+        opt.textContent = `[${p.id}] ${p.name} ($${price.toFixed(2)})`;
+        opt.dataset.price = price;
+        opt.dataset.maxQty = 999;
+        retSelect.appendChild(opt);
+    });
+    onExchangeReturnedProductChange();
+}
+
+function onExchangeReturnedProductChange() {
+    const retSelect = document.getElementById('exchangeReturnedSelect');
+    const selectedOpt = retSelect?.options[retSelect.selectedIndex];
+    const priceInput = document.getElementById('exchangeReturnedPrice');
+    const qtyInput = document.getElementById('exchangeReturnedQty');
+
+    if (selectedOpt && selectedOpt.dataset.price) {
+        if (priceInput) priceInput.value = parseFloat(selectedOpt.dataset.price).toFixed(2);
+    }
+    if (qtyInput && (!qtyInput.value || parseInt(qtyInput.value) <= 0)) {
+        qtyInput.value = 1;
+    }
+    updateExchangePreview();
+}
+
+function onExchangeNewProductSearch(query) {
+    const resultsContainer = document.getElementById('exchangeNewSearchResults');
+    if (!resultsContainer) return;
+
+    const term = (query || '').toLowerCase().trim();
+    if (!term) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const inv = NovaDB.getInventory();
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78, tasaInterna: 1050 };
+
+    const matches = [];
+    Object.keys(inv).forEach(key => {
+        const p = inv[key];
+        const idMatch = (p.id || '').toLowerCase().includes(term);
+        const nameMatch = (p.name || '').toLowerCase().includes(term);
+        if (idMatch || nameMatch) {
+            matches.push(p);
+        }
+    });
+
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding:10px 12px; font-size:12px; color:var(--text-muted);">No se encontraron repuestos con ese código o nombre.</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    matches.slice(0, 10).forEach(p => {
+        const stock = parseInt(p.stock) || 0;
+        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, p.porcentajeUtilidad, p.iva);
+        const priceUSD = prices.publicoUSD;
+        html += `
+            <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                 onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'"
+                 onclick="selectExchangeNewProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}', ${priceUSD}, ${stock})">
+                <div>
+                    <span class="code-badge" style="font-size:10.5px;">${p.id}</span>
+                    <b style="font-size:12px; margin-left:6px; color:#0f172a;">${p.name}</b>
+                    <span style="display:block; font-size:10.5px; color:#64748b;">Stock disponible: <b>${stock}</b> unid(s)</span>
+                </div>
+                <div style="text-align:right;">
+                    <b style="color:#15803d; font-size:13px;">$${priceUSD.toFixed(2)}</b>
+                </div>
+            </div>`;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+}
+
+function selectExchangeNewProduct(id, name, price, stock) {
+    currentExchangeNewProduct = { id, name, price, stock };
+
+    const resultsContainer = document.getElementById('exchangeNewSearchResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    const searchInput = document.getElementById('exchangeNewSearchInput');
+    if (searchInput) searchInput.value = `[${id}] ${name}`;
+
+    const selBox = document.getElementById('exchangeNewProductSelectedBox');
+    if (selBox) selBox.style.display = 'block';
+
+    const selName = document.getElementById('exchangeNewSelectedName');
+    if (selName) selName.innerText = `[${id}] ${name}`;
+
+    const selStock = document.getElementById('exchangeNewSelectedStock');
+    if (selStock) selStock.innerHTML = `Stock disponible: <b>${stock}</b> unidades`;
+
+    const priceInput = document.getElementById('exchangeNewPrice');
+    if (priceInput) priceInput.value = parseFloat(price).toFixed(2);
+
+    updateExchangePreview();
+}
+
+function updateExchangePreview() {
+    const retQty = parseInt(document.getElementById('exchangeReturnedQty')?.value) || 0;
+    const retPrice = parseFloat(document.getElementById('exchangeReturnedPrice')?.value) || 0;
+    const retTotal = retQty * retPrice;
+
+    const retTotalDisplay = document.getElementById('exchangeReturnedTotalDisplay');
+    if (retTotalDisplay) retTotalDisplay.innerText = `$${retTotal.toFixed(2)}`;
+
+    const newQty = parseInt(document.getElementById('exchangeNewQty')?.value) || 0;
+    const newPrice = parseFloat(document.getElementById('exchangeNewPrice')?.value) || 0;
+    const newTotal = newQty * newPrice;
+
+    const newTotalDisplay = document.getElementById('exchangeNewTotalDisplay');
+    if (newTotalDisplay) newTotalDisplay.innerText = `$${newTotal.toFixed(2)}`;
+
+    const diff = newTotal - retTotal;
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78 };
+    const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
+    const diffBs = Math.abs(diff) * bcvRate;
+
+    const diffLabel = document.getElementById('exchangeDiffLabel');
+    const diffUSD = document.getElementById('exchangeDiffAmountUSD');
+    const diffBsEl = document.getElementById('exchangeDiffAmountBs');
+    const diffBox = document.getElementById('exchangeDiffBox');
+
+    if (Math.abs(diff) < 0.005) {
+        if (diffLabel) diffLabel.innerText = 'Cambio exacto mano a mano ($0.00)';
+        if (diffUSD) { diffUSD.innerText = '$0.00 USD'; diffUSD.style.color = '#0f172a'; }
+        if (diffBsEl) diffBsEl.innerText = 'Sin diferencia económica';
+        if (diffBox) { diffBox.style.borderColor = '#cbd5e1'; diffBox.style.background = '#f8fafc'; }
+    } else if (diff > 0) {
+        if (diffLabel) diffLabel.innerHTML = '<span style="color:#15803d;">Saldo a Cobrar al Cliente (Producto de mayor valor):</span>';
+        if (diffUSD) { diffUSD.innerText = `+$${diff.toFixed(2)} USD`; diffUSD.style.color = '#15803d'; }
+        if (diffBsEl) diffBsEl.innerText = `Equiv: Bs. ${diffBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (diffBox) { diffBox.style.borderColor = '#86efac'; diffBox.style.background = '#f0fdf4'; }
+    } else {
+        const absDiff = Math.abs(diff);
+        if (diffLabel) diffLabel.innerHTML = '<span style="color:#ea580c;">Saldo a Favor del Cliente / Reembolso (Producto de menor valor):</span>';
+        if (diffUSD) { diffUSD.innerText = `-$${absDiff.toFixed(2)} USD`; diffUSD.style.color = '#c2410c'; }
+        if (diffBsEl) diffBsEl.innerText = `Equiv: Bs. ${diffBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (diffBox) { diffBox.style.borderColor = '#fed7aa'; diffBox.style.background = '#fff7ed'; }
+    }
+}
+
+function submitProductExchange() {
+    const saleId = document.getElementById('exchangeSaleSelect')?.value || null;
+    const retSelect = document.getElementById('exchangeReturnedSelect');
+    const returnedItemId = retSelect?.value;
+    const returnedQty = parseInt(document.getElementById('exchangeReturnedQty')?.value) || 0;
+    const returnedPrice = parseFloat(document.getElementById('exchangeReturnedPrice')?.value) || 0;
+
+    if (!returnedItemId || returnedQty <= 0) {
+        showNovaAlert({ title: "Repuesto Devuelto Incompleto", message: "Seleccione el repuesto devuelto por el cliente y la cantidad.", type: "warning" });
+        return;
+    }
+
+    if (!currentExchangeNewProduct || !currentExchangeNewProduct.id) {
+        showNovaAlert({ title: "Repuesto Entregado Requerido", message: "Busque y seleccione el nuevo repuesto que se entregará al cliente.", type: "warning" });
+        return;
+    }
+
+    const newItemId = currentExchangeNewProduct.id;
+    const newQty = parseInt(document.getElementById('exchangeNewQty')?.value) || 0;
+    const newPrice = parseFloat(document.getElementById('exchangeNewPrice')?.value) || 0;
+
+    if (newQty <= 0) {
+        showNovaAlert({ title: "Cantidad Inválida", message: "Indique la cantidad del repuesto nuevo a entregar.", type: "warning" });
+        return;
+    }
+
+    // Validar stock disponible
+    const availStock = NovaDB.getStock(newItemId);
+    if (newQty > availStock) {
+        showNovaAlert({ title: "Stock Insuficiente", message: `No hay suficiente existencia en inventario para entregar ${newQty} unidad(es) de ${newItemId}. Stock actual: ${availStock}.`, type: "warning" });
+        return;
+    }
+
+    const reason = document.getElementById('exchangeReason')?.value.trim();
+    if (!reason) {
+        showNovaAlert({ title: "Motivo Requerido", message: "Indique el motivo del cambio para el registro de auditoría.", type: "warning" });
+        return;
+    }
+
+    const resp = document.getElementById('exchangeResponsible')?.value.trim() || 'MASTER';
+
+    const diffUSD = (newQty * newPrice) - (returnedQty * returnedPrice);
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78 };
+    const diffBs = diffUSD * (parseFloat(settings.tasaBCV) || 917.78);
+
+    const res = NovaDB.registerProductExchange({
+        saleId,
+        returnedItemId,
+        returnedQty,
+        newItemId,
+        newQty,
+        motivo: reason,
+        responsable: resp,
+        diferenciaUSD: diffUSD,
+        diferenciaBs: diffBs
+    });
+
+    if (!res.success) {
+        showNovaAlert({ title: "Error en el Cambio", message: res.message, type: "error" });
+        return;
+    }
+
+    closeModal('exchangeProductModal');
+    renderCashView();
+
+    // Actualizar vistas si están abiertas
+    if (typeof renderInventoryView === 'function') renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+
+    showNovaAlert({
+        title: "¡Cambio de Producto Registrado!",
+        message: `Se registró el cambio con éxito. Se reingresaron <b>${returnedQty}</b> unids de [${returnedItemId}] y se descontaron <b>${newQty}</b> unids de [${newItemId}].`,
+        type: "success"
+    });
+}
+
+// Stubs para compatibilidad de gastos / egresos
 function openAddExpenseModal() {
     openModal('addExpenseModal');
 }
 
 function submitNewExpense() {
-    const concepto = document.getElementById('expConcepto').value.trim();
-    const categoria = document.getElementById('expCategoria').value;
-    const monto = parseFloat(document.getElementById('expMonto').value) || 0;
-    const metodo = document.getElementById('expMetodo').value;
+    const concepto = document.getElementById('expConcepto')?.value.trim();
+    const categoria = document.getElementById('expCategoria')?.value;
+    const monto = parseFloat(document.getElementById('expMonto')?.value) || 0;
+    const metodo = document.getElementById('expMetodo')?.value || 'Efectivo USD';
 
     if (!concepto || monto <= 0) {
         showNovaAlert({ title: "Datos Incompletos", message: "Ingrese el concepto y un monto válido para el gasto.", type: "warning" });
@@ -3638,27 +4296,26 @@ function submitNewExpense() {
     }
 
     NovaDB.addExpense({ concepto, categoria, montoUSD: monto, metodoPago: metodo });
-    document.getElementById('expConcepto').value = '';
-    document.getElementById('expMonto').value = '';
     closeModal('addExpenseModal');
     renderCashView();
-    showNovaAlert({ title: "Egreso Registrado", message: `Se registró el egreso de $${monto.toFixed(2)} con éxito.`, type: "success" });
+    showNovaAlert({ title: "Egreso Registrado", message: `Se registró el egreso con éxito.`, type: "success" });
 }
 
 function openCashReconciliationModal() {
     const active = NovaDB.getActiveShift();
     if (!active) return;
 
-    const sales = NovaDB.getSales().filter(s => active.ventasIds.includes(s.id));
+    const sales = NovaDB.getSales().filter(s => active.ventasIds && active.ventasIds.includes(s.id) && !s.anulada);
     const totalUSD = sales.reduce((acc, s) => acc + s.totalUSD, 0);
 
-    document.getElementById('recExpectedUSD').innerText = `$${totalUSD.toFixed(2)}`;
+    const recEl = document.getElementById('recExpectedUSD');
+    if (recEl) recEl.innerText = `$${totalUSD.toFixed(2)}`;
     openModal('reconciliationModal');
 }
 
 function submitCashReconciliation() {
-    const countedUSD = parseFloat(document.getElementById('recCountedUSD').value) || 0;
-    const nextUSD = parseFloat(document.getElementById('recNextShiftUSD').value) || 50;
+    const countedUSD = parseFloat(document.getElementById('recCountedUSD')?.value) || 0;
+    const nextUSD = parseFloat(document.getElementById('recNextShiftUSD')?.value) || 50;
 
     NovaDB.closeActiveShift({
         conteoFisicoUSD: countedUSD,

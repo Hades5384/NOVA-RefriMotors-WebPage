@@ -106,6 +106,12 @@ const NovaDB = (function () {
         if (!_read('held_sales', null)) {
             _write('held_sales', []);
         }
+        if (!_read('sale_voids', null)) {
+            _write('sale_voids', []);
+        }
+        if (!_read('product_exchanges', null)) {
+            _write('product_exchanges', []);
+        }
 
         // Inicializar inventario a partir de los 460 productos y variantes
         _syncInitialInventory();
@@ -576,6 +582,132 @@ const NovaDB = (function () {
         return record;
     }
 
+    function voidSale(saleId, motivo = "Anulación solicitada en mostrador", responsable = "MASTER") {
+        if (!saleId) return { success: false, message: "ID de comprobante no especificado." };
+        const sales = getSales();
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return { success: false, message: `No se encontró el comprobante ${saleId}.` };
+        if (sale.anulada) return { success: false, message: `El comprobante ${saleId} ya fue anulado previamente.` };
+
+        // 1. Reintegrar existencias al inventario general
+        if (sale.tipoDocumento !== 'presupuesto' && Array.isArray(sale.items)) {
+            sale.items.forEach(it => {
+                const qty = parseInt(it.quantity) || 1;
+                addStock(it.id, qty, `Anulación Factura ${sale.id}: ${motivo}`, responsable);
+            });
+        }
+
+        // 2. Marcar la venta como anulada en base de datos
+        const now = new Date();
+        sale.anulada = true;
+        sale.fechaAnulacion = now.toISOString();
+        sale.fechaAnulacionStr = now.toLocaleDateString('es-VE');
+        sale.horaAnulacionStr = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+        sale.motivoAnulacion = motivo;
+        sale.responsableAnulacion = responsable;
+
+        _write('sales', sales);
+
+        // 3. Registrar en bitácora inmutable de auditoría de anulaciones
+        const voidLogs = _read('sale_voids', []);
+        const voidEntry = {
+            id: 'ANUL-' + Date.now().toString().slice(-5),
+            saleId: sale.id,
+            timestamp: now.getTime(),
+            fechaStr: sale.fechaAnulacionStr,
+            horaStr: sale.horaAnulacionStr,
+            cliente: sale.cliente,
+            totalUSD: sale.totalUSD || 0,
+            totalBs: sale.totalBs || 0,
+            items: sale.items || [],
+            motivo: motivo,
+            responsable: responsable
+        };
+        voidLogs.unshift(voidEntry);
+        _write('sale_voids', voidLogs);
+
+        // Notificar por BroadcastChannel si aplica
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('nova_pos_channel');
+                bc.postMessage({ type: 'SALE_VOIDED', saleId: sale.id });
+                bc.close();
+            }
+        } catch (e) {}
+
+        return { success: true, sale, voidEntry };
+    }
+
+    function registerProductExchange(exchangeData) {
+        const { saleId, returnedItemId, returnedQty, newItemId, newQty, motivo, responsable, diferenciaUSD, diferenciaBs } = exchangeData;
+        if (!returnedItemId || !newItemId) {
+            return { success: false, message: "Debe indicar tanto el repuesto devuelto como el repuesto nuevo entregado." };
+        }
+        const rQty = parseInt(returnedQty) || 1;
+        const nQty = parseInt(newQty) || 1;
+        const resp = responsable || 'MASTER';
+        const mot = motivo || 'Cambio de repuesto';
+
+        // 1. Ingresar existencias del producto devuelto
+        addStock(returnedItemId, rQty, `Devolución por Cambio Doc ${saleId || 'Mostrador'}: ${mot}`, resp);
+
+        // 2. Descontar existencias del producto entregado
+        deductStock(newItemId, nQty, `Entrega por Cambio Doc ${saleId || 'Mostrador'}: ${mot}`);
+
+        // 3. Obtener nombres y detalles de ambos productos
+        const inv = getInventory();
+        const retProd = inv[returnedItemId] || (typeof window !== 'undefined' && window.products ? window.products.find(p => p.id === returnedItemId) : null);
+        const newProd = inv[newItemId] || (typeof window !== 'undefined' && window.products ? window.products.find(p => p.id === newItemId) : null);
+
+        // 4. Crear registro inmutable de cambio
+        const now = new Date();
+        const exchanges = _read('product_exchanges', []);
+        const exchangeEntry = {
+            id: 'CAMB-' + Date.now().toString().slice(-5),
+            saleId: saleId || 'S/F',
+            timestamp: now.getTime(),
+            fechaStr: now.toLocaleDateString('es-VE'),
+            horaStr: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            returnedItem: {
+                id: returnedItemId,
+                name: retProd ? (retProd.name || retProd.description) : returnedItemId,
+                quantity: rQty
+            },
+            newItem: {
+                id: newItemId,
+                name: newProd ? (newProd.name || newProd.description) : newItemId,
+                quantity: nQty
+            },
+            diferenciaUSD: parseFloat(diferenciaUSD) || 0,
+            diferenciaBs: parseFloat(diferenciaBs) || 0,
+            motivo: mot,
+            responsable: resp
+        };
+        exchanges.unshift(exchangeEntry);
+        _write('product_exchanges', exchanges);
+
+        // 5. Vincular a la venta original si existe
+        if (saleId) {
+            const sales = getSales();
+            const s = sales.find(x => x.id === saleId);
+            if (s) {
+                s.cambios = s.cambios || [];
+                s.cambios.push(exchangeEntry.id);
+                _write('sales', sales);
+            }
+        }
+
+        return { success: true, exchangeEntry };
+    }
+
+    function getVoidSales() {
+        return _read('sale_voids', []);
+    }
+
+    function getProductExchanges() {
+        return _read('product_exchanges', []);
+    }
+
     // ==========================================
     // 5. VENTAS EN ESPERA Y PEDIDOS DE MOSTRADOR
     // ==========================================
@@ -937,6 +1069,8 @@ const NovaDB = (function () {
             settings: getSettings(),
             inventory: getInventory(),
             sales: getSales(),
+            sale_voids: getVoidSales(),
+            product_exchanges: getProductExchanges(),
             cash_shifts: getCashShifts(),
             expenses: getExpenses(),
             customers: getCustomers(),
@@ -956,6 +1090,8 @@ const NovaDB = (function () {
             if (data.settings) _write('settings', data.settings);
             if (data.inventory) _write('inventory', data.inventory);
             if (data.sales) _write('sales', data.sales);
+            if (data.sale_voids) _write('sale_voids', data.sale_voids);
+            if (data.product_exchanges) _write('product_exchanges', data.product_exchanges);
             if (data.cash_shifts) _write('cash_shifts', data.cash_shifts);
             if (data.expenses) _write('expenses', data.expenses);
             if (data.customers) _write('customers', data.customers);
@@ -970,6 +1106,8 @@ const NovaDB = (function () {
 
     function purgeTestData() {
         _write('sales', []);
+        _write('sale_voids', []);
+        _write('product_exchanges', []);
         _write('held_sales', []);
         _write('expenses', []);
         _write('purchases', []);
@@ -1013,6 +1151,10 @@ const NovaDB = (function () {
         getStockLogs,
         getSales,
         registerSale,
+        voidSale,
+        registerProductExchange,
+        getVoidSales,
+        getProductExchanges,
         getHeldSales,
         holdCurrentSale,
         releaseHeldSale,

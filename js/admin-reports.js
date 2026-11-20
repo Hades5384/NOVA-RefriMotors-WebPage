@@ -137,11 +137,11 @@ const NovaReports = (function () {
             id: 'anulaciones_descuentos',
             category: 'ventas',
             areaName: '2. Reportes de Ventas y Punto de Venta (POS)',
-            title: 'Anulaciones, Devoluciones y Descuentos',
+            title: 'Auditoría de Anulaciones y Cambios de Mercancía',
             tag: 'Control Interno',
             iconSvg: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
-            description: 'Auditoría detallada de tickets y facturas anuladas, notas de crédito emitidas o rebajas de mostrador, indicando usuario autorizante, fecha, hora y motivo.',
-            legalNote: 'Garantiza la trazabilidad de operaciones que disminuyen la base de ingresos.',
+            description: 'Auditoría detallada de facturas y notas de despacho anuladas y canjes de productos por garantía o cambio de modelo, indicando usuario autorizante, fecha, hora, montos y motivo.',
+            legalNote: 'Garantiza la trazabilidad de operaciones que disminuyen la base de ingresos y reposición de inventario.',
             generate: generateAnulacionesReport
         },
         {
@@ -1096,10 +1096,15 @@ const NovaReports = (function () {
         return { startTimestamp: start.getTime(), endTimestamp: now.getTime() };
     }
 
-    function _getFilteredSales(rangeKey) {
+    function _getFilteredSales(rangeKey, includeAnuladas = false) {
         const rawSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
         const { startTimestamp } = _getDateRangeLimit(rangeKey);
-        return rawSales.filter(s => (s.timestamp || 0) >= startTimestamp || !s.timestamp);
+        return rawSales.filter(s => {
+            const timeMatch = (s.timestamp || 0) >= startTimestamp || !s.timestamp;
+            if (!timeMatch) return false;
+            if (!includeAnuladas && s.anulada) return false;
+            return true;
+        });
     }
 
     function _buildInvoiceLinkHtml(saleId) {
@@ -1112,7 +1117,7 @@ const NovaReports = (function () {
 
     // 1. Libro de Ventas (IVA) - Sin IGTF
     function generateLibroVentas(rangeKey) {
-        const sales = _getFilteredSales(rangeKey);
+        const sales = _getFilteredSales(rangeKey, true);
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
         if (typeof window !== 'undefined') window._reportSalesCache = window._reportSalesCache || {};
@@ -1131,6 +1136,20 @@ const NovaReports = (function () {
             if (typeof window !== 'undefined') window._reportSalesCache[docId] = s;
             const control = `00-${(20000 + idx)}`;
             const cust = s.cliente || { nombre: "Cliente Mostrador", rif: "V-00000000" };
+
+            if (s.anulada) {
+                return [
+                    { val: num, align: 'center' },
+                    { val: fecha, align: 'center' },
+                    { val: _buildInvoiceLinkHtml(docId), align: 'center', bold: true },
+                    { val: control, align: 'center' },
+                    { val: `<span style="color:#b91c1c; font-weight:800;">[ANULADA]</span> ${cust.nombre} (${cust.rif})`, align: 'left' },
+                    { val: "$0.00", align: 'right', style: 'color:#94a3b8;' },
+                    { val: "Bs. 0,00", align: 'right', style: 'color:#94a3b8;' },
+                    { val: "Bs. 0,00", align: 'right', style: 'color:#94a3b8;' },
+                    { val: "Bs. 0,00", align: 'right', bold: true, style: 'color:#94a3b8;' }
+                ];
+            }
 
             const totalBs = s.totalBs || (s.totalUSD ? s.totalUSD * (s.tasaBCV || tasa) : 0);
             const totalUSD = s.totalUSD || (totalBs / (s.tasaBCV || tasa));
@@ -1544,22 +1563,109 @@ const NovaReports = (function () {
         };
     }
 
-    // 10. Anulaciones y Descuentos
+    // 10. Auditoría de Anulaciones y Cambios de Mercancía
     function generateAnulacionesReport(rangeKey) {
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78 };
+        const tasa = parseFloat(settings.tasaBCV) || 917.78;
+        const { startTimestamp } = _getDateRangeLimit(rangeKey);
+
+        const voidLogs = (typeof NovaDB !== 'undefined' && NovaDB.getVoidSales) ? NovaDB.getVoidSales() : [];
+        const exchanges = (typeof NovaDB !== 'undefined' && NovaDB.getProductExchanges) ? NovaDB.getProductExchanges() : [];
+        const rawSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+
+        // Asegurarnos de capturar todas las ventas marcadas como anuladas
+        const allVoidsMap = new Map();
+        voidLogs.forEach(v => {
+            const key = v.saleId || v.id;
+            allVoidsMap.set(key, v);
+        });
+
+        rawSales.filter(s => s.anulada).forEach(s => {
+            if (!allVoidsMap.has(s.id)) {
+                allVoidsMap.set(s.id, {
+                    id: 'ANUL-' + s.id,
+                    saleId: s.id,
+                    timestamp: s.timestamp || 0,
+                    fechaStr: s.fechaAnulacionStr || s.fechaStr || new Date().toLocaleDateString('es-VE'),
+                    horaStr: s.horaAnulacionStr || s.horaStr || '',
+                    cliente: s.cliente,
+                    totalUSD: s.totalUSD || 0,
+                    totalBs: s.totalBs || 0,
+                    items: s.items || [],
+                    motivo: s.motivoAnulacion || 'Anulación de venta',
+                    responsable: s.responsableAnulacion || 'MASTER'
+                });
+            }
+        });
+
+        const filteredVoids = Array.from(allVoidsMap.values()).filter(v => (v.timestamp || 0) >= startTimestamp || !v.timestamp);
+        const filteredExchanges = exchanges.filter(ex => (ex.timestamp || 0) >= startTimestamp || !ex.timestamp);
+
+        let totalMontoAnuladoUSD = 0;
+        let totalMontoAnuladoBs = 0;
+
+        const rows = [];
+
+        filteredVoids.forEach(v => {
+            const u = parseFloat(v.totalUSD) || 0;
+            const b = parseFloat(v.totalBs) || (u * tasa);
+            totalMontoAnuladoUSD += u;
+            totalMontoAnuladoBs += b;
+
+            const itemsStr = Array.isArray(v.items)
+                ? v.items.map(it => `${it.id} (x${it.quantity || 1})`).join(', ')
+                : '-';
+
+            rows.push([
+                { val: `${v.fechaStr || ''} ${v.horaStr || ''}`, align: 'center' },
+                { val: '<span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:800; border:1px solid #fca5a5;">ANULACIÓN TOTAL</span>', align: 'center' },
+                { val: _buildInvoiceLinkHtml(v.saleId || v.id), align: 'center', bold: true },
+                { val: v.cliente?.nombre ? `${v.cliente.nombre} (${v.cliente.rif || ''})` : 'Cliente Mostrador', align: 'left' },
+                { val: itemsStr, align: 'left' },
+                { val: `$${u.toFixed(2)}`, align: 'right', bold: true, style: 'color:#dc2626;' },
+                { val: `Bs. ${b.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true },
+                { val: v.responsable || 'MASTER', align: 'center' },
+                { val: v.motivo || 'Devolución de mercancía', align: 'left' }
+            ]);
+        });
+
+        filteredExchanges.forEach(ex => {
+            const ret = ex.returnedItem ? `Dev: [${ex.returnedItem.id}] x${ex.returnedItem.quantity || 1}` : '';
+            const ent = ex.newItem ? `Ent: [${ex.newItem.id}] x${ex.newItem.quantity || 1}` : '';
+            const diff = parseFloat(ex.diferenciaUSD) || 0;
+            const diffBs = Math.abs(diff) * tasa;
+            let diffLabel = '$0.00 (Mano a mano)';
+            if (diff > 0) diffLabel = `+$${diff.toFixed(2)} (Cobrado)`;
+            else if (diff < 0) diffLabel = `-$${Math.abs(diff).toFixed(2)} (Reembolso)`;
+
+            rows.push([
+                { val: `${ex.fechaStr || ''} ${ex.horaStr || ''}`, align: 'center' },
+                { val: '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; border:1px solid #bae6fd;">CAMBIO PRODUCTO</span>', align: 'center' },
+                { val: ex.saleId && ex.saleId !== 'S/F' ? _buildInvoiceLinkHtml(ex.saleId) : `<span class="code-badge">${ex.id}</span>`, align: 'center' },
+                { val: 'Mostrador / Canje', align: 'left' },
+                { val: `${ret} ➔ ${ent}`, align: 'left' },
+                { val: diffLabel, align: 'right', bold: true, style: 'color:#0284c7;' },
+                { val: `Bs. ${diffBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                { val: ex.responsable || 'MASTER', align: 'center' },
+                { val: ex.motivo || 'Cambio por garantía/modelo', align: 'left' }
+            ]);
+        });
+
         return {
-            title: "AUDITORÍA DE FACTURAS ANULADAS, DEVOLUCIONES Y DESCUENTOS OTORGADOS",
-            periodStr: "Auditoría de Control Interno",
+            title: "AUDITORÍA DE FACTURAS ANULADAS Y CAMBIOS DE MERCANCÍA",
+            periodStr: rangeKey === 'mes' ? 'Mes en Curso' : (rangeKey === 'quincena' ? 'Última Quincena' : 'Período Seleccionado'),
             kpis: [
-                { label: "Facturas Anuladas", value: "0", sub: "Sin anulaciones" },
-                { label: "Descuentos Otorgados", value: "0 Tickets", sub: "Tarifa estándar" },
-                { label: "Monto Anulado", value: "$0.00 USD", highlight: 'text-success' }
+                { label: "Facturas Anuladas", value: filteredVoids.length.toString(), sub: "Documentos reversados" },
+                { label: "Cambios de Repuestos", value: filteredExchanges.length.toString(), sub: "Canjes de mostrador" },
+                { label: "Monto Total Anulado", value: `$${totalMontoAnuladoUSD.toFixed(2)} USD`, highlight: 'text-primary', sub: `Bs. ${totalMontoAnuladoBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}` }
             ],
-            headers: ["Fecha", "Documento", "N° Nota Crédito", "Cliente", "Monto USD", "Usuario Autorizante", "Motivo de Anulación / Descuento"],
-            rows: [],
+            headers: ["Fecha y Hora", "Operación", "Comprobante", "Cliente", "Detalle Repuestos", "Monto / Diferencia ($)", "Equivalente Bs.", "Responsable", "Motivo o Justificación"],
+            rows: rows,
             totals: [
-                { val: "<b>TOTAL DEVOLUCIONES Y ANULACIONES REGISTRADAS</b>", colspan: 4, align: 'left' },
-                { val: "<b>$0.00</b>", align: 'right' },
-                { val: "Supervisado por MASTER", colspan: 2, align: 'center' }
+                { val: "<b>TOTAL GENERAL DE OPERACIONES DE AUDITORÍA REGISTRADAS</b>", colspan: 5, align: 'left' },
+                { val: `<b>$${totalMontoAnuladoUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>Bs. ${totalMontoAnuladoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
+                { val: "Supervisión MASTER", colspan: 2, align: 'center' }
             ]
         };
     }
