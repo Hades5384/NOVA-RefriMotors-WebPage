@@ -19,7 +19,7 @@ const NovaDB = (function () {
     const STORAGE_KEY_PREFIX = 'nova_erp_';
 
     const DEFAULT_SETTINGS = {
-        tasaBCV: 914.02,
+        tasaBCV: 915.75,
         tasaInterna: 1050,
         porcentajeUtilidad: 1.30,
         porcentajeIva: 1.16,
@@ -202,6 +202,15 @@ const NovaDB = (function () {
         return true;
     }
 
+    function setTasaInterna(newRate) {
+        const rate = parseFloat(newRate);
+        if (isNaN(rate) || rate <= 0) return false;
+        const s = getSettings();
+        s.tasaInterna = rate;
+        _write('settings', s);
+        return true;
+    }
+
     // ==========================================
     // 3. MÉTODOS DE INVENTARIO Y STOCK
     // ==========================================
@@ -253,10 +262,12 @@ const NovaDB = (function () {
             _syncStockToMemory(key, qty);
             _logStockMovement({
                 productId: key,
+                productoId: key,
                 oldStock,
                 newStock: qty,
                 diff: qty - oldStock,
                 reason,
+                motivo: reason,
                 timestamp: new Date().toISOString()
             });
             return true;
@@ -276,12 +287,16 @@ const NovaDB = (function () {
             inv[key].stock = newStock;
             _write('inventory', inv);
             _syncStockToMemory(key, newStock);
+            const docIdMatch = (typeof reason === 'string' && reason.includes('Venta ')) ? reason.replace('Venta ', '').trim() : '';
             _logStockMovement({
                 productId: key,
+                productoId: key,
                 oldStock,
                 newStock,
                 diff: -qty,
                 reason,
+                motivo: reason,
+                docId: docIdMatch || '-',
                 timestamp: new Date().toISOString()
             });
             return true;
@@ -289,24 +304,37 @@ const NovaDB = (function () {
         return false;
     }
 
-    function addStock(productId, qtyToAdd, reason = "Entrada por compra") {
+    function addStock(productId, qtyToAdd, reason = "Entrada por compra", responsable = "") {
         const inv = getInventory();
         const qty = parseInt(qtyToAdd);
         if (isNaN(qty) || qty <= 0) return false;
 
-        const key = _resolveInvKey(inv, productId) || productId;
+        let key = _resolveInvKey(inv, productId) || productId;
+        if (!inv[key] && typeof window !== 'undefined' && Array.isArray(window.products)) {
+            const p = window.products.find(x => x && x.id === productId);
+            if (p) {
+                inv[p.id] = { ...p, stock: 0 };
+                key = p.id;
+            }
+        }
         if (inv[key]) {
             const oldStock = parseInt(inv[key].stock) || 0;
             const newStock = oldStock + qty;
             inv[key].stock = newStock;
             _write('inventory', inv);
             _syncStockToMemory(key, newStock);
+            const fullReason = responsable ? `${reason} (Resp: ${responsable})` : reason;
+            const docIdMatch = (typeof reason === 'string' && reason.includes('Compra ')) ? reason.replace('Compra ', '').trim().split(' ')[0] : '';
             _logStockMovement({
                 productId: key,
+                productoId: key,
                 oldStock,
                 newStock,
                 diff: qty,
-                reason,
+                reason: fullReason,
+                motivo: fullReason,
+                docId: docIdMatch || '-',
+                responsable: responsable || 'MASTER',
                 timestamp: new Date().toISOString()
             });
             return true;
@@ -789,11 +817,13 @@ const NovaDB = (function () {
         const purchases = getPurchases();
         const purId = 'COM-' + (purchases.length + 1).toString().padStart(4, '0');
         const now = new Date();
+        const fechaHoraStr = now.toLocaleDateString('es-VE') + ' ' + now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
 
         const record = {
             id: purId,
             timestamp: now.getTime(),
             fechaStr: now.toLocaleDateString('es-VE'),
+            fechaHoraStr: fechaHoraStr,
             proveedorId: purchaseData.proveedorId,
             proveedorNombre: purchaseData.proveedorNombre,
             facturaNumero: purchaseData.facturaNumero || 'N/A',
@@ -802,18 +832,81 @@ const NovaDB = (function () {
             notas: purchaseData.notas || ''
         };
 
-        // Aumentar stock de cada ítem comprado
+        const inv = getInventory();
+        let invChanged = false;
+
+        // Aumentar stock de cada ítem comprado y registrar costo actual, costo anterior y fecha de última carga
         record.items.forEach(item => {
-            addStock(item.id, item.cantidad, `Compra ${record.id}`);
-            // Si vino con nuevo costo de compra, se actualiza en el catálogo de memoria
-            if (item.costoCompra && typeof item.costoCompra === 'number' && item.costoCompra > 0) {
-                _updateProductCostInMemory(item.id, item.costoCompra);
+            const qty = parseInt(item.cantidad) || 0;
+            if (qty > 0) {
+                addStock(item.id, qty, `Compra ${record.id} (${record.proveedorNombre})`);
+            }
+
+            const newCost = (typeof item.costoCompra === 'number' && item.costoCompra > 0)
+                ? item.costoCompra
+                : (parseFloat(item.costoCompra) || 0);
+
+            let key = _resolveInvKey(inv, item.id) || item.id;
+            if (!inv[key] && typeof window !== 'undefined' && Array.isArray(window.products)) {
+                const p = window.products.find(x => x && x.id === item.id);
+                if (p) inv[key] = { ...p, stock: 0 };
+            }
+
+            if (inv[key]) {
+                const prevCost = typeof inv[key].costoCompra === 'number' ? inv[key].costoCompra : 0;
+                if (newCost > 0) {
+                    if (prevCost > 0 && Math.abs(prevCost - newCost) > 0.001) {
+                        inv[key].costoAnterior = prevCost;
+                    } else if (inv[key].costoAnterior === undefined) {
+                        inv[key].costoAnterior = prevCost;
+                    }
+                    inv[key].costoCompra = newCost;
+                }
+                inv[key].ultimaCargaFecha = now.toISOString();
+                inv[key].ultimaCargaFechaStr = fechaHoraStr;
+                inv[key].ultimoProveedorId = record.proveedorId;
+                inv[key].ultimoProveedorNombre = record.proveedorNombre;
+                inv[key].ultimaCompraId = record.id;
+                invChanged = true;
+            }
+
+            if (newCost > 0) {
+                _updateProductCostInMemory(item.id, newCost);
             }
         });
+
+        if (invChanged) {
+            _write('inventory', inv);
+        }
 
         purchases.unshift(record);
         _write('purchases', purchases);
         return record;
+    }
+
+    function getProductPurchaseHistory(productId) {
+        const purchases = getPurchases();
+        const cleanId = (productId || '').toUpperCase().trim();
+        const matching = [];
+
+        for (const pur of purchases) {
+            if (Array.isArray(pur.items)) {
+                const item = pur.items.find(it => it.id && it.id.toUpperCase().trim() === cleanId);
+                if (item) {
+                    matching.push({
+                        purchaseId: pur.id,
+                        timestamp: pur.timestamp,
+                        fechaStr: pur.fechaHoraStr || pur.fechaStr,
+                        proveedorId: pur.proveedorId,
+                        proveedorNombre: pur.proveedorNombre,
+                        facturaNumero: pur.facturaNumero,
+                        cantidad: item.cantidad,
+                        costoCompra: item.costoCompra
+                    });
+                }
+            }
+        }
+        return matching;
     }
 
     function _updateProductCostInMemory(productId, newCost) {
@@ -911,6 +1004,7 @@ const NovaDB = (function () {
         getSettings,
         updateSettings,
         setTasaBCV,
+        setTasaInterna,
         getInventory,
         getStock,
         setStock,
@@ -935,6 +1029,7 @@ const NovaDB = (function () {
         saveSupplier,
         getPurchases,
         registerPurchase,
+        getProductPurchaseHistory,
         addNewProduct,
         updateProduct,
         deleteProduct,

@@ -134,6 +134,22 @@ CREATE TABLE IF NOT EXISTS movimientos_stock (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 10. TABLA: CONFIGURACIÓN GENERAL Y TASA OFICIAL BCV
+CREATE TABLE IF NOT EXISTS configuracion (
+    id TEXT PRIMARY KEY,
+    tasa_bcv NUMERIC DEFAULT 915.75,
+    tasa_interna NUMERIC DEFAULT 1050,
+    porcentaje_utilidad NUMERIC DEFAULT 1.30,
+    porcentaje_iva NUMERIC DEFAULT 1.16,
+    empresa_nombre TEXT DEFAULT 'NOVA RefriMotors',
+    empresa_rif TEXT DEFAULT 'J504401994',
+    empresa_telefono TEXT DEFAULT '+58 424-6192394',
+    empresa_direccion TEXT DEFAULT 'Galpón al lado del Estacionamiento Centro Clínico, Av. Carabobo, Cabimas 4013, Zulia',
+    empresa_lema TEXT DEFAULT 'Tu aliado estratégico en repuestos de refrigeración',
+    empresa_email TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
 -- HABILITAR POLÍTICAS DE ACCESO PÚBLICO / ANON PARA LAS TABLAS (REST API)
 -- Permite que la clave anónima/publishable del navegador pueda leer y escribir.
@@ -147,6 +163,7 @@ ALTER TABLE egresos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proveedores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE compras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE movimientos_stock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 
 -- Crear políticas universales de lectura y escritura para el frontend SPA
 CREATE POLICY "Permitir todo en productos" ON productos FOR ALL USING (true) WITH CHECK (true);
@@ -158,3 +175,4 @@ CREATE POLICY "Permitir todo en egresos" ON egresos FOR ALL USING (true) WITH CH
 CREATE POLICY "Permitir todo en proveedores" ON proveedores FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir todo en compras" ON compras FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir todo en movimientos_stock" ON movimientos_stock FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo en configuracion" ON configuracion FOR ALL USING (true) WITH CHECK (true);

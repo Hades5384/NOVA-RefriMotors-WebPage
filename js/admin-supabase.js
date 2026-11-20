@@ -147,6 +147,9 @@ const NovaSupabase = (function () {
         // Actualizar interfaz inicial
         _updateUIStatus();
 
+        // Sincronizar inmediatamente la tasa BCV y datos de la empresa desde la nube
+        _pullInitialConfig();
+
         // Verificar si la base de datos necesita carga inicial y descargar cambios recientes
         setTimeout(async () => {
             await checkAndSeedCatalog();
@@ -154,6 +157,60 @@ const NovaSupabase = (function () {
             await pullCloudUpdates();
             _subscribeRealtime();
         }, 1500);
+    }
+
+    async function _pullInitialConfig() {
+        if (!_client || !_isOnline) return;
+        try {
+            const { data, error } = await _client.from('configuracion').select('*').eq('id', 'default').maybeSingle();
+            if (!error && data) {
+                const local = (typeof window.NovaDB !== 'undefined' && window.NovaDB.getSettings) ? window.NovaDB.getSettings() : null;
+                if (!local) return;
+                let changed = false;
+
+                const remoteBCV = parseFloat(data.tasa_bcv);
+                if (!isNaN(remoteBCV) && remoteBCV > 0 && Math.abs(remoteBCV - (local.tasaBCV || 0)) > 0.001) {
+                    local.tasaBCV = remoteBCV;
+                    changed = true;
+                }
+
+                const remoteInt = parseFloat(data.tasa_interna);
+                if (!isNaN(remoteInt) && remoteInt > 0 && Math.abs(remoteInt - (local.tasaInterna || 0)) > 0.001) {
+                    local.tasaInterna = remoteInt;
+                    changed = true;
+                }
+
+                if (data.empresa_nombre) {
+                    if (!local.empresa) local.empresa = {};
+                    if (local.empresa.nombre !== data.empresa_nombre) {
+                        local.empresa.nombre = data.empresa_nombre;
+                        changed = true;
+                    }
+                    if (data.empresa_rif && local.empresa.rif !== data.empresa_rif) {
+                        local.empresa.rif = data.empresa_rif;
+                        changed = true;
+                    }
+                    if (data.empresa_telefono && local.empresa.telefono !== data.empresa_telefono) {
+                        local.empresa.telefono = data.empresa_telefono;
+                        changed = true;
+                    }
+                    if (data.empresa_direccion && local.empresa.direccion !== data.empresa_direccion) {
+                        local.empresa.direccion = data.empresa_direccion;
+                        changed = true;
+                    }
+                }
+
+                if (changed) {
+                    localStorage.setItem('nova_erp_settings', JSON.stringify(local));
+                    if (typeof updateBCVDisplay === 'function') updateBCVDisplay();
+                    if (typeof renderPOSCart === 'function') renderPOSCart();
+                    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+                    console.log(`[NovaSupabase] Tasa BCV sincronizada desde la nube: Bs. ${local.tasaBCV.toFixed(2)}`);
+                }
+            }
+        } catch (e) {
+            console.warn('[NovaSupabase] Aviso obteniendo configuración inicial:', e);
+        }
     }
 
     // ==========================================
@@ -236,14 +293,15 @@ const NovaSupabase = (function () {
         // Hook de Entrada de Stock
         const origAddStock = window.NovaDB.addStock;
         if (origAddStock) {
-            window.NovaDB.addStock = function (productId, qtyToAdd, reason) {
+            window.NovaDB.addStock = function (productId, qtyToAdd, reason, responsable) {
                 const res = origAddStock.apply(this, arguments);
                 if (res) {
                     const newStock = window.NovaDB.getStock(productId);
+                    const syncReason = responsable ? `${reason || 'Entrada de existencias'} (Resp: ${responsable})` : (reason || 'Entrada de existencias');
                     _enqueue('update_stock', 'productos', {
                         id: productId,
                         stock: newStock,
-                        reason: reason || 'Entrada de existencias'
+                        reason: syncReason
                     });
                 }
                 return res;
@@ -485,6 +543,86 @@ const NovaSupabase = (function () {
                 const res = origDeleteProduct.apply(this, arguments);
                 if (res) {
                     _enqueue('delete', 'productos', { id: productId });
+                }
+                return res;
+            };
+        }
+
+        // Hook de Tasa Oficial BCV
+        const origSetTasaBCV = window.NovaDB.setTasaBCV;
+        if (origSetTasaBCV) {
+            window.NovaDB.setTasaBCV = function (newRate) {
+                const res = origSetTasaBCV.apply(this, arguments);
+                if (res) {
+                    const r = parseFloat(newRate);
+                    const payload = {
+                        id: 'default',
+                        tasa_bcv: r,
+                        updated_at: new Date().toISOString()
+                    };
+                    _enqueue('upsert', 'configuracion', payload);
+                    if (_client && _isOnline) {
+                        _client.from('configuracion').upsert([payload], { onConflict: 'id' }).then(({ error }) => {
+                            if (error) console.warn('[NovaSupabase] Error directo guardando tasa_bcv:', error);
+                            else console.log('[NovaSupabase] Tasa BCV guardada inmediatamente en Supabase:', r);
+                        });
+                    }
+                }
+                return res;
+            };
+        }
+
+        // Hook de Tasa Interna del Sistema
+        const origSetTasaInterna = window.NovaDB.setTasaInterna;
+        if (origSetTasaInterna) {
+            window.NovaDB.setTasaInterna = function (newRate) {
+                const res = origSetTasaInterna.apply(this, arguments);
+                if (res) {
+                    const r = parseFloat(newRate);
+                    const payload = {
+                        id: 'default',
+                        tasa_interna: r,
+                        updated_at: new Date().toISOString()
+                    };
+                    _enqueue('upsert', 'configuracion', payload);
+                    if (_client && _isOnline) {
+                        _client.from('configuracion').upsert([payload], { onConflict: 'id' }).then(({ error }) => {
+                            if (error) console.warn('[NovaSupabase] Error directo guardando tasa_interna:', error);
+                            else console.log('[NovaSupabase] Tasa interna guardada inmediatamente en Supabase:', r);
+                        });
+                    }
+                }
+                return res;
+            };
+        }
+
+        // Hook de Configuración General de Empresa y Márgenes
+        const origUpdateSettings = window.NovaDB.updateSettings;
+        if (origUpdateSettings) {
+            window.NovaDB.updateSettings = function (newSettings) {
+                const res = origUpdateSettings.apply(this, arguments);
+                if (res) {
+                    const payload = {
+                        id: 'default',
+                        updated_at: new Date().toISOString()
+                    };
+                    if (typeof res.tasaBCV === 'number') payload.tasa_bcv = res.tasaBCV;
+                    if (typeof res.tasaInterna === 'number') payload.tasa_interna = res.tasaInterna;
+                    if (typeof res.porcentajeUtilidad === 'number') payload.porcentaje_utilidad = res.porcentajeUtilidad;
+                    if (typeof res.porcentajeIva === 'number') payload.porcentaje_iva = res.porcentajeIva;
+                    if (res.empresa) {
+                        if (res.empresa.nombre) payload.empresa_nombre = res.empresa.nombre;
+                        if (res.empresa.rif) payload.empresa_rif = res.empresa.rif;
+                        if (res.empresa.telefono) payload.empresa_telefono = res.empresa.telefono;
+                        if (res.empresa.direccion) payload.empresa_direccion = res.empresa.direccion;
+                        if (res.empresa.lema) payload.empresa_lema = res.empresa.lema;
+                    }
+                    _enqueue('upsert', 'configuracion', payload);
+                    if (_client && _isOnline) {
+                        _client.from('configuracion').upsert([payload], { onConflict: 'id' }).then(({ error }) => {
+                            if (error) console.warn('[NovaSupabase] Error directo guardando configuración:', error);
+                        });
+                    }
                 }
                 return res;
             };
@@ -1085,6 +1223,62 @@ const NovaSupabase = (function () {
             let cashOrSalesChanged = false;
             let purchasesChanged = false;
 
+            // 0. CONFIGURACIÓN Y TASA BCV DESDE LA NUBE
+            try {
+                const { data: remoteCfg, error: cfgErr } = await _client
+                    .from('configuracion')
+                    .select('*')
+                    .eq('id', 'default')
+                    .maybeSingle();
+
+                if (!cfgErr && remoteCfg) {
+                    const localSettings = window.NovaDB.getSettings();
+                    let cfgChanged = false;
+
+                    const remoteTasaBCV = parseFloat(remoteCfg.tasa_bcv);
+                    if (!isNaN(remoteTasaBCV) && remoteTasaBCV > 0 && Math.abs(remoteTasaBCV - (localSettings.tasaBCV || 0)) > 0.001) {
+                        localSettings.tasaBCV = remoteTasaBCV;
+                        cfgChanged = true;
+                    }
+
+                    const remoteTasaInt = parseFloat(remoteCfg.tasa_interna);
+                    if (!isNaN(remoteTasaInt) && remoteTasaInt > 0 && Math.abs(remoteTasaInt - (localSettings.tasaInterna || 0)) > 0.001) {
+                        localSettings.tasaInterna = remoteTasaInt;
+                        cfgChanged = true;
+                    }
+
+                    if (remoteCfg.empresa_nombre) {
+                        if (!localSettings.empresa) localSettings.empresa = {};
+                        if (localSettings.empresa.nombre !== remoteCfg.empresa_nombre) {
+                            localSettings.empresa.nombre = remoteCfg.empresa_nombre;
+                            cfgChanged = true;
+                        }
+                        if (remoteCfg.empresa_rif && localSettings.empresa.rif !== remoteCfg.empresa_rif) {
+                            localSettings.empresa.rif = remoteCfg.empresa_rif;
+                            cfgChanged = true;
+                        }
+                        if (remoteCfg.empresa_telefono && localSettings.empresa.telefono !== remoteCfg.empresa_telefono) {
+                            localSettings.empresa.telefono = remoteCfg.empresa_telefono;
+                            cfgChanged = true;
+                        }
+                        if (remoteCfg.empresa_direccion && localSettings.empresa.direccion !== remoteCfg.empresa_direccion) {
+                            localSettings.empresa.direccion = remoteCfg.empresa_direccion;
+                            cfgChanged = true;
+                        }
+                    }
+
+                    if (cfgChanged) {
+                        localStorage.setItem('nova_erp_settings', JSON.stringify(localSettings));
+                        anyChanged = true;
+                        if (typeof updateBCVDisplay === 'function') updateBCVDisplay();
+                        if (typeof renderPOSCart === 'function') renderPOSCart();
+                        if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+                    }
+                }
+            } catch (cfgEx) {
+                console.warn('[NovaSupabase] Error sincronizando configuración:', cfgEx);
+            }
+
             // 1. PRODUCTOS E INVENTARIO (Fuente única de verdad)
             const prodRes = await _fetchAllPaginated(
                 'productos',
@@ -1352,6 +1546,56 @@ const NovaSupabase = (function () {
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' }, () => _scheduleRealtimePull())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'proveedores' }, () => _scheduleRealtimePull())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos_caja' }, () => _scheduleRealtimePull())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracion' }, (payload) => {
+                    if (typeof window.NovaDB === 'undefined') return;
+                    const newRow = payload.new;
+                    if (!newRow) return;
+
+                    const local = window.NovaDB.getSettings();
+                    let changed = false;
+
+                    const remoteBCV = parseFloat(newRow.tasa_bcv);
+                    if (!isNaN(remoteBCV) && remoteBCV > 0 && Math.abs(remoteBCV - (local.tasaBCV || 0)) > 0.001) {
+                        local.tasaBCV = remoteBCV;
+                        changed = true;
+                    }
+
+                    const remoteInt = parseFloat(newRow.tasa_interna);
+                    if (!isNaN(remoteInt) && remoteInt > 0 && Math.abs(remoteInt - (local.tasaInterna || 0)) > 0.001) {
+                        local.tasaInterna = remoteInt;
+                        changed = true;
+                    }
+
+                    if (newRow.empresa_nombre) {
+                        if (!local.empresa) local.empresa = {};
+                        if (local.empresa.nombre !== newRow.empresa_nombre) {
+                            local.empresa.nombre = newRow.empresa_nombre;
+                            changed = true;
+                        }
+                        if (newRow.empresa_rif && local.empresa.rif !== newRow.empresa_rif) {
+                            local.empresa.rif = newRow.empresa_rif;
+                            changed = true;
+                        }
+                        if (newRow.empresa_telefono && local.empresa.telefono !== newRow.empresa_telefono) {
+                            local.empresa.telefono = newRow.empresa_telefono;
+                            changed = true;
+                        }
+                        if (newRow.empresa_direccion && local.empresa.direccion !== newRow.empresa_direccion) {
+                            local.empresa.direccion = newRow.empresa_direccion;
+                            changed = true;
+                        }
+                    }
+
+                    if (changed) {
+                        localStorage.setItem('nova_erp_settings', JSON.stringify(local));
+                        if (typeof updateBCVDisplay === 'function') updateBCVDisplay();
+                        if (typeof renderPOSCart === 'function') renderPOSCart();
+                        if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+                        if (typeof renderInventoryTable === 'function' && typeof currentView !== 'undefined' && currentView === 'inventory') {
+                            renderInventoryTable();
+                        }
+                    }
+                })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_mostrador' }, async () => {
                     if (typeof NovaUsers !== 'undefined' && NovaUsers.isAdmin() && typeof window.NovaDB !== 'undefined') {
                         const remoteOrders = await fetchPendingCounterOrders();

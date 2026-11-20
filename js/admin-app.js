@@ -46,6 +46,15 @@ function setupBroadcastSync() {
                     if (modal && modal.classList.contains('active')) {
                         renderHeldSalesModalContent();
                     }
+                } else if (ev.data && ev.data.type === 'BCV_RATE_UPDATED') {
+                    updateBCVDisplay();
+                    if (currentView === 'pos') {
+                        renderPOSCart();
+                        renderPOSCatalog();
+                    }
+                    if (currentView === 'inventory' && typeof renderInventoryTable === 'function') {
+                        renderInventoryTable();
+                    }
                 }
             };
         }
@@ -131,42 +140,107 @@ function initBCVWidget() {
 }
 
 function updateBCVDisplay() {
-    const settings = NovaDB.getSettings();
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78, tasaInterna: 1050 };
     const valEl = document.getElementById('bcvRateVal');
-    if (valEl) valEl.innerText = `Bs. ${settings.tasaBCV.toFixed(2)}`;
+    if (valEl) valEl.innerText = `Bs. ${(settings.tasaBCV || 917.78).toFixed(2)}`;
+    const intEl = document.getElementById('internalRateVal');
+    if (intEl) intEl.innerText = `Bs. ${(settings.tasaInterna || 1050).toFixed(2)}`;
 }
 
-function promptEditBCV() {
-    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller()) {
+function openRateSettingsModal() {
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller && NovaUsers.isSeller()) {
         showNovaAlert({
             title: "Acceso Restringido",
-            message: "Solo el usuario MASTER puede modificar la Tasa Oficial BCV.",
+            message: "Solo el usuario MASTER puede modificar las tasas de cambio del sistema.",
             type: "warning"
         });
         return;
     }
 
-    const current = NovaDB.getSettings().tasaBCV;
-    const input = prompt("Ingrese la nueva Tasa Oficial BCV (Bs. / USD):", current.toFixed(2));
-    if (input !== null) {
-        const val = parseFloat(input.replace(',', '.'));
-        if (!isNaN(val) && val > 0) {
-            NovaDB.setTasaBCV(val);
-            updateBCVDisplay();
-            if (currentView === 'pos') renderPOSCart();
-            showNovaAlert({
-                title: "Tasa Actualizada",
-                message: `La tasa oficial BCV ha sido fijada en Bs. ${val.toFixed(2)}`,
-                type: "success"
-            });
-        } else {
-            showNovaAlert({
-                title: "Valor Inválido",
-                message: "Por favor ingrese un número válido mayor a cero.",
-                type: "warning"
-            });
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78, tasaInterna: 1050 };
+    const bcvInput = document.getElementById('rateModalBcvInput');
+    const intInput = document.getElementById('rateModalInternalInput');
+    
+    if (bcvInput) bcvInput.value = (settings.tasaBCV || 917.78).toFixed(2);
+    if (intInput) intInput.value = (settings.tasaInterna || 1050).toFixed(2);
+
+    openModal('rateSettingsModal');
+
+    setTimeout(() => {
+        if (bcvInput) { bcvInput.focus(); bcvInput.select(); }
+    }, 150);
+}
+
+function saveRatesFromModal() {
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller && NovaUsers.isSeller()) {
+        showNovaAlert({
+            title: "Acceso Restringido",
+            message: "Solo el usuario MASTER puede modificar las tasas de cambio del sistema.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const bcvInput = document.getElementById('rateModalBcvInput');
+    const intInput = document.getElementById('rateModalInternalInput');
+
+    const newBCV = parseFloat(bcvInput ? bcvInput.value.replace(',', '.') : '');
+    const newInt = parseFloat(intInput ? intInput.value.replace(',', '.') : '');
+
+    if (isNaN(newBCV) || newBCV <= 0) {
+        showNovaAlert({
+            title: "Tasa BCV Inválida",
+            message: "Por favor ingrese un valor numérico válido y mayor a cero para la Tasa Oficial BCV.",
+            type: "warning"
+        });
+        if (bcvInput) bcvInput.focus();
+        return;
+    }
+
+    if (isNaN(newInt) || newInt <= 0) {
+        showNovaAlert({
+            title: "Tasa Interna Inválida",
+            message: "Por favor ingrese un valor numérico válido y mayor a cero para la Tasa Interna del Sistema.",
+            type: "warning"
+        });
+        if (intInput) intInput.focus();
+        return;
+    }
+
+    // Guardar en almacenamiento y disparar hooks de sincronización inmediata con Supabase
+    NovaDB.setTasaBCV(newBCV);
+    NovaDB.setTasaInterna(newInt);
+    updateBCVDisplay();
+
+    // Actualizar vistas si están en pantalla
+    if (typeof currentView !== 'undefined') {
+        if (currentView === 'pos') {
+            if (typeof renderPOSCart === 'function') renderPOSCart();
+            if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+        }
+        if (currentView === 'inventory' && typeof renderInventoryTable === 'function') {
+            renderInventoryTable();
         }
     }
+
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('nova_pos_channel');
+            bc.postMessage({ type: 'BCV_RATE_UPDATED', rate: newBCV, internalRate: newInt });
+        }
+    } catch (e) { }
+
+    closeModal('rateSettingsModal');
+
+    showNovaAlert({
+        title: "Tasas Actualizadas",
+        message: `Las tasas han sido guardadas y sincronizadas con la base de datos central en la nube:<br>• <b>Tasa Oficial BCV:</b> Bs. ${newBCV.toFixed(2)}<br>• <b>Tasa Interna Reposición:</b> Bs. ${newInt.toFixed(2)}`,
+        type: "success"
+    });
+}
+
+function promptEditBCV() {
+    openRateSettingsModal();
 }
 
 function setupKeyboardShortcuts() {
@@ -1038,23 +1112,23 @@ function renderReprintSalesList(salesList) {
 
         rowsHtml += `
             <tr id="reprint-row-${s.id}">
-                <td style="padding: 7px 12px;"><span class="code-badge" style="font-weight:800;">${s.id}</span></td>
-                <td style="padding: 7px 12px; white-space:nowrap;">${dateTime}</td>
-                <td style="padding: 7px 12px;"><span style="font-size: 10.5px; font-weight:700; padding: 2px 7px; border-radius: 4px; ${badgeStyle}">${docTypeLabel}</span></td>
-                <td style="padding: 7px 12px;">
-                    <div style="font-weight:700; color:var(--text-main);">${custName}</div>
-                    <div style="font-size:11px; color:var(--text-muted);">${custRif}</div>
+                <td style="padding: 6px 8px;"><span class="code-badge" style="font-weight:800; font-size:11px;">${s.id}</span></td>
+                <td style="padding: 6px 8px; white-space:nowrap; font-size:11.5px;">${dateTime}</td>
+                <td style="padding: 6px 8px;"><span style="font-size: 10.5px; font-weight:700; padding: 2px 6px; border-radius: 4px; ${badgeStyle}">${docTypeLabel}</span></td>
+                <td style="padding: 6px 8px;">
+                    <div style="font-weight:700; color:var(--text-main); font-size:12px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${custName}</div>
+                    <div style="font-size:10.5px; color:var(--text-muted);">${custRif}</div>
                 </td>
-                <td style="padding: 7px 12px; text-align:right; font-weight:800; color:var(--accent-red);">$${totalUSD}</td>
-                <td style="padding: 7px 12px; text-align:right; font-weight:700; color:var(--text-main);">Bs. ${totalBs}</td>
-                <td style="padding: 7px 12px; text-align:center;">
-                    <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
-                        <button type="button" class="ticket-btn-sm" onclick="reprintSaleDirectly('${s.id}')" title="Reimprimir copia directa en impresora térmica POS-58 (Sin descontar inventario)" style="color: #1e40af; border-color: #bfdbfe; background: #eff6ff; font-weight:700; display:inline-flex; align-items:center; gap:4px; padding: 3px 8px;">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                <td style="padding: 6px 8px; text-align:right; font-weight:800; color:var(--accent-red); font-size:12px;">$${totalUSD}</td>
+                <td style="padding: 6px 8px; text-align:right; font-weight:700; color:var(--text-main); font-size:11.5px;">Bs. ${totalBs}</td>
+                <td style="padding: 6px 8px; text-align:center;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:4px; flex-wrap:nowrap;">
+                        <button type="button" class="ticket-btn-sm" onclick="reprintSaleDirectly('${s.id}')" title="Reimprimir copia directa en impresora térmica POS-58 (Sin descontar inventario)" style="color: #1e40af; border-color: #bfdbfe; background: #eff6ff; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding: 3px 6px; font-size:11px; white-space:nowrap;">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                             Imprimir
                         </button>
-                        <button type="button" class="ticket-btn-sm" onclick="reprintViewDocument('${s.id}')" title="Ver comprobante en pantalla completa" style="color: var(--text-main); padding: 3px 6px;">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
+                        <button type="button" class="ticket-btn-sm" onclick="reprintViewDocument('${s.id}')" title="Ver comprobante en pantalla completa" style="color: var(--text-main); padding: 3px 6px; font-size:11px; white-space:nowrap;">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 12 8"></polygon></svg>
                             Ver
                         </button>
                     </div>
@@ -1142,6 +1216,65 @@ function reprintViewDocument(saleId) {
 function isDivisaPaymentMethod(method) {
     const m = (method || '').toLowerCase();
     return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance');
+}
+
+/**
+ * Resuelve de forma unificada y estricta los datos de pago y moneda de cualquier venta.
+ * En presupuestos nunca hay pago ni es divisa.
+ * En facturas y notas de despacho: es divisa SOLAMENTE si el método es explícitamente USD/Zelle/Binance.
+ * En pagos en Bolívares (Punto de Venta, Pago Móvil, Transferencia, Efectivo Bs) NUNCA es divisa.
+ */
+function getSalePaymentInfo(sale) {
+    if (!sale) return { primaryMethod: '', isUSD: false, refNum: '', methodLabel: '' };
+    const isPresupuesto = (sale.tipoDocumento === 'presupuesto');
+    if (isPresupuesto) {
+        return { primaryMethod: '', isUSD: false, refNum: '', methodLabel: '' };
+    }
+
+    let primaryMethod = '';
+    let refNum = '';
+
+    if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+        const first = sale.metodosPago[0];
+        if (typeof first === 'string') {
+            primaryMethod = first;
+        } else if (first && typeof first === 'object') {
+            primaryMethod = first.metodo || first.name || first.tipo || '';
+            refNum = first.referencia || first.ref || '';
+        }
+    } else if (typeof sale.metodoPago === 'string') {
+        primaryMethod = sale.metodoPago;
+    } else if (typeof sale.metodos_pago === 'string') {
+        primaryMethod = sale.metodos_pago;
+    } else if (Array.isArray(sale.metodos_pago) && sale.metodos_pago.length > 0) {
+        const first = sale.metodos_pago[0];
+        primaryMethod = typeof first === 'string' ? first : (first.metodo || '');
+        refNum = (typeof first === 'object' && first) ? (first.referencia || '') : '';
+    }
+
+    let isUSD = false;
+    if (primaryMethod) {
+        isUSD = isDivisaPaymentMethod(primaryMethod);
+    } else if (sale.tipoPrecio === 'divisas' && (!sale.totalBs || sale.totalBs === 0)) {
+        isUSD = true;
+        primaryMethod = 'Efectivo USD';
+    }
+
+    const methodLower = primaryMethod.toLowerCase();
+    let methodLabel = primaryMethod ? primaryMethod.toUpperCase() : '';
+    if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
+    else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
+    else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA (DEBITO)";
+    else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL (BIOPAGO)";
+    else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA BANCARIA";
+    else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
+    else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
+
+    if (refNum && !methodLabel.includes(refNum)) {
+        methodLabel += ` [REF: ${refNum}]`;
+    }
+
+    return { primaryMethod, isUSD, refNum, methodLabel };
 }
 
 function onDocTypeChange() {
@@ -1583,31 +1716,9 @@ async function generateInvoiceDocument(sale) {
         const isPresupuesto = (sale.tipoDocumento === 'presupuesto');
         const isFactura = (sale.tipoDocumento === 'factura');
 
-        // Determinar método de pago principal y moneda (Dólares vs Bolívares)
-        let primaryMethod = '';
-        let refNum = '';
-        if (!isPresupuesto && Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
-            primaryMethod = sale.metodosPago[0].metodo || 'Efectivo USD';
-            refNum = sale.metodosPago[0].referencia || '';
-        }
-
-        const methodLower = primaryMethod.toLowerCase();
-        // Métodos en divisas: Efectivo USD, Zelle, Binance Pay (nunca en presupuesto)
-        const isUSD = !isPresupuesto && isDivisaPaymentMethod(primaryMethod);
-        const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 914.02;
-
-        let methodLabel = primaryMethod.toUpperCase();
-        if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
-        else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
-        else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA (DEBITO)";
-        else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL (BIOPAGO)";
-        else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA BANCARIA";
-        else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
-        else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
-
-        if (refNum) {
-            methodLabel += ` [REF: ${refNum}]`;
-        }
+        // Determinar método de pago principal y moneda de forma unificada
+        const { primaryMethod, isUSD, refNum, methodLabel } = getSalePaymentInfo(sale);
+        const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 915.75;
 
         const totalProductosVendidos = (sale.items || []).reduce((acc, it) => acc + (parseInt(it.quantity) || 1), 0);
         const ivaData = isFactura ? _computeInvoiceIvaBreakdown(sale, settings, isUSD, tasa) : null;
@@ -1627,9 +1738,10 @@ async function generateInvoiceDocument(sale) {
         const PAD = 16 * SCALE;
         const FONT_MONO = "'Courier New', Consolas, 'Lucida Console', Monaco, monospace";
 
-        // Estimación dinámica de altura (ajusta espacio extra para IVA en factura o menos en presupuesto)
+        // Estimación dinámica de altura (ajusta espacio extra para IVA en factura y Tasa BCV)
         const extraFacturaH = isFactura ? (ivaData && ivaData.exento > 0.005 ? 54 : 38) : (isPresupuesto ? -18 : 0);
-        const estimatedH = Math.ceil((415 + extraFacturaH + ((sale.items ? sale.items.length : 0) * 36) + (PAD * 2)) * SCALE);
+        const extraTasaH = (!isUSD) ? 22 : 0;
+        const estimatedH = Math.ceil((435 + extraFacturaH + extraTasaH + ((sale.items ? sale.items.length : 0) * 38) + (PAD * 2)) * SCALE);
         canvas.width = WIDTH;
         canvas.height = estimatedH;
 
@@ -1907,25 +2019,9 @@ function buildThermal58mmHTML(sale) {
     else if (isPresupuesto) docHeaderTitle = "PRESUPUESTO";
     else if (sale.tipoDocumento === 'nota_entrega') docHeaderTitle = "NOTA DE DESPACHO";
 
-    let primaryMethod = '';
-    let refNum = '';
-    if (!isPresupuesto && Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
-        primaryMethod = sale.metodosPago[0].metodo || 'Efectivo USD';
-        refNum = sale.metodosPago[0].referencia || '';
-    }
-
-    const methodLower = primaryMethod.toLowerCase();
-    const isUSD = !isPresupuesto && isDivisaPaymentMethod(primaryMethod);
+    // Determinar método de pago principal y moneda de forma unificada
+    const { primaryMethod, isUSD, refNum, methodLabel } = getSalePaymentInfo(sale);
     const tasa = Number(sale.tasaBCV) || Number(settings.tasaBCV) || 915.75;
-
-    let methodLabel = primaryMethod.toUpperCase();
-    if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
-    else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
-    else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA";
-    else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL";
-    else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA";
-    else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
-    else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
 
     const ivaData = isFactura ? _computeInvoiceIvaBreakdown(sale, settings, isUSD, tasa) : null;
     const fmtThermalVal = (v) => isUSD ? `$${v.toFixed(2)}` : `Bs.${v.toFixed(2)}`;
@@ -2309,7 +2405,7 @@ function printTestReceipt58mm() {
         ],
         totalUSD: 33.00,
         totalBs: +(33.00 * (settings.tasaBCV || 915.75)).toFixed(2),
-        metodosPago: [{ metodo: 'Efectivo USD' }],
+        metodosPago: [{ metodo: 'Punto de Venta' }],
         vendedor: 'MASTER'
     };
     printThermalReceipt(testSale);
@@ -2428,13 +2524,13 @@ function renderInventoryTable() {
         else if (item.stock <= item.stockMinimo) statusBadge = '<span class="status-badge status-low">● Stock Bajo</span>';
 
         const descPreview = item.descripcionDetallada
-            ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px; max-width:340px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.descripcionDetallada.replace(/"/g, '&quot;')}">${item.descripcionDetallada}</div>`
+            ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.descripcionDetallada.replace(/"/g, '&quot;')}">${item.descripcionDetallada}</div>`
             : '';
 
         html += `
             <tr>
                 <td><span class="code-badge">${item.id}</span></td>
-                <td><b>${item.name}</b>${descPreview}</td>
+                <td><div style="font-weight:700; max-width:260px; line-height:1.25;">${item.name}</div>${descPreview}</td>
                 <td><span style="font-size:12px; color:var(--text-muted);">${item.category || 'General'}</span></td>
                 <td>
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -2446,22 +2542,18 @@ function renderInventoryTable() {
                 </td>
                 <td><b style="color:var(--accent-red);">$${precios.publicoUSD.toFixed(2)}</b></td>
                 <td><b style="color:var(--primary);">$${precios.novaClientesUSD.toFixed(2)}</b></td>
-                <td>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <button class="ticket-btn-sm" onclick="quickStockAdjust('${item.id}', -1)">-</button>
-                        <b style="min-width:24px; text-align:center;">${item.stock}</b>
-                        <button class="ticket-btn-sm" onclick="quickStockAdjust('${item.id}', 1)">+</button>
-                    </div>
+                <td style="text-align:center;">
+                    <span style="font-weight:800; font-size:13.5px; color:var(--text-main);">${item.stock}</span>
                 </td>
                 <td>${statusBadge}</td>
                 <td style="text-align:right;">
-                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-                        <button class="ticket-btn-sm" onclick="openEditProductModal('${item.id}')" title="Modificar descripción, costo, utilidad e IVA" style="color:var(--primary); font-weight:700; padding:4px 8px; display:inline-flex; align-items:center; gap:4px;">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px; flex-wrap:nowrap;">
+                        <button class="ticket-btn-sm" onclick="openEditProductModal('${item.id}')" title="Modificar descripción, costo, utilidad e IVA" style="color:var(--primary); font-weight:700; padding:3px 7px; display:inline-flex; align-items:center; gap:3px; font-size:11.5px; white-space:nowrap;">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             Editar
                         </button>
-                        <button class="ticket-btn-sm" onclick="confirmDeleteProduct('${item.id}')" style="color:var(--danger);" title="Eliminar del catálogo">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <button class="ticket-btn-sm" onclick="confirmDeleteProduct('${item.id}')" style="color:var(--danger); padding:3px 6px; font-size:11.5px;" title="Eliminar del catálogo">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                     </div>
                 </td>
@@ -2530,6 +2622,72 @@ function openEditProductModal(productId) {
 
     const inpIva = document.getElementById('editProdIva');
     if (inpIva) inpIva.value = currentIva;
+
+    // Poblar historial de última carga y registro de subida de costo
+    const history = (typeof NovaDB !== 'undefined' && NovaDB.getProductPurchaseHistory) ? NovaDB.getProductPurchaseHistory(productId) : [];
+    let lastDate = 'Sin compras registradas aún';
+    let lastSupplier = 'N/A';
+    let currentCostVal = cost;
+    let previousCostVal = (typeof item.costoAnterior === 'number' && item.costoAnterior > 0) ? item.costoAnterior : 0;
+
+    if (history.length > 0) {
+        const latest = history[0];
+        lastDate = latest.fechaStr || (latest.timestamp ? new Date(latest.timestamp).toLocaleDateString('es-VE') : 'N/A');
+        lastSupplier = latest.proveedorNombre || 'Proveedor';
+        currentCostVal = Number(latest.costoCompra) || cost;
+        if (history.length > 1) {
+            previousCostVal = Number(history[1].costoCompra) || previousCostVal;
+        }
+    } else if (item.ultimaCargaFechaStr) {
+        lastDate = item.ultimaCargaFechaStr;
+        lastSupplier = item.ultimoProveedorNombre || 'N/A';
+    }
+
+    const lastDateEl = document.getElementById('editProdLastDate');
+    if (lastDateEl) {
+        if (history.length > 0 && history[0].purchaseId) {
+            lastDateEl.innerHTML = `${lastDate} <button type="button" class="code-badge" onclick="viewPurchaseDetails('${history[0].purchaseId}')" style="margin-left:6px; cursor:pointer; font-size:10px; padding:2px 7px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:800;" title="Ver factura y comprobante de esta compra">Ver Factura ${history[0].purchaseId}</button>`;
+        } else if (item.ultimaCompraId) {
+            lastDateEl.innerHTML = `${lastDate} <button type="button" class="code-badge" onclick="viewPurchaseDetails('${item.ultimaCompraId}')" style="margin-left:6px; cursor:pointer; font-size:10px; padding:2px 7px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:800;" title="Ver factura y comprobante de esta compra">Ver Factura ${item.ultimaCompraId}</button>`;
+        } else {
+            lastDateEl.innerText = lastDate;
+        }
+    }
+    const lastSupplierEl = document.getElementById('editProdLastSupplier');
+    if (lastSupplierEl) lastSupplierEl.innerText = lastSupplier;
+    const currentCostEl = document.getElementById('editProdCurrentCost');
+    if (currentCostEl) currentCostEl.innerText = `$${currentCostVal.toFixed(2)} USD`;
+    const prevCostEl = document.getElementById('editProdPreviousCost');
+    if (prevCostEl) prevCostEl.innerText = previousCostVal > 0 ? `$${previousCostVal.toFixed(2)} USD` : 'Sin registro anterior';
+
+    const diffBadge = document.getElementById('editProdCostDiffBadge');
+    if (diffBadge) {
+        if (previousCostVal > 0 && Math.abs(currentCostVal - previousCostVal) > 0.001) {
+            const diff = currentCostVal - previousCostVal;
+            const pct = ((diff / previousCostVal) * 100).toFixed(1);
+            if (diff > 0) {
+                diffBadge.style.background = '#fef2f2';
+                diffBadge.style.color = '#dc2626';
+                diffBadge.style.border = '1px solid #fecaca';
+                diffBadge.innerHTML = `▲ Subió +$${diff.toFixed(2)} (+${pct}%)`;
+            } else {
+                diffBadge.style.background = '#f0fdf4';
+                diffBadge.style.color = '#16a34a';
+                diffBadge.style.border = '1px solid #bbf7d0';
+                diffBadge.innerHTML = `▼ Bajó -$${Math.abs(diff).toFixed(2)} (${pct}%)`;
+            }
+        } else if (previousCostVal > 0) {
+            diffBadge.style.background = '#f1f5f9';
+            diffBadge.style.color = '#475569';
+            diffBadge.style.border = '1px solid #e2e8f0';
+            diffBadge.innerText = 'Sin variación (Mismo costo)';
+        } else {
+            diffBadge.style.background = '#f1f5f9';
+            diffBadge.style.color = '#475569';
+            diffBadge.style.border = '1px solid #e2e8f0';
+            diffBadge.innerText = 'Costo Inicial Base';
+        }
+    }
 
     calculateEditProductPrice();
     openModal('editProductModal');
@@ -2756,6 +2914,621 @@ function submitNewProduct() {
     });
 }
 
+// ==========================================================
+// MÓDULO: CARGA DE EXISTENCIAS POR LOTE CON JUSTIFICATIVO (INVENTARIO)
+// ==========================================================
+let stockInBatchItems = [];
+let stockInDropdownActiveIndex = -1;
+let stockInCurrentMatches = [];
+
+function getAllCatalogProducts() {
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+
+    const map = new Map();
+    for (const key in inv) {
+        const item = inv[key];
+        const cost = getProductCost(key, prods, item);
+        map.set(key.toUpperCase(), {
+            id: key,
+            name: item.name || 'Sin descripción',
+            stock: parseInt(item.stock) || 0,
+            cost: cost,
+            category: item.category || ''
+        });
+    }
+    for (const p of prods) {
+        const up = p.id.toUpperCase();
+        if (!map.has(up)) {
+            const cost = getProductCost(p.id, prods, null);
+            map.set(up, {
+                id: p.id,
+                name: p.name || 'Sin descripción',
+                stock: 0,
+                cost: cost,
+                category: p.category || ''
+            });
+        }
+    }
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => a.id.localeCompare(b.id));
+    return list;
+}
+
+function getMatchingStockProducts(term, mode = 'code') {
+    const all = getAllCatalogProducts();
+    const cleanTerm = (term || '').trim().toLowerCase();
+    if (!cleanTerm) return all;
+
+    if (mode === 'code') {
+        return all.filter(p => p.id.toLowerCase().includes(cleanTerm));
+    } else {
+        return all.filter(p => p.id.toLowerCase().includes(cleanTerm) || (p.name && p.name.toLowerCase().includes(cleanTerm)));
+    }
+}
+
+function openStockInModal() {
+    if (typeof NovaUsers !== 'undefined' && !NovaUsers.hasPermission('canManageInventory')) {
+        showNovaAlert({
+            title: "Acceso Denegado",
+            message: "Solo usuarios con permisos administrativos pueden cargar existencias al almacén.",
+            type: "warning"
+        });
+        return;
+    }
+
+    stockInBatchItems = [];
+    stockInDropdownActiveIndex = -1;
+    stockInCurrentMatches = [];
+
+    // Pre-llenar responsable con usuario actual
+    const currentUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
+    const defaultResp = currentUser ? (currentUser.name || currentUser.id || 'MASTER') : 'MASTER';
+    const respInput = document.getElementById('stockInResponsible');
+    if (respInput) respInput.value = defaultResp;
+
+    // Limpiar justificativo
+    const reasonInput = document.getElementById('stockInReason');
+    if (reasonInput) reasonInput.value = '';
+
+    // Limpiar campos de selección
+    const codeInput = document.getElementById('stockInCodeInput');
+    if (codeInput) codeInput.value = '';
+    const descInput = document.getElementById('stockInDescInput');
+    if (descInput) descInput.value = '';
+    const hidId = document.getElementById('stockInSelectedProductId');
+    if (hidId) hidId.value = '';
+    const qtyInput = document.getElementById('stockInQuantity');
+    if (qtyInput) qtyInput.value = '1';
+
+    closeStockInDropdown();
+    renderStockInItemsTable();
+    openModal('loadStockModal');
+
+    setTimeout(() => {
+        if (codeInput) codeInput.focus();
+    }, 150);
+}
+
+function setStockInReasonPreset(text) {
+    const reasonInput = document.getElementById('stockInReason');
+    if (reasonInput) {
+        reasonInput.value = text;
+        reasonInput.focus();
+    }
+}
+
+function renderStockInDropdownResults(matches) {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    if (!dropdown) return;
+
+    stockInCurrentMatches = matches ? matches.slice(0, 30) : [];
+    stockInDropdownActiveIndex = -1;
+
+    if (stockInCurrentMatches.length === 0) {
+        dropdown.innerHTML = `<div style="padding:10px 14px; color:#94a3b8; font-size:12px; text-align:center;">No se encontraron repuestos con esa coincidencia</div>`;
+        return;
+    }
+
+    let html = '';
+    stockInCurrentMatches.forEach((p, idx) => {
+        const safeName = (p.name || '').replace(/"/g, '&quot;');
+        const costStr = (typeof p.cost === 'number' && p.cost > 0) ? `$${p.cost.toFixed(2)}` : '$0.00';
+        const catStr = p.category ? `<span class="stockin-cat-badge">${p.category}</span>` : '';
+        const stockClass = p.stock === 0 ? 'stock-pill-empty' : (p.stock <= 5 ? 'stock-pill-low' : 'stock-pill-ok');
+
+        html += `
+            <div class="stockin-dropdown-item" data-index="${idx}" data-id="${p.id}" onclick="selectStockInProductByIndex(${idx})">
+                <span class="stockin-dropdown-item-code">${p.id}</span>
+                <span class="stockin-dropdown-item-name" title="${safeName}">${p.name}</span>
+                <div class="stockin-dropdown-item-meta">
+                    ${catStr}
+                    <span class="stockin-cost-badge">Costo: ${costStr}</span>
+                    <span class="stockin-dropdown-item-stock ${stockClass}">Stock: ${p.stock}</span>
+                </div>
+            </div>`;
+    });
+
+    if (matches.length > stockInCurrentMatches.length) {
+        html += `<div style="padding:6px 12px; font-size:11px; color:#64748b; background:#f8fafc; text-align:center; border-top:1px solid #e2e8f0;">... y ${matches.length - stockInCurrentMatches.length} coincidencias más (siga escribiendo para filtrar) ...</div>`;
+    }
+
+    dropdown.innerHTML = html;
+}
+
+function updateStockInDropdownActiveItem() {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.stockin-dropdown-item');
+    items.forEach((item, idx) => {
+        if (idx === stockInDropdownActiveIndex) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function openStockInDropdown() {
+    const codeVal = (document.getElementById('stockInCodeInput')?.value || '').trim();
+    const descVal = (document.getElementById('stockInDescInput')?.value || '').trim();
+
+    let matches = [];
+    if (codeVal) {
+        matches = getMatchingStockProducts(codeVal, 'code');
+    } else if (descVal) {
+        matches = getMatchingStockProducts(descVal, 'all');
+    } else {
+        matches = getMatchingStockProducts('', 'all').slice(0, 25);
+    }
+
+    renderStockInDropdownResults(matches);
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    if (dropdown) dropdown.style.display = 'block';
+}
+
+function closeStockInDropdown() {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+    stockInDropdownActiveIndex = -1;
+}
+
+function onStockInCodeInput(codeVal) {
+    const term = (codeVal || '').trim().toLowerCase();
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    const descInput = document.getElementById('stockInDescInput');
+    const hidId = document.getElementById('stockInSelectedProductId');
+
+    if (hidId) hidId.value = '';
+
+    if (!term) {
+        if (dropdown) dropdown.style.display = 'none';
+        if (descInput) descInput.value = '';
+        return;
+    }
+
+    const matches = getMatchingStockProducts(term, 'code');
+    renderStockInDropdownResults(matches);
+
+    // Abrir automáticamente el desplegable en el cuadro de descripción
+    if (dropdown) {
+        dropdown.style.display = 'block';
+    }
+
+    // Si coincide exactamente con un código único
+    const exact = matches.find(p => p.id.toLowerCase() === term);
+    if (exact) {
+        if (descInput) descInput.value = exact.name;
+        if (hidId) hidId.value = exact.id;
+    } else if (matches.length > 0) {
+        if (descInput && !descInput.matches(':focus')) {
+            descInput.value = `[${matches.length} coincidencias] Seleccione abajo o use flechas...`;
+        }
+    } else {
+        if (descInput) descInput.value = '';
+    }
+}
+
+function onStockInCodeKeyDown(e) {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    const isDropdownVisible = dropdown && dropdown.style.display === 'block';
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isDropdownVisible) {
+            openStockInDropdown();
+        }
+        if (stockInCurrentMatches.length > 0) {
+            stockInDropdownActiveIndex = (stockInDropdownActiveIndex + 1) % stockInCurrentMatches.length;
+            updateStockInDropdownActiveItem();
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (isDropdownVisible && stockInCurrentMatches.length > 0) {
+            stockInDropdownActiveIndex = (stockInDropdownActiveIndex - 1 + stockInCurrentMatches.length) % stockInCurrentMatches.length;
+            updateStockInDropdownActiveItem();
+        }
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (isDropdownVisible && stockInCurrentMatches.length > 0) {
+            e.preventDefault();
+            const targetIdx = stockInDropdownActiveIndex >= 0 ? stockInDropdownActiveIndex : 0;
+            selectStockInProductByIndex(targetIdx);
+        } else {
+            const hidId = document.getElementById('stockInSelectedProductId')?.value;
+            if (hidId) {
+                e.preventDefault();
+                const qtyInput = document.getElementById('stockInQuantity');
+                if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+            } else {
+                const typedCode = (document.getElementById('stockInCodeInput')?.value || '').trim().toLowerCase();
+                if (typedCode) {
+                    const all = getAllCatalogProducts();
+                    const found = all.find(p => p.id.toLowerCase() === typedCode);
+                    if (found) {
+                        e.preventDefault();
+                        selectStockInProduct(found.id, found.name, found.cost);
+                    }
+                }
+            }
+        }
+    } else if (e.key === 'Escape') {
+        closeStockInDropdown();
+    }
+}
+
+function onStockInDescInput(descVal) {
+    const term = (descVal || '').trim().toLowerCase();
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    const hidId = document.getElementById('stockInSelectedProductId');
+    if (hidId) hidId.value = '';
+
+    const matches = getMatchingStockProducts(term, 'all');
+    renderStockInDropdownResults(matches);
+    if (dropdown) dropdown.style.display = 'block';
+}
+
+function onStockInDescKeyDown(e) {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    const isDropdownVisible = dropdown && dropdown.style.display === 'block';
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isDropdownVisible) {
+            openStockInDropdown();
+        }
+        if (stockInCurrentMatches.length > 0) {
+            stockInDropdownActiveIndex = (stockInDropdownActiveIndex + 1) % stockInCurrentMatches.length;
+            updateStockInDropdownActiveItem();
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (isDropdownVisible && stockInCurrentMatches.length > 0) {
+            stockInDropdownActiveIndex = (stockInDropdownActiveIndex - 1 + stockInCurrentMatches.length) % stockInCurrentMatches.length;
+            updateStockInDropdownActiveItem();
+        }
+    } else if (e.key === 'Enter') {
+        if (isDropdownVisible && stockInCurrentMatches.length > 0) {
+            e.preventDefault();
+            const targetIdx = stockInDropdownActiveIndex >= 0 ? stockInDropdownActiveIndex : 0;
+            selectStockInProductByIndex(targetIdx);
+        }
+    } else if (e.key === 'Escape') {
+        closeStockInDropdown();
+    }
+}
+
+function selectStockInProductByIndex(idx) {
+    if (idx >= 0 && idx < stockInCurrentMatches.length) {
+        const p = stockInCurrentMatches[idx];
+        selectStockInProduct(p.id, p.name, p.cost);
+    }
+}
+
+function selectStockInProduct(id, name, cost) {
+    const codeInput = document.getElementById('stockInCodeInput');
+    const descInput = document.getElementById('stockInDescInput');
+    const hidId = document.getElementById('stockInSelectedProductId');
+
+    if (codeInput) codeInput.value = id;
+    if (descInput) descInput.value = name;
+    if (hidId) hidId.value = id;
+
+    closeStockInDropdown();
+
+    const qtyInput = document.getElementById('stockInQuantity');
+    if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.select();
+    }
+}
+
+// Cerrar desplegable si se hace clic afuera
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('stockInDropdownMenu');
+    if (dropdown && dropdown.style.display === 'block') {
+        const descInput = document.getElementById('stockInDescInput');
+        const codeInput = document.getElementById('stockInCodeInput');
+        if (!dropdown.contains(e.target) && e.target !== descInput && e.target !== codeInput) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
+
+function addSelectedProductToStockInList() {
+    let productId = (document.getElementById('stockInSelectedProductId')?.value || '').trim();
+    let productName = (document.getElementById('stockInDescInput')?.value || '').trim();
+
+    // Si no se seleccionó del menú, verificar si lo escrito en Código coincide exactamente con un repuesto
+    if (!productId) {
+        const typedCode = (document.getElementById('stockInCodeInput')?.value || '').trim().toLowerCase();
+        if (typedCode) {
+            const all = getAllCatalogProducts();
+            const found = all.find(p => p.id.toLowerCase() === typedCode);
+            if (found) {
+                productId = found.id;
+                productName = found.name;
+            } else {
+                const partials = all.filter(p => p.id.toLowerCase().includes(typedCode));
+                if (partials.length === 1) {
+                    productId = partials[0].id;
+                    productName = partials[0].name;
+                }
+            }
+        }
+    }
+
+    if (!productId) {
+        showNovaAlert({
+            title: "Seleccione un Repuesto",
+            message: "Por favor escriba un código o seleccione el repuesto correspondiente en la lista desplegable.",
+            type: "warning"
+        });
+        const codeInput = document.getElementById('stockInCodeInput');
+        if (codeInput) codeInput.focus();
+        return;
+    }
+
+    const qtyInput = document.getElementById('stockInQuantity');
+    const qty = parseInt(qtyInput ? qtyInput.value : 1);
+    if (isNaN(qty) || qty <= 0) {
+        showNovaAlert({
+            title: "Cantidad Inválida",
+            message: "La cantidad a cargar debe ser un número entero mayor a cero.",
+            type: "warning"
+        });
+        if (qtyInput) qtyInput.focus();
+        return;
+    }
+
+    const currentStock = (typeof NovaDB !== 'undefined' && NovaDB.getStock) ? NovaDB.getStock(productId) : 0;
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const itemCost = getProductCost(productId, prods, inv[productId]);
+
+    const existing = stockInBatchItems.find(item => item.id === productId);
+    if (existing) {
+        existing.qtyToAdd += qty;
+        renderStockInItemsTable();
+        setTimeout(() => {
+            const row = document.getElementById(`stockin-row-${productId}`);
+            if (row) {
+                row.classList.remove('stockin-row-updated');
+                void row.offsetWidth;
+                row.classList.add('stockin-row-updated');
+            }
+        }, 50);
+    } else {
+        stockInBatchItems.push({
+            id: productId,
+            name: productName || productId,
+            currentStock: currentStock,
+            qtyToAdd: qty,
+            cost: itemCost
+        });
+        renderStockInItemsTable();
+    }
+
+    // Limpiar campos para la siguiente entrada
+    const codeInput = document.getElementById('stockInCodeInput');
+    const descInput = document.getElementById('stockInDescInput');
+    const hidId = document.getElementById('stockInSelectedProductId');
+    if (codeInput) codeInput.value = '';
+    if (descInput) descInput.value = '';
+    if (hidId) hidId.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    closeStockInDropdown();
+
+    // Devolver foco al código para carga rápida sucesiva
+    if (codeInput) codeInput.focus();
+}
+
+function renderStockInItemsTable() {
+    const tbody = document.getElementById('stockInTableBody');
+    const countEl = document.getElementById('stockInListCount');
+    const totalUnitsBadge = document.getElementById('stockInTotalUnitsBadge');
+    const valBadge = document.getElementById('stockInTotalValuationBadge');
+
+    if (!tbody) return;
+
+    if (stockInBatchItems.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:12.5px;">
+                    No hay productos agregados a la lista de carga.<br>
+                    <span style="font-size:11.5px;">Escriba el código o descripción arriba, coloque la cantidad a cargar y pulse <b>Agregar a Lista</b>.</span>
+                </td>
+            </tr>`;
+        if (countEl) countEl.innerText = '0';
+        if (totalUnitsBadge) totalUnitsBadge.innerText = '0 Unidades Totales';
+        if (valBadge) valBadge.innerHTML = 'Costo Total: $0.00';
+        return;
+    }
+
+    let totalUnits = 0;
+    let totalCostUSD = 0;
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78 };
+    const bcvRate = settings.tasaBCV || 917.78;
+    let html = '';
+
+    stockInBatchItems.forEach((item) => {
+        totalUnits += item.qtyToAdd;
+        const itemCost = Number(item.cost) || 0;
+        const lineCost = itemCost * item.qtyToAdd;
+        totalCostUSD += lineCost;
+
+        const costSubtitle = itemCost > 0
+            ? `<div style="font-size:11px; color:#15803d; font-weight:600; margin-top:2px;">Costo unit: $${itemCost.toFixed(2)} | Subtotal: $${lineCost.toFixed(2)} USD</div>`
+            : `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Costo unit: $0.00</div>`;
+
+        html += `
+            <tr id="stockin-row-${item.id}">
+                <td><span class="code-badge">${item.id}</span></td>
+                <td>
+                    <div style="font-weight:700; line-height:1.25; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${item.name}">
+                        ${item.name}
+                    </div>
+                    ${costSubtitle}
+                </td>
+                <td style="text-align:center; font-weight:700; color:var(--text-muted);">${item.currentStock}</td>
+                <td style="text-align:center;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <button type="button" class="ticket-btn-sm" onclick="updateStockInItemQty('${item.id}', -1)" style="font-weight:800; width:24px; height:24px; padding:0;">-</button>
+                        <input type="number" min="1" step="1" value="${item.qtyToAdd}" onchange="setStockInItemQtyDirect('${item.id}', this.value)" style="width:52px; text-align:center; font-weight:800; font-size:13px; padding:2px 4px; border:1px solid #cbd5e1; border-radius:4px;">
+                        <button type="button" class="ticket-btn-sm" onclick="updateStockInItemQty('${item.id}', 1)" style="font-weight:800; width:24px; height:24px; padding:0;">+</button>
+                    </div>
+                </td>
+                <td style="text-align:center;">
+                    <button type="button" class="ticket-btn-sm" onclick="removeStockInItem('${item.id}')" style="color:var(--danger); padding:3px 6px;" title="Quitar de la lista">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    tbody.innerHTML = html;
+    if (countEl) countEl.innerText = stockInBatchItems.length;
+    if (totalUnitsBadge) totalUnitsBadge.innerText = `${totalUnits} ${totalUnits === 1 ? 'Unidad Total' : 'Unidades Totales'}`;
+    if (valBadge) {
+        const totalCostBs = totalCostUSD * bcvRate;
+        valBadge.innerHTML = `Costo Total: <b>$${totalCostUSD.toFixed(2)} USD</b> <span style="font-size:10.5px; opacity:0.85;">(Bs. ${totalCostBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>`;
+    }
+}
+
+function updateStockInItemQty(id, diff) {
+    const item = stockInBatchItems.find(i => i.id === id);
+    if (item) {
+        item.qtyToAdd = Math.max(1, item.qtyToAdd + diff);
+        renderStockInItemsTable();
+    }
+}
+
+function setStockInItemQtyDirect(id, val) {
+    const item = stockInBatchItems.find(i => i.id === id);
+    if (item) {
+        const qty = parseInt(val);
+        item.qtyToAdd = (!isNaN(qty) && qty > 0) ? qty : 1;
+        renderStockInItemsTable();
+    }
+}
+
+function removeStockInItem(id) {
+    stockInBatchItems = stockInBatchItems.filter(i => i.id !== id);
+    renderStockInItemsTable();
+}
+
+function clearStockInList() {
+    if (stockInBatchItems.length === 0) return;
+    stockInBatchItems = [];
+    renderStockInItemsTable();
+}
+
+function submitStockInBatch() {
+    const reasonInput = document.getElementById('stockInReason');
+    const respInput = document.getElementById('stockInResponsible');
+
+    const reason = reasonInput ? reasonInput.value.trim() : '';
+    if (!reason) {
+        showNovaAlert({
+            title: "Justificativo Requerido",
+            message: "Por favor indique la descripción o justificación de esta acción (ej. Conteo Físico, Reingreso, etc.).",
+            type: "warning"
+        });
+        if (reasonInput) reasonInput.focus();
+        return;
+    }
+
+    const responsible = respInput ? respInput.value.trim() : '';
+    if (!responsible) {
+        showNovaAlert({
+            title: "Responsable Requerido",
+            message: "Por favor indique el nombre del responsable de esta acción.",
+            type: "warning"
+        });
+        if (respInput) respInput.focus();
+        return;
+    }
+
+    if (stockInBatchItems.length === 0) {
+        showNovaAlert({
+            title: "Lista de Carga Vacía",
+            message: "Debe agregar al menos un repuesto a la lista de carga para registrar existencias.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const totalProds = stockInBatchItems.length;
+    let totalUnits = 0;
+    let totalValuation = 0;
+
+    // Aplicar entrada a cada producto
+    stockInBatchItems.forEach(item => {
+        NovaDB.addStock(item.id, item.qtyToAdd, reason, responsible);
+        totalUnits += item.qtyToAdd;
+        totalValuation += (Number(item.cost) || 0) * item.qtyToAdd;
+    });
+
+    // Actualizar interfaz
+    renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+
+    closeModal('loadStockModal');
+
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78 };
+    const totalValuationBs = totalValuation * (settings.tasaBCV || 917.78);
+
+    showNovaAlert({
+        title: "Existencias Cargadas con Éxito",
+        message: `Se han ingresado correctamente <b>${totalUnits} unidades</b> distribuidas en <b>${totalProds} repuesto(s)</b> al inventario.<br><div style="margin-top:8px; font-size:12px; color:var(--text-muted); background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; line-height:1.4;"><b>Motivo:</b> ${reason}<br><b>Responsable:</b> ${responsible}<br><b>Valorización Ingreso:</b> $${totalValuation.toFixed(2)} USD (Bs. ${totalValuationBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div>`,
+        type: "success"
+    });
+
+    stockInBatchItems = [];
+}
+
+// Exportar globalmente
+window.openStockInModal = openStockInModal;
+window.setStockInReasonPreset = setStockInReasonPreset;
+window.onStockInCodeInput = onStockInCodeInput;
+window.onStockInCodeKeyDown = onStockInCodeKeyDown;
+window.onStockInDescInput = onStockInDescInput;
+window.onStockInDescKeyDown = onStockInDescKeyDown;
+window.openStockInDropdown = openStockInDropdown;
+window.closeStockInDropdown = closeStockInDropdown;
+window.selectStockInProduct = selectStockInProduct;
+window.selectStockInProductByIndex = selectStockInProductByIndex;
+window.addSelectedProductToStockInList = addSelectedProductToStockInList;
+window.renderStockInItemsTable = renderStockInItemsTable;
+window.updateStockInItemQty = updateStockInItemQty;
+window.setStockInItemQtyDirect = setStockInItemQtyDirect;
+window.removeStockInItem = removeStockInItem;
+window.clearStockInList = clearStockInList;
+window.submitStockInBatch = submitStockInBatch;
+window.openRateSettingsModal = openRateSettingsModal;
+window.saveRatesFromModal = saveRatesFromModal;
+
 // ==========================================
 // CONTROL DE ESTACIONES Y USUARIOS (MASTER & VENTAS)
 // ==========================================
@@ -2902,8 +3675,13 @@ function submitCashReconciliation() {
 }
 
 // ==============================================================================
-// 5. MÓDULO: COMPRAS Y PROVEEDORES
 // ==============================================================================
+// 5. MÓDULO: COMPRAS Y PROVEEDORES (REPOSITORIO DE MERCANCÍA MULTI-PRODUCTO)
+// ==============================================================================
+let purchaseBatchItems = [];
+let purDropdownActiveIndex = -1;
+let purCurrentMatches = [];
+
 function renderPurchasesView() {
     const purchases = NovaDB.getPurchases();
     const tbody = document.getElementById('purchasesTableBody');
@@ -2916,59 +3694,972 @@ function renderPurchasesView() {
 
     let html = '';
     purchases.forEach(p => {
+        const itemCount = Array.isArray(p.items) ? p.items.length : 0;
+        const totalUnits = Array.isArray(p.items) ? p.items.reduce((acc, it) => acc + (parseInt(it.cantidad) || 0), 0) : 0;
+        const invoiceStr = p.facturaNumero && p.facturaNumero !== 'N/A' && p.facturaNumero.trim() !== ''
+            ? `<span style="font-size:11px; color:#2563eb; font-weight:700; display:block; margin-top:2px;">Doc: ${p.facturaNumero}</span>`
+            : `<span style="font-size:11px; color:#94a3b8; display:block; margin-top:2px;">Sin N° Doc</span>`;
         html += `
-            <tr>
-                <td><span class="code-badge">${p.id}</span></td>
-                <td>${p.fechaStr}</td>
-                <td><b>${p.proveedorNombre || 'Distribuidor'}</b></td>
-                <td>${p.items.length} repuestos</td>
-                <td><b style="color:var(--primary);">$${p.totalUSD.toFixed(2)}</b></td>
+            <tr class="purchase-row-clickable" onclick="viewPurchaseDetails('${p.id}')" title="Haz clic para ver qué repuestos llegaron e información general de la compra ${p.id}">
+                <td>
+                    <span class="code-badge" style="display:inline-flex; align-items:center; gap:5px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:800;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        ${p.id}
+                    </span>
+                </td>
+                <td><span style="font-size:12.5px; color:#334155; font-weight:600;">${p.fechaHoraStr || p.fechaStr}</span></td>
+                <td>
+                    <b style="color:#0f172a; font-size:13px;">${p.proveedorNombre || 'Distribuidor'}</b>
+                    ${invoiceStr}
+                </td>
+                <td>
+                    <b style="color:#0f172a; font-size:12.5px;">${itemCount} ${itemCount === 1 ? 'repuesto' : 'repuestos'}</b>
+                    <span style="font-size:11px; color:var(--text-muted); display:block;">(${totalUnits} ${totalUnits === 1 ? 'unidad' : 'unidades'})</span>
+                </td>
+                <td>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="color:var(--primary); font-size:14px; font-weight:800;">$${Number(p.totalUSD || 0).toFixed(2)}</b>
+                        <button type="button" class="ticket-btn-sm" onclick="event.stopPropagation(); viewPurchaseDetails('${p.id}')" title="Ver qué repuestos llegaron e información general" style="padding:4px 10px; font-size:11.5px; display:inline-flex; align-items:center; gap:5px; background:#f8fafc; color:#1e293b; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            Ver
+                        </button>
+                    </div>
+                </td>
             </tr>`;
     });
     tbody.innerHTML = html;
 }
 
 function openAddPurchaseModal() {
-    const provs = NovaDB.getSuppliers();
-    const sel = document.getElementById('purSupplierSelect');
-    if (sel) {
-        sel.innerHTML = provs.map(p => `<option value="${p.id}">${p.razonSocial} (${p.rubro})</option>`).join('');
-    }
+    purchaseBatchItems = [];
+    purDropdownActiveIndex = -1;
+    purCurrentMatches = [];
+
+    refreshSupplierSelect();
+
+    // Reset inputs
+    const invNum = document.getElementById('purInvoiceNumber');
+    if (invNum) invNum.value = '';
+    const codeInp = document.getElementById('purCodeInput');
+    if (codeInp) codeInp.value = '';
+    const descInp = document.getElementById('purDescInput');
+    if (descInp) descInp.value = '';
+    const costInp = document.getElementById('purCostInput');
+    if (costInp) costInp.value = '';
+    const qtyInp = document.getElementById('purQtyInput');
+    if (qtyInp) qtyInp.value = '1';
+    const hidId = document.getElementById('purSelectedProductId');
+    if (hidId) hidId.value = '';
+
+    hidePurContextBar();
+    closePurDropdown();
+    renderPurchaseItemsTable();
     openModal('addPurchaseModal');
+
+    setTimeout(() => {
+        if (codeInp) codeInp.focus();
+    }, 150);
 }
 
-function submitNewPurchase() {
-    const provId = document.getElementById('purSupplierSelect').value;
-    const provObj = NovaDB.getSuppliers().find(p => p.id === provId);
-    const itemCode = document.getElementById('purItemCode').value.trim().toUpperCase();
-    const qty = parseInt(document.getElementById('purItemQty').value) || 0;
-    const cost = parseFloat(document.getElementById('purItemCost').value) || 0;
+function refreshSupplierSelect(selectedId = null) {
+    const provs = (typeof NovaDB !== 'undefined' && NovaDB.getSuppliers) ? NovaDB.getSuppliers() : [];
+    const sel = document.getElementById('purSupplierSelect');
+    if (!sel) return;
 
-    if (!itemCode || qty <= 0) {
-        showNovaAlert({ title: "Datos Incompletos", message: "Ingrese el código del producto y una cantidad válida.", type: "warning" });
+    if (provs.length === 0) {
+        sel.innerHTML = '<option value="">-- No hay proveedores registrados (Pulse + para registrar) --</option>';
         return;
     }
 
-    NovaDB.registerPurchase({
-        proveedorId: provId,
-        proveedorNombre: provObj ? provObj.razonSocial : "Proveedor",
-        items: [{ id: itemCode, cantidad: qty, costoCompra: cost }],
-        totalUSD: cost * qty
+    sel.innerHTML = provs.map(p => {
+        const extra = p.rubro ? ` (${p.rubro})` : (p.rif ? ` - ${p.rif}` : '');
+        return `<option value="${p.id}">${p.razonSocial}${extra}</option>`;
+    }).join('');
+
+    if (selectedId) {
+        sel.value = selectedId;
+    }
+}
+
+// ----------------------------------------------------
+// REGISTRO RÁPIDO DE PROVEEDORES (+)
+// ----------------------------------------------------
+function openAddSupplierModal() {
+    const nameInp = document.getElementById('suppModalName');
+    const rifInp = document.getElementById('suppModalRif');
+    const phoneInp = document.getElementById('suppModalPhone');
+    const rubroInp = document.getElementById('suppModalRubro');
+
+    if (nameInp) nameInp.value = '';
+    if (rifInp) rifInp.value = '';
+    if (phoneInp) phoneInp.value = '';
+    if (rubroInp) rubroInp.value = '';
+
+    openModal('addSupplierModal');
+    setTimeout(() => {
+        if (nameInp) nameInp.focus();
+    }, 120);
+}
+
+function submitNewSupplier() {
+    const nameInp = document.getElementById('suppModalName');
+    const rifInp = document.getElementById('suppModalRif');
+    const phoneInp = document.getElementById('suppModalPhone');
+    const rubroInp = document.getElementById('suppModalRubro');
+
+    const razonSocial = nameInp ? nameInp.value.trim() : '';
+    if (!razonSocial) {
+        showNovaAlert({
+            title: "Nombre Requerido",
+            message: "Por favor ingrese el nombre o razón social del proveedor distribuidor.",
+            type: "warning"
+        });
+        if (nameInp) nameInp.focus();
+        return;
+    }
+
+    const rif = rifInp ? rifInp.value.trim() : '';
+    const telefono = phoneInp ? phoneInp.value.trim() : '';
+    const rubro = rubroInp ? rubroInp.value.trim() : '';
+
+    const newSupplier = NovaDB.saveSupplier({
+        razonSocial,
+        rif,
+        telefono,
+        rubro
     });
 
-    document.getElementById('purItemCode').value = '';
-    document.getElementById('purItemQty').value = '1';
-    document.getElementById('purItemCost').value = '';
+    closeModal('addSupplierModal');
 
-    closeModal('addPurchaseModal');
-    renderPurchasesView();
-    if (currentView === 'inventory') renderInventoryView();
+    // Refrescar selector de proveedores y preseleccionar el nuevo
+    if (newSupplier) {
+        refreshSupplierSelect(newSupplier.id);
+    }
+
     showNovaAlert({
-        title: "¡Mercancía Registrada!",
-        message: `Se agregaron ${qty} unidades al repuesto ${itemCode} y se actualizaron los inventarios.`,
+        title: "Proveedor Guardado",
+        message: `El proveedor <b>"${razonSocial}"</b> ha sido registrado y seleccionado con éxito.`,
         type: "success"
     });
 }
+
+// ----------------------------------------------------
+// AUTOCOMPLETE Y SELECCIÓN DE PRODUCTOS EN COMPRA
+// ----------------------------------------------------
+function renderPurDropdownResults(matches) {
+    const dropdown = document.getElementById('purDropdownMenu');
+    if (!dropdown) return;
+
+    purCurrentMatches = matches ? matches.slice(0, 30) : [];
+    purDropdownActiveIndex = -1;
+
+    if (purCurrentMatches.length === 0) {
+        dropdown.innerHTML = `<div style="padding:10px 14px; color:#94a3b8; font-size:12px; text-align:center;">No se encontraron repuestos con esa coincidencia</div>`;
+        return;
+    }
+
+    let html = '';
+    purCurrentMatches.forEach((p, idx) => {
+        const safeName = (p.name || '').replace(/"/g, '&quot;');
+        const costStr = (typeof p.cost === 'number' && p.cost > 0) ? `$${p.cost.toFixed(2)}` : '$0.00';
+        const catStr = p.category ? `<span class="stockin-cat-badge">${p.category}</span>` : '';
+        const stockClass = p.stock === 0 ? 'stock-pill-empty' : (p.stock <= 5 ? 'stock-pill-low' : 'stock-pill-ok');
+
+        html += `
+            <div class="stockin-dropdown-item" data-index="${idx}" data-id="${p.id}" onclick="selectPurProductByIndex(${idx})">
+                <span class="stockin-dropdown-item-code">${p.id}</span>
+                <span class="stockin-dropdown-item-name" title="${safeName}">${p.name}</span>
+                <div class="stockin-dropdown-item-meta">
+                    ${catStr}
+                    <span class="stockin-cost-badge">Costo: ${costStr}</span>
+                    <span class="stockin-dropdown-item-stock ${stockClass}">Stock: ${p.stock}</span>
+                </div>
+            </div>`;
+    });
+
+    if (matches.length > purCurrentMatches.length) {
+        html += `<div style="padding:6px 12px; font-size:11px; color:#64748b; background:#f8fafc; text-align:center; border-top:1px solid #e2e8f0;">... y ${matches.length - purCurrentMatches.length} coincidencias más ...</div>`;
+    }
+
+    dropdown.innerHTML = html;
+}
+
+function updatePurDropdownActiveItem() {
+    const dropdown = document.getElementById('purDropdownMenu');
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.stockin-dropdown-item');
+    items.forEach((item, idx) => {
+        if (idx === purDropdownActiveIndex) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function openPurDropdown() {
+    const codeVal = (document.getElementById('purCodeInput')?.value || '').trim();
+    const descVal = (document.getElementById('purDescInput')?.value || '').trim();
+
+    let matches = [];
+    if (codeVal) {
+        matches = getMatchingStockProducts(codeVal, 'code');
+    } else if (descVal) {
+        matches = getMatchingStockProducts(descVal, 'all');
+    } else {
+        matches = getMatchingStockProducts('', 'all').slice(0, 25);
+    }
+
+    renderPurDropdownResults(matches);
+    const dropdown = document.getElementById('purDropdownMenu');
+    if (dropdown) dropdown.style.display = 'block';
+}
+
+function closePurDropdown() {
+    const dropdown = document.getElementById('purDropdownMenu');
+    if (dropdown) dropdown.style.display = 'none';
+    purDropdownActiveIndex = -1;
+}
+
+function onPurCodeInput(codeVal) {
+    const term = (codeVal || '').trim().toLowerCase();
+    const dropdown = document.getElementById('purDropdownMenu');
+    const descInput = document.getElementById('purDescInput');
+    const hidId = document.getElementById('purSelectedProductId');
+
+    if (hidId) hidId.value = '';
+
+    if (!term) {
+        if (dropdown) dropdown.style.display = 'none';
+        if (descInput) descInput.value = '';
+        hidePurContextBar();
+        return;
+    }
+
+    const matches = getMatchingStockProducts(term, 'code');
+    renderPurDropdownResults(matches);
+
+    if (dropdown) dropdown.style.display = 'block';
+
+    const exact = matches.find(p => p.id.toLowerCase() === term);
+    if (exact) {
+        selectPurProduct(exact.id, exact.name, exact.cost);
+    } else if (matches.length > 0) {
+        if (descInput && !descInput.matches(':focus')) {
+            descInput.value = `[${matches.length} coincidencias] Seleccione o use flechas...`;
+        }
+        hidePurContextBar();
+    } else {
+        if (descInput) descInput.value = '';
+        hidePurContextBar();
+    }
+}
+
+function onPurCodeKeyDown(e) {
+    const dropdown = document.getElementById('purDropdownMenu');
+    const isDropdownVisible = dropdown && dropdown.style.display === 'block';
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isDropdownVisible) openPurDropdown();
+        if (purCurrentMatches.length > 0) {
+            purDropdownActiveIndex = (purDropdownActiveIndex + 1) % purCurrentMatches.length;
+            updatePurDropdownActiveItem();
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (isDropdownVisible && purCurrentMatches.length > 0) {
+            purDropdownActiveIndex = (purDropdownActiveIndex - 1 + purCurrentMatches.length) % purCurrentMatches.length;
+            updatePurDropdownActiveItem();
+        }
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (isDropdownVisible && purCurrentMatches.length > 0) {
+            e.preventDefault();
+            const targetIdx = purDropdownActiveIndex >= 0 ? purDropdownActiveIndex : 0;
+            selectPurProductByIndex(targetIdx);
+        } else {
+            const hidId = document.getElementById('purSelectedProductId')?.value;
+            if (hidId) {
+                e.preventDefault();
+                const costInp = document.getElementById('purCostInput');
+                if (costInp) { costInp.focus(); costInp.select(); }
+            } else {
+                const typedCode = (document.getElementById('purCodeInput')?.value || '').trim().toLowerCase();
+                if (typedCode) {
+                    const all = getAllCatalogProducts();
+                    const found = all.find(p => p.id.toLowerCase() === typedCode);
+                    if (found) {
+                        e.preventDefault();
+                        selectPurProduct(found.id, found.name, found.cost);
+                    }
+                }
+            }
+        }
+    } else if (e.key === 'Escape') {
+        closePurDropdown();
+    }
+}
+
+function onPurDescInput(descVal) {
+    const term = (descVal || '').trim().toLowerCase();
+    const dropdown = document.getElementById('purDropdownMenu');
+    const hidId = document.getElementById('purSelectedProductId');
+    if (hidId) hidId.value = '';
+
+    const matches = getMatchingStockProducts(term, 'all');
+    renderPurDropdownResults(matches);
+    if (dropdown) dropdown.style.display = 'block';
+}
+
+function onPurDescKeyDown(e) {
+    const dropdown = document.getElementById('purDropdownMenu');
+    const isDropdownVisible = dropdown && dropdown.style.display === 'block';
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isDropdownVisible) openPurDropdown();
+        if (purCurrentMatches.length > 0) {
+            purDropdownActiveIndex = (purDropdownActiveIndex + 1) % purCurrentMatches.length;
+            updatePurDropdownActiveItem();
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (isDropdownVisible && purCurrentMatches.length > 0) {
+            purDropdownActiveIndex = (purDropdownActiveIndex - 1 + purCurrentMatches.length) % purCurrentMatches.length;
+            updatePurDropdownActiveItem();
+        }
+    } else if (e.key === 'Enter') {
+        if (isDropdownVisible && purCurrentMatches.length > 0) {
+            e.preventDefault();
+            const targetIdx = purDropdownActiveIndex >= 0 ? purDropdownActiveIndex : 0;
+            selectPurProductByIndex(targetIdx);
+        }
+    } else if (e.key === 'Escape') {
+        closePurDropdown();
+    }
+}
+
+function onPurCostKeyDown(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const qtyInp = document.getElementById('purQtyInput');
+        if (qtyInp) { qtyInp.focus(); qtyInp.select(); }
+    }
+}
+
+function selectPurProductByIndex(idx) {
+    if (idx >= 0 && idx < purCurrentMatches.length) {
+        const p = purCurrentMatches[idx];
+        selectPurProduct(p.id, p.name, p.cost);
+    }
+}
+
+function selectPurProduct(id, name, cost) {
+    const codeInput = document.getElementById('purCodeInput');
+    const descInput = document.getElementById('purDescInput');
+    const costInput = document.getElementById('purCostInput');
+    const hidId = document.getElementById('purSelectedProductId');
+
+    if (codeInput) codeInput.value = id;
+    if (descInput) descInput.value = name;
+    if (hidId) hidId.value = id;
+
+    const unitCost = (typeof cost === 'number' && cost > 0) ? cost : 0;
+    if (costInput) {
+        costInput.value = unitCost > 0 ? unitCost.toFixed(2) : '';
+    }
+
+    closePurDropdown();
+    showPurProductHistoryHint(id, name, unitCost);
+
+    // Enfocar el costo si es cero o enfocar cantidad
+    if (costInput && (!costInput.value || parseFloat(costInput.value) <= 0)) {
+        costInput.focus();
+        costInput.select();
+    } else {
+        const qtyInput = document.getElementById('purQtyInput');
+        if (qtyInput) {
+            qtyInput.focus();
+            qtyInput.select();
+        }
+    }
+}
+
+function showPurProductHistoryHint(productId, name, currentCost) {
+    const bar = document.getElementById('purItemContextBar');
+    const prodEl = document.getElementById('purContextProduct');
+    const histEl = document.getElementById('purContextHistory');
+    if (!bar || !prodEl || !histEl) return;
+
+    const history = (typeof NovaDB !== 'undefined' && NovaDB.getProductPurchaseHistory) ? NovaDB.getProductPurchaseHistory(productId) : [];
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const item = inv[productId] || {};
+
+    let lastDate = 'Sin compras previas';
+    let supplierName = 'N/A';
+    let prevCost = (typeof item.costoAnterior === 'number' && item.costoAnterior > 0) ? item.costoAnterior : 0;
+
+    if (history.length > 0) {
+        lastDate = history[0].fechaStr;
+        supplierName = history[0].proveedorNombre || 'Proveedor';
+        if (history.length > 1) {
+            prevCost = Number(history[1].costoCompra) || prevCost;
+        }
+    } else if (item.ultimaCargaFechaStr) {
+        lastDate = item.ultimaCargaFechaStr;
+        supplierName = item.ultimoProveedorNombre || 'N/A';
+    }
+
+    prodEl.innerHTML = `Repuesto: <b>[${productId}] ${name}</b>`;
+    let histText = `Última Carga: <b>${lastDate}</b> • Proveedor: <b>${supplierName}</b>`;
+    if (prevCost > 0) {
+        histText += ` • Costo Anterior: <b>$${prevCost.toFixed(2)}</b>`;
+    }
+    histEl.innerHTML = histText;
+    bar.style.display = 'flex';
+}
+
+function hidePurContextBar() {
+    const bar = document.getElementById('purItemContextBar');
+    if (bar) bar.style.display = 'none';
+}
+
+// Cerrar desplegable si se hace clic afuera
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('purDropdownMenu');
+    if (dropdown && dropdown.style.display === 'block') {
+        const descInput = document.getElementById('purDescInput');
+        const codeInput = document.getElementById('purCodeInput');
+        if (!dropdown.contains(e.target) && e.target !== descInput && e.target !== codeInput) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
+
+function addSelectedProductToPurchaseList() {
+    let productId = (document.getElementById('purSelectedProductId')?.value || '').trim();
+    let productName = (document.getElementById('purDescInput')?.value || '').trim();
+
+    if (!productId) {
+        const typedCode = (document.getElementById('purCodeInput')?.value || '').trim().toLowerCase();
+        if (typedCode) {
+            const all = getAllCatalogProducts();
+            const found = all.find(p => p.id.toLowerCase() === typedCode);
+            if (found) {
+                productId = found.id;
+                productName = found.name;
+            } else {
+                const partials = all.filter(p => p.id.toLowerCase().includes(typedCode));
+                if (partials.length === 1) {
+                    productId = partials[0].id;
+                    productName = partials[0].name;
+                }
+            }
+        }
+    }
+
+    if (!productId) {
+        showNovaAlert({
+            title: "Seleccione un Repuesto",
+            message: "Por favor escriba el código o seleccione el repuesto a cargar en la compra.",
+            type: "warning"
+        });
+        const codeInp = document.getElementById('purCodeInput');
+        if (codeInp) codeInp.focus();
+        return;
+    }
+
+    const costInput = document.getElementById('purCostInput');
+    const cost = parseFloat(costInput ? costInput.value : 0);
+    if (isNaN(cost) || cost <= 0) {
+        showNovaAlert({
+            title: "Costo Unitario Requerido",
+            message: "Por favor indique el costo unitario de compra en dólares ($ USD) para este repuesto.",
+            type: "warning"
+        });
+        if (costInput) costInput.focus();
+        return;
+    }
+
+    const qtyInput = document.getElementById('purQtyInput');
+    const qty = parseInt(qtyInput ? qtyInput.value : 1);
+    if (isNaN(qty) || qty <= 0) {
+        showNovaAlert({
+            title: "Cantidad Inválida",
+            message: "La cantidad recibida debe ser un número entero mayor a cero.",
+            type: "warning"
+        });
+        if (qtyInput) qtyInput.focus();
+        return;
+    }
+
+    const existing = purchaseBatchItems.find(item => item.id === productId);
+    if (existing) {
+        existing.cantidad += qty;
+        existing.costoCompra = cost;
+        renderPurchaseItemsTable();
+        setTimeout(() => {
+            const row = document.getElementById(`pur-row-${productId}`);
+            if (row) {
+                row.classList.remove('stockin-row-updated');
+                void row.offsetWidth;
+                row.classList.add('stockin-row-updated');
+            }
+        }, 50);
+    } else {
+        purchaseBatchItems.push({
+            id: productId,
+            name: productName || productId,
+            cantidad: qty,
+            costoCompra: cost
+        });
+        renderPurchaseItemsTable();
+    }
+
+    // Resetear campos para siguiente ítem
+    const codeInp = document.getElementById('purCodeInput');
+    const descInp = document.getElementById('purDescInput');
+    const hidId = document.getElementById('purSelectedProductId');
+    if (codeInp) codeInp.value = '';
+    if (descInp) descInp.value = '';
+    if (costInput) costInput.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    if (hidId) hidId.value = '';
+    hidePurContextBar();
+    closePurDropdown();
+
+    if (codeInp) codeInp.focus();
+}
+
+function renderPurchaseItemsTable() {
+    const tbody = document.getElementById('purchaseTableBody');
+    const countEl = document.getElementById('purListCount');
+    const totalUnitsBadge = document.getElementById('purTotalUnitsBadge');
+    const totalAmountBadge = document.getElementById('purTotalAmountBadge');
+
+    if (!tbody) return;
+
+    if (purchaseBatchItems.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center; padding:24px 12px; color:var(--text-muted); font-size:12.5px;">
+                    No hay repuestos agregados a esta compra.<br>
+                    <span style="font-size:11.5px;">Seleccione el repuesto arriba, coloque el costo unitario y cantidad, y pulse <b>Agregar a Lista</b>.</span>
+                </td>
+            </tr>`;
+        if (countEl) countEl.innerText = '0';
+        if (totalUnitsBadge) totalUnitsBadge.innerText = '0 Unidades Totales';
+        if (totalAmountBadge) totalAmountBadge.innerText = 'Total Compra: $0.00 USD';
+        return;
+    }
+
+    let totalUnits = 0;
+    let totalUSD = 0;
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78 };
+    const bcvRate = settings.tasaBCV || 917.78;
+    let html = '';
+
+    purchaseBatchItems.forEach(item => {
+        const subtotal = item.costoCompra * item.cantidad;
+        totalUnits += item.cantidad;
+        totalUSD += subtotal;
+
+        html += `
+            <tr id="pur-row-${item.id}">
+                <td><span class="code-badge">${item.id}</span></td>
+                <td>
+                    <div style="font-weight:700; line-height:1.25; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${item.name}">
+                        ${item.name}
+                    </div>
+                </td>
+                <td style="text-align:right;">
+                    <b style="color:#0f172a; font-size:12.5px;">$${item.costoCompra.toFixed(2)}</b>
+                </td>
+                <td style="text-align:center;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <button type="button" class="ticket-btn-sm" onclick="updatePurchaseItemQty('${item.id}', -1)" style="font-weight:800; width:22px; height:22px; padding:0;">-</button>
+                        <input type="number" min="1" step="1" value="${item.cantidad}" onchange="setPurchaseItemQtyDirect('${item.id}', this.value)" style="width:48px; text-align:center; font-weight:800; font-size:12.5px; padding:2px 2px; border:1px solid #cbd5e1; border-radius:4px;">
+                        <button type="button" class="ticket-btn-sm" onclick="updatePurchaseItemQty('${item.id}', 1)" style="font-weight:800; width:22px; height:22px; padding:0;">+</button>
+                    </div>
+                </td>
+                <td style="text-align:right;">
+                    <b style="color:var(--primary); font-size:12.5px;">$${subtotal.toFixed(2)}</b>
+                </td>
+                <td style="text-align:center;">
+                    <button type="button" class="ticket-btn-sm" onclick="removePurchaseItem('${item.id}')" style="color:var(--danger); padding:3px 6px;" title="Quitar de la compra">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </td>
+            </tr>`;
+    });
+
+    tbody.innerHTML = html;
+    if (countEl) countEl.innerText = purchaseBatchItems.length;
+    if (totalUnitsBadge) totalUnitsBadge.innerText = `${totalUnits} ${totalUnits === 1 ? 'Unidad Total' : 'Unidades Totales'}`;
+    if (totalAmountBadge) {
+        const totalBs = totalUSD * bcvRate;
+        totalAmountBadge.innerHTML = `Total Compra: <b>$${totalUSD.toFixed(2)} USD</b> <span style="font-size:10.5px; opacity:0.85;">(Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>`;
+    }
+}
+
+function updatePurchaseItemQty(id, diff) {
+    const item = purchaseBatchItems.find(i => i.id === id);
+    if (item) {
+        item.cantidad = Math.max(1, item.cantidad + diff);
+        renderPurchaseItemsTable();
+    }
+}
+
+function setPurchaseItemQtyDirect(id, val) {
+    const item = purchaseBatchItems.find(i => i.id === id);
+    if (item) {
+        const qty = parseInt(val);
+        item.cantidad = (!isNaN(qty) && qty > 0) ? qty : 1;
+        renderPurchaseItemsTable();
+    }
+}
+
+function removePurchaseItem(id) {
+    purchaseBatchItems = purchaseBatchItems.filter(i => i.id !== id);
+    renderPurchaseItemsTable();
+}
+
+function clearPurchaseList() {
+    if (purchaseBatchItems.length === 0) return;
+    purchaseBatchItems = [];
+    renderPurchaseItemsTable();
+}
+
+function submitNewPurchase() {
+    const provSelect = document.getElementById('purSupplierSelect');
+    const provId = provSelect ? provSelect.value : '';
+    const provs = NovaDB.getSuppliers();
+    const provObj = provs.find(p => p.id === provId);
+
+    if (!provId || !provObj) {
+        showNovaAlert({
+            title: "Proveedor Requerido",
+            message: "Por favor seleccione un Proveedor Distribuidor o presione el botón '+' para registrar uno nuevo.",
+            type: "warning"
+        });
+        if (provSelect) provSelect.focus();
+        return;
+    }
+
+    if (purchaseBatchItems.length === 0) {
+        showNovaAlert({
+            title: "Lista de Compra Vacía",
+            message: "Debe agregar al menos un repuesto a la lista de compra para registrar la entrada de mercancía.",
+            type: "warning"
+        });
+        return;
+    }
+
+    const invoiceNum = (document.getElementById('purInvoiceNumber')?.value || '').trim();
+    const totalUSD = purchaseBatchItems.reduce((acc, it) => acc + (it.costoCompra * it.cantidad), 0);
+    const totalUnits = purchaseBatchItems.reduce((acc, it) => acc + it.cantidad, 0);
+
+    const record = NovaDB.registerPurchase({
+        proveedorId: provId,
+        proveedorNombre: provObj.razonSocial,
+        facturaNumero: invoiceNum || 'N/A',
+        items: purchaseBatchItems.map(it => ({
+            id: it.id,
+            nombre: it.name,
+            cantidad: it.cantidad,
+            costoCompra: it.costoCompra
+        })),
+        totalUSD: totalUSD
+    });
+
+    closeModal('addPurchaseModal');
+    renderPurchasesView();
+    if (currentView === 'inventory' && typeof renderInventoryView === 'function') renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+
+    showNovaAlert({
+        title: "¡Mercancía Registrada con Éxito!",
+        message: `Se registraron <b>${totalUnits} unidades</b> de <b>${purchaseBatchItems.length} repuesto(s)</b> comprados a <b>${provObj.razonSocial}</b>.<br><div style="margin-top:8px; font-size:12px; color:var(--text-muted); background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; line-height:1.4;"><b>N° Compra:</b> ${record.id}<br><b>Documento:</b> ${invoiceNum || 'N/A'}<br><b>Total Facturado:</b> $${totalUSD.toFixed(2)} USD</div>`,
+        type: "success"
+    });
+
+    purchaseBatchItems = [];
+}
+
+let currentViewingPurchaseId = null;
+
+function viewPurchaseDetails(purchaseId) {
+    if (!purchaseId) return;
+    const purchases = NovaDB.getPurchases();
+    const p = purchases.find(x => x.id === purchaseId);
+    if (!p) {
+        showNovaAlert({
+            title: "Compra no encontrada",
+            message: `No se encontró el registro de la compra ${purchaseId}.`,
+            type: "warning"
+        });
+        return;
+    }
+
+    currentViewingPurchaseId = purchaseId;
+
+    // Header info
+    const idEl = document.getElementById('purDetailId');
+    if (idEl) idEl.innerText = p.id;
+
+    const invEl = document.getElementById('purDetailInvoiceNum');
+    if (invEl) {
+        const hasDoc = p.facturaNumero && p.facturaNumero !== 'N/A' && p.facturaNumero.trim() !== '';
+        invEl.innerText = hasDoc ? p.facturaNumero : 'Sin Documento Físico';
+    }
+
+    const dateEl = document.getElementById('purDetailDate');
+    if (dateEl) dateEl.innerText = p.fechaHoraStr || p.fechaStr || new Date(p.timestamp || Date.now()).toLocaleString('es-VE');
+
+    const nameEl = document.getElementById('purDetailSupplierName');
+    if (nameEl) nameEl.innerText = p.proveedorNombre || 'Proveedor Distribuidor';
+
+    const extraEl = document.getElementById('purDetailSupplierExtra');
+    if (extraEl) extraEl.innerHTML = '';
+
+    // Populate items table
+    const tbody = document.getElementById('purDetailTableBody');
+    let totalUnits = 0;
+    let html = '';
+    const items = Array.isArray(p.items) ? p.items : [];
+
+    items.forEach(it => {
+        const qty = parseInt(it.cantidad) || 0;
+        const cost = parseFloat(it.costoCompra) || 0;
+        const subtotal = cost * qty;
+        totalUnits += qty;
+        const itemCode = it.id || 'N/A';
+        const itemName = it.nombre || it.name || it.id || 'Repuesto sin descripción';
+
+        html += `
+            <tr>
+                <td><span class="code-badge" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:800;">${itemCode}</span></td>
+                <td><div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemName}">${itemName}</div></td>
+                <td style="text-align:right; font-weight:700; color:#334155;">$${cost.toFixed(2)}</td>
+                <td style="text-align:center;"><span style="display:inline-block; font-weight:800; background:#f1f5f9; padding:2px 8px; border-radius:12px; font-size:11.5px; color:#1e293b;">${qty} unids.</span></td>
+                <td style="text-align:right; font-weight:800; color:var(--primary);">$${subtotal.toFixed(2)}</td>
+            </tr>`;
+    });
+
+    if (items.length === 0) {
+        html = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No se registraron detalles de ítems para esta compra.</td></tr>`;
+    }
+
+    if (tbody) tbody.innerHTML = html;
+
+    const countEl = document.getElementById('purDetailItemCount');
+    if (countEl) countEl.innerText = items.length;
+
+    const unitsEl = document.getElementById('purDetailTotalUnitsBadge');
+    if (unitsEl) unitsEl.innerText = `${totalUnits} ${totalUnits === 1 ? 'Unidad Total' : 'Unidades Totales'}`;
+
+    const totalUSD = Number(p.totalUSD) || items.reduce((acc, it) => acc + ((parseFloat(it.costoCompra) || 0) * (parseInt(it.cantidad) || 0)), 0);
+    const settings = NovaDB.getSettings();
+    const bcvRate = settings.tasaBCV || 917.78;
+    const totalBs = totalUSD * bcvRate;
+
+    const usdEl = document.getElementById('purDetailTotalUSD');
+    if (usdEl) usdEl.innerText = `$${totalUSD.toFixed(2)} USD`;
+
+    const bsEl = document.getElementById('purDetailTotalBs');
+    if (bsEl) {
+        bsEl.innerText = `Equivalente BCV: Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa: Bs. ${bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    }
+
+    const notesEl = document.getElementById('purDetailNotes');
+    if (notesEl) {
+        if (p.notas && p.notas.trim() !== '') {
+            notesEl.style.display = 'block';
+            notesEl.innerHTML = `<b>Observaciones / Justificativo:</b> ${p.notas}`;
+        } else {
+            notesEl.style.display = 'none';
+        }
+    }
+
+    openModal('viewPurchaseDetailModal');
+}
+
+function printCurrentPurchaseVoucher() {
+    if (currentViewingPurchaseId) {
+        printPurchaseVoucher(currentViewingPurchaseId);
+    }
+}
+
+function printPurchaseVoucher(purchaseId) {
+    const purchases = NovaDB.getPurchases();
+    const p = purchases.find(x => x.id === purchaseId);
+    if (!p) return;
+
+    const settings = NovaDB.getSettings();
+    const bcvRate = settings.tasaBCV || 917.78;
+    const totalUSD = Number(p.totalUSD) || 0;
+    const totalBs = totalUSD * bcvRate;
+    const supps = NovaDB.getSuppliers();
+    const supp = supps.find(s => s.id === p.proveedorId || s.razonSocial === p.proveedorNombre);
+
+    let rowsHtml = '';
+    let totalUnits = 0;
+    (p.items || []).forEach(it => {
+        const qty = parseInt(it.cantidad) || 0;
+        const cost = parseFloat(it.costoCompra) || 0;
+        const sub = qty * cost;
+        totalUnits += qty;
+        rowsHtml += `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:8px 10px; font-family:monospace; font-weight:700;">${it.id}</td>
+                <td style="padding:8px 10px;">${it.nombre || it.name || it.id}</td>
+                <td style="padding:8px 10px; text-align:right;">$${cost.toFixed(2)}</td>
+                <td style="padding:8px 10px; text-align:center; font-weight:700;">${qty}</td>
+                <td style="padding:8px 10px; text-align:right; font-weight:700;">$${sub.toFixed(2)}</td>
+            </tr>`;
+    });
+
+    const printHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobante de Recepción de Mercancía - ${p.id}</title>
+    <style>
+        @page { size: letter; margin: 15mm; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; font-size: 13px; line-height: 1.4; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 18px; }
+        .logo-title { font-size: 20px; font-weight: 900; color: #1e3a8a; }
+        .doc-badge { text-align: right; }
+        .doc-id { font-size: 18px; font-weight: 800; color: #2563eb; font-family: monospace; }
+        .info-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12px; }
+        th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-weight: 700; color: #475569; border-bottom: 2px solid #cbd5e1; }
+        .totals-card { display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-bottom: 30px; }
+        .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; text-align: center; }
+        .sig-line { border-top: 1px solid #94a3b8; padding-top: 6px; font-weight: 600; font-size: 12px; color: #475569; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="logo-title">NOVA REFRI MOTORS C.A.</div>
+            <div style="font-size:11.5px; color:#475569;">Comprobante de Recepción de Mercancía e Ingreso a Almacén</div>
+        </div>
+        <div class="doc-badge">
+            <div class="doc-id">${p.id}</div>
+            <div style="font-size:11.5px; color:#64748b;">${p.fechaHoraStr || p.fechaStr}</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div>
+            <div style="font-size:10px; color:#64748b; font-weight:700; text-transform:uppercase;">Proveedor Distribuidor</div>
+            <div style="font-size:14px; font-weight:800; color:#0f172a; margin-top:2px;">${p.proveedorNombre || 'Proveedor'}</div>
+            <div style="margin-top:4px; color:#475569;">
+                ${supp?.rif ? `RIF: ${supp.rif} &nbsp; ` : ''}
+                ${supp?.telefono ? `Telf: ${supp.telefono} &nbsp; ` : ''}
+                ${supp?.rubro ? `Rubro: ${supp.rubro}` : ''}
+            </div>
+        </div>
+        <div>
+            <div><b>Factura / Control Proveedor:</b> ${p.facturaNumero || 'N/A'}</div>
+            <div style="margin-top:4px;"><b>Fecha de Emisión / Carga:</b> ${p.fechaHoraStr || p.fechaStr}</div>
+            <div style="margin-top:4px;"><b>Total Ítems:</b> ${(p.items || []).length} repuestos (${totalUnits} unidades)</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:110px;">Código</th>
+                <th>Descripción del Repuesto</th>
+                <th style="width:100px; text-align:right;">Costo Unit. ($)</th>
+                <th style="width:80px; text-align:center;">Cant.</th>
+                <th style="width:110px; text-align:right;">Subtotal ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rowsHtml}
+        </tbody>
+    </table>
+
+    <div class="totals-card">
+        <div>
+            <div style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase;">Monto Total Facturado:</div>
+            <div style="font-size:12px; color:#15803d; font-weight:700; margin-top:2px;">
+                Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa BCV: Bs. ${bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+            </div>
+        </div>
+        <div style="font-size:22px; font-weight:900; color:#15803d;">
+            $${totalUSD.toFixed(2)} USD
+        </div>
+    </div>
+
+    <div class="signatures">
+        <div>
+            <div style="height:40px;"></div>
+            <div class="sig-line">Almacén / Recepción de Mercancía</div>
+        </div>
+        <div>
+            <div style="height:40px;"></div>
+            <div class="sig-line">Administración / Verificación Fiscal</div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 250);
+        };
+    </script>
+</body>
+</html>`;
+
+    let iframe = document.getElementById('purchasePrintHiddenIframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'purchasePrintHiddenIframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(printHtml);
+    doc.close();
+}
+
+// Exportar funciones de compras y proveedores globalmente
+window.renderPurchasesView = renderPurchasesView;
+window.viewPurchaseDetails = viewPurchaseDetails;
+window.printCurrentPurchaseVoucher = printCurrentPurchaseVoucher;
+window.printPurchaseVoucher = printPurchaseVoucher;
+window.openAddPurchaseModal = openAddPurchaseModal;
+window.refreshSupplierSelect = refreshSupplierSelect;
+window.openAddSupplierModal = openAddSupplierModal;
+window.submitNewSupplier = submitNewSupplier;
+window.onPurCodeInput = onPurCodeInput;
+window.onPurCodeKeyDown = onPurCodeKeyDown;
+window.onPurDescInput = onPurDescInput;
+window.onPurDescKeyDown = onPurDescKeyDown;
+window.onPurCostKeyDown = onPurCostKeyDown;
+window.openPurDropdown = openPurDropdown;
+window.closePurDropdown = closePurDropdown;
+window.selectPurProductByIndex = selectPurProductByIndex;
+window.selectPurProduct = selectPurProduct;
+window.addSelectedProductToPurchaseList = addSelectedProductToPurchaseList;
+window.renderPurchaseItemsTable = renderPurchaseItemsTable;
+window.updatePurchaseItemQty = updatePurchaseItemQty;
+window.setPurchaseItemQtyDirect = setPurchaseItemQtyDirect;
+window.removePurchaseItem = removePurchaseItem;
+window.clearPurchaseList = clearPurchaseList;
+window.submitNewPurchase = submitNewPurchase;
 
 // ==============================================================================
 // 6. MÓDULO: CLIENTES (CRM)
@@ -3240,7 +4931,13 @@ function saveCompanySettings() {
     });
 
     updateBCVDisplay();
-    showNovaAlert({ title: "Configuración Guardada", message: "Los parámetros del sistema han sido actualizados.", type: "success" });
+    try {
+        if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('nova_pos_channel');
+            bc.postMessage({ type: 'BCV_RATE_UPDATED', rate: tasaBCV });
+        }
+    } catch (e) { }
+    showNovaAlert({ title: "Configuración Guardada", message: "Los parámetros del sistema y la tasa oficial han sido actualizados en la red.", type: "success" });
 }
 
 function exportERPBackup() {

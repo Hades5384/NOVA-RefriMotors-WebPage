@@ -442,6 +442,10 @@ body {
 .erp-content {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 24px 28px;
     display: flex;
     flex-direction: column;
@@ -1283,34 +1287,49 @@ body {
     background-color: #f8fafc;
 }
 
-/* Distribución holgada por columna en la tabla de inventario */
+.purchase-row-clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.purchase-row-clickable:hover {
+    background-color: #f0f7ff !important;
+}
+
+.purchase-row-clickable:hover .code-badge {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+}
+
+/* Distribución adaptativa y optimizada por columna en la tabla de inventario */
 .inventory-data-table th,
 .inventory-data-table td {
-    padding: 14px 16px;
+    padding: 10px 12px;
 }
 
 .inventory-data-table th:nth-child(1),
 .inventory-data-table td:nth-child(1) {
-    width: 96px;
+    width: 84px;
+    min-width: 84px;
     white-space: nowrap;
 }
 
 .inventory-data-table th:nth-child(2),
 .inventory-data-table td:nth-child(2) {
-    min-width: 240px;
-    max-width: 340px;
-    padding-right: 24px;
+    min-width: 190px;
+    max-width: 280px;
+    padding-right: 14px;
 }
 
 .inventory-data-table th:nth-child(3),
 .inventory-data-table td:nth-child(3) {
-    min-width: 130px;
+    min-width: 105px;
     white-space: nowrap;
 }
 
 .inventory-data-table th:nth-child(4),
 .inventory-data-table td:nth-child(4) {
-    min-width: 125px;
+    min-width: 88px;
     white-space: nowrap;
 }
 
@@ -1318,14 +1337,14 @@ body {
 .inventory-data-table td:nth-child(5),
 .inventory-data-table th:nth-child(6),
 .inventory-data-table td:nth-child(6) {
-    min-width: 115px;
+    min-width: 92px;
     white-space: nowrap;
     text-align: right;
 }
 
 .inventory-data-table th:nth-child(7),
 .inventory-data-table td:nth-child(7) {
-    min-width: 120px;
+    min-width: 92px;
     white-space: nowrap;
     text-align: center;
 }
@@ -1336,16 +1355,36 @@ body {
 
 .inventory-data-table th:nth-child(8),
 .inventory-data-table td:nth-child(8) {
-    min-width: 128px;
+    min-width: 88px;
     white-space: nowrap;
     text-align: center;
 }
 
-.inventory-data-table th:nth-child(9),
-.inventory-data-table td:nth-child(9) {
-    min-width: 136px;
+/* Columna de Acciones sticky a la derecha para garantizar visibilidad al 100% en cualquier pantalla */
+.inventory-data-table th:nth-child(9) {
+    min-width: 110px;
     white-space: nowrap;
     text-align: right;
+    position: sticky;
+    right: 0;
+    background-color: #f8fafc;
+    z-index: 12;
+    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.04);
+}
+
+.inventory-data-table td:nth-child(9) {
+    min-width: 110px;
+    white-space: nowrap;
+    text-align: right;
+    position: sticky;
+    right: 0;
+    background-color: #ffffff;
+    z-index: 6;
+    box-shadow: -4px 0 8px rgba(0, 0, 0, 0.04);
+}
+
+.inventory-data-table tbody tr:hover td:nth-child(9) {
+    background-color: #f8fafc;
 }
 
 .code-badge {
@@ -1415,8 +1454,8 @@ body {
     background-color: #ffffff;
     border-radius: var(--radius-xl);
     width: 100%;
-    max-width: 620px;
-    max-height: 90vh;
+    max-width: 780px;
+    max-height: 94vh;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
     display: flex;
     flex-direction: column;
@@ -2148,8 +2187,8 @@ body {
    MODAL VISUALIZADOR DE REPORTES Y DOCUMENTO IMPRESO
    ============================================================================== */
 .erp-modal-card.erp-modal-wide {
-    max-width: 1080px;
-    width: 95vw;
+    max-width: 1240px;
+    width: 96vw;
 }
 
 .report-document-body {
@@ -2430,6 +2469,166 @@ body {
 }
 
 /* ==============================================================================
+   REJILLA DE CONFIGURACIÓN Y MODAL DE REIMPRESIÓN RESPONSIVO
+   ============================================================================== */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.settings-grid > * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#reprintInvoiceModal .erp-modal-card {
+    max-width: 1060px;
+    width: min(1060px, 96vw);
+}
+
+.reprint-table-wrap {
+    max-height: 480px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+
+#reprintSalesTableBody td {
+    padding: 7px 10px;
+}
+
+/* ==============================================================================
+   ADAPTABILIDAD RESPONSIVA MULTIPANTALLA (1366px, 1200px, 1024px, 768px)
+   ============================================================================== */
+@media (max-width: 1366px) {
+    .erp-header {
+        padding: 0 18px;
+        gap: 12px;
+    }
+    .erp-content {
+        padding: 16px 20px;
+    }
+    .header-title-box p {
+        max-width: 250px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .header-right {
+        gap: 10px;
+    }
+    .header-action-btn {
+        padding: 7px 11px;
+        font-size: 12px;
+    }
+    .bcv-rate-pill {
+        padding: 5px 11px;
+        gap: 8px;
+    }
+    .bcv-pill-label {
+        font-size: 9px;
+    }
+    .bcv-pill-val {
+        font-size: 12px;
+    }
+    .kpi-grid {
+        gap: 12px;
+    }
+    .kpi-card {
+        padding: 14px 16px;
+    }
+    .inventory-data-table th,
+    .inventory-data-table td {
+        padding: 8px 10px;
+        font-size: 12.5px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .pos-container {
+        grid-template-columns: 1fr 360px;
+        gap: 14px;
+    }
+    .erp-sidebar {
+        width: 230px;
+    }
+    .table-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .table-toolbar-left {
+        flex-wrap: wrap;
+    }
+    .table-toolbar-right {
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 1024px) {
+    .erp-sidebar {
+        width: 72px;
+    }
+    .erp-sidebar .sidebar-brand {
+        display: none !important;
+    }
+    .erp-sidebar .nav-section-title {
+        display: none !important;
+    }
+    .erp-sidebar .nav-item span {
+        display: none !important;
+    }
+    .erp-sidebar .sidebar-user-info,
+    .erp-sidebar .sidebar-user-switch-icon {
+        display: none !important;
+    }
+    .erp-sidebar .sidebar-user-card {
+        justify-content: center;
+        padding: 6px;
+    }
+    .header-title-box p {
+        display: none;
+    }
+    .pos-container {
+        grid-template-columns: 1fr 330px;
+    }
+}
+
+@media (max-width: 768px) {
+    .erp-header {
+        height: auto;
+        padding: 10px 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    .pos-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+    }
+    .pos-catalog-panel {
+        max-height: 550px;
+    }
+    .pos-cart-panel {
+        max-height: 500px;
+    }
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==============================================================================
    REGLAS DE IMPRESIÓN (PDF & PAPEL MEMBRETADO)
    ============================================================================== */
 @media print {
@@ -2486,3 +2685,177 @@ body {
         background: #ffffff !important;
     }
 }
+
+/* Chips para Justificativo de Carga de Existencias */
+.stock-reason-chip {
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.stock-reason-chip:hover {
+    background: #e2e8f0;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Tabla compacta en modal de Carga de Existencias */
+.stockin-data-table th,
+.stockin-data-table td {
+    padding: 8px 10px !important;
+    font-size: 12px;
+}
+
+.stockin-data-table th {
+    background-color: #f8fafc;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stockin-data-table .code-badge {
+    max-width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Menú desplegable interactivo para selección de repuestos */
+.stockin-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 1050;
+}
+
+.stockin-dropdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.12s ease;
+}
+
+.stockin-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.stockin-dropdown-item:hover,
+.stockin-dropdown-item.active {
+    background-color: #eff6ff;
+}
+
+.stockin-dropdown-item-code {
+    font-weight: 800;
+    font-size: 11.5px;
+    color: #1e40af;
+    background: #dbeafe;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.stockin-dropdown-item-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stockin-dropdown-item-stock {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.stockin-dropdown-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.stockin-cost-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.stockin-cat-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.stock-pill-low {
+    color: #b45309 !important;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.stock-pill-empty {
+    color: #b91c1c !important;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+.stock-pill-ok {
+    color: #15803d !important;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+@keyframes stockin-row-pulse {
+    0% { background-color: #dbeafe; }
+    100% { background-color: transparent; }
+}
+
+.stockin-row-updated {
+    animation: stockin-row-pulse 1.2s ease-out;
+}
+
+
+

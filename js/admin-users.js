@@ -96,6 +96,11 @@ const NovaUsers = (function () {
         return getCurrentUser().role === 'seller';
     }
 
+    function hasPermission(permissionKey) {
+        const u = getCurrentUser();
+        return !!(u && u.permissions && u.permissions[permissionKey]);
+    }
+
     function switchStation(stationId, enteredPin = '') {
         if (!USERS[stationId]) {
             return { success: false, message: "Estación de trabajo no válida." };
@@ -230,6 +235,7 @@ const NovaUsers = (function () {
         getCurrentUser,
         isAdmin,
         isSeller,
+        hasPermission,
         switchStation,
         applyPermissions,
         getMasterPin
