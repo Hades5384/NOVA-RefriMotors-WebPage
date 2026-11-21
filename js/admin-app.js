@@ -3605,6 +3605,153 @@ function submitMasterPin() {
 // 4. MÓDULO: CAJA, ARQUEO Y CONTROL DE OPERACIONES
 // ==============================================================================
 let currentCashTab = 'sales';
+let currentCashMethodFilter = 'todos';
+
+const CASH_PAYMENT_METHODS_CONFIG = [
+    {
+        key: 'todos',
+        label: 'Todos',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect></svg>`
+    },
+    {
+        key: 'efectivo_usd',
+        label: 'Efectivo USD',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 12h.01M18 12h.01"></path></svg>`
+    },
+    {
+        key: 'efectivo_bs',
+        label: 'Efectivo Bs.',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="12" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><circle cx="12" cy="14" r="1.5"></circle></svg>`
+    },
+    {
+        key: 'pago_movil',
+        label: 'Pago Móvil',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="3"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line><path d="M9 6h6"></path></svg>`
+    },
+    {
+        key: 'punto_venta',
+        label: 'Punto de Venta',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line></svg>`
+    },
+    {
+        key: 'biopago',
+        label: 'Biopago',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-10 10c0 3.3 1.6 6.2 4 8"></path><path d="M12 6a6 6 0 0 0-6 6c0 2 1 3.8 2.5 5"></path><path d="M12 10a2 2 0 0 0-2 2c0 .8.4 1.5 1 2"></path><path d="M12 22a10 10 0 0 0 10-10c0-3.3-1.6-6.2-4-8"></path><path d="M12 18a6 6 0 0 0 6-6c0-2-1-3.8-2.5-5"></path></svg>`
+    },
+    {
+        key: 'transferencia',
+        label: 'Transferencia',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M3 10h18"></path><path d="M5 10v11"></path><path d="M9 10v11"></path><path d="M15 10v11"></path><path d="M19 10v11"></path><path d="M12 2L2 7h20L12 2z"></path></svg>`
+    },
+    {
+        key: 'zelle',
+        label: 'Zelle',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`
+    },
+    {
+        key: 'binance',
+        label: 'Binance Pay',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5v6h5"></path><path d="M9.5 12h4"></path></svg>`
+    }
+];
+
+function getSalePaymentMethodKey(sale) {
+    if (!sale) return 'otros';
+    let raw = '';
+    if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
+        const item = sale.metodosPago[0];
+        raw = String((typeof item === 'object' && item) ? (item.metodo || item.name || '') : item);
+    } else if (sale.metodoPago) {
+        raw = String(sale.metodoPago);
+    }
+
+    const m = raw.toLowerCase().trim();
+    if (m.includes('biopago') || m.includes('patria')) return 'biopago';
+    if (m.includes('pago móvil') || m.includes('pago movil')) return 'pago_movil';
+    if (m.includes('punto') || m.includes('débito') || m.includes('debito')) return 'punto_venta';
+    if (m.includes('transferencia')) return 'transferencia';
+    if (m.includes('zelle')) return 'zelle';
+    if (m.includes('binance')) return 'binance';
+    if (m.includes('efectivo bs') || m.includes('bolívares') || m.includes('bolivares')) return 'efectivo_bs';
+    if (m.includes('efectivo') || m.includes('usd') || m.includes('$')) return 'efectivo_usd';
+    if (isPaymentNational(sale)) return 'pago_movil';
+    return 'efectivo_usd';
+}
+
+function renderCashMethodFilterCards(shiftSales) {
+    const grid = document.getElementById('cashMethodFilterGrid');
+    const summary = document.getElementById('cashMethodFilterSummary');
+    if (!grid) return;
+
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78 };
+    const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
+
+    const stats = {
+        todos: { count: 0, totalUSD: 0, totalBs: 0 },
+        efectivo_usd: { count: 0, totalUSD: 0, totalBs: 0 },
+        efectivo_bs: { count: 0, totalUSD: 0, totalBs: 0 },
+        pago_movil: { count: 0, totalUSD: 0, totalBs: 0 },
+        punto_venta: { count: 0, totalUSD: 0, totalBs: 0 },
+        biopago: { count: 0, totalUSD: 0, totalBs: 0 },
+        transferencia: { count: 0, totalUSD: 0, totalBs: 0 },
+        zelle: { count: 0, totalUSD: 0, totalBs: 0 },
+        binance: { count: 0, totalUSD: 0, totalBs: 0 }
+    };
+
+    (shiftSales || []).forEach(s => {
+        if (s.anulada || s.tipoDocumento === 'presupuesto') return;
+        const u = parseFloat(s.totalUSD) || 0;
+        const b = (parseFloat(s.totalBs) && !isNaN(s.totalBs)) ? parseFloat(s.totalBs) : (u * bcvRate);
+        const key = getSalePaymentMethodKey(s);
+
+        stats.todos.count += 1;
+        stats.todos.totalUSD += u;
+        stats.todos.totalBs += b;
+
+        if (stats[key]) {
+            stats[key].count += 1;
+            stats[key].totalUSD += u;
+            stats[key].totalBs += b;
+        }
+    });
+
+    let html = '';
+    CASH_PAYMENT_METHODS_CONFIG.forEach(cfg => {
+        const itemStat = stats[cfg.key] || { count: 0, totalUSD: 0, totalBs: 0 };
+        const isActive = (currentCashMethodFilter === cfg.key);
+        html += `
+            <div class="cash-method-card ${isActive ? 'active' : ''}" onclick="setCashMethodFilter('${cfg.key}')" title="Filtrar por ${cfg.label} (${itemStat.count} operaciones)">
+                <span class="method-count-badge">${itemStat.count}</span>
+                <div class="method-icon-wrap">${cfg.iconSvg}</div>
+                <span class="method-label">${cfg.label}</span>
+                <div class="method-stats">
+                    <span>$${itemStat.totalUSD.toFixed(2)}</span>
+                </div>
+            </div>
+        `;
+    });
+    grid.innerHTML = html;
+
+    if (summary) {
+        const activeCfg = CASH_PAYMENT_METHODS_CONFIG.find(c => c.key === currentCashMethodFilter);
+        const activeStat = stats[currentCashMethodFilter] || stats.todos;
+        const label = activeCfg ? activeCfg.label : 'Todos';
+        if (currentCashMethodFilter === 'todos') {
+            summary.innerText = `Mostrando: Todas las transacciones (${activeStat.count} ventas · $${activeStat.totalUSD.toFixed(2)})`;
+        } else {
+            summary.innerText = `Mostrando: ${activeStat.count} venta${activeStat.count === 1 ? '' : 's'} con ${label} ($${activeStat.totalUSD.toFixed(2)} / Bs. ${activeStat.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+        }
+    }
+}
+
+function setCashMethodFilter(methodKey) {
+    if (currentCashMethodFilter === methodKey && methodKey !== 'todos') {
+        currentCashMethodFilter = 'todos';
+    } else {
+        currentCashMethodFilter = methodKey;
+    }
+    renderCashView();
+}
 
 function switchCashTab(tab) {
     currentCashTab = tab;
@@ -3612,6 +3759,7 @@ function switchCashTab(tab) {
     const tabAudit = document.getElementById('tabCashAudit');
     const boxSales = document.getElementById('cashSalesContainer');
     const boxAudit = document.getElementById('cashAuditContainer');
+    const filterSection = document.getElementById('cashMethodFilterSection');
     const titleEl = document.getElementById('cashTableTitle');
 
     if (tab === 'sales') {
@@ -3619,12 +3767,14 @@ function switchCashTab(tab) {
         if (tabAudit) tabAudit.classList.remove('active');
         if (boxSales) boxSales.style.display = 'block';
         if (boxAudit) boxAudit.style.display = 'none';
+        if (filterSection) filterSection.style.display = 'block';
         if (titleEl) titleEl.innerText = 'Ventas y Comprobantes del Turno Activo';
     } else {
         if (tabSales) tabSales.classList.remove('active');
         if (tabAudit) tabAudit.classList.add('active');
         if (boxSales) boxSales.style.display = 'none';
         if (boxAudit) boxAudit.style.display = 'block';
+        if (filterSection) filterSection.style.display = 'none';
         if (titleEl) titleEl.innerText = 'Auditoría de Anulaciones y Cambios de Mercancía';
         renderCashAuditTable();
     }
@@ -3723,7 +3873,10 @@ function renderCashView() {
     const kpiProfitBs = document.getElementById('cashKpiGananciaBs');
     if (kpiProfitBs) kpiProfitBs.innerText = `Bs. ${totalProfitBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    // Renderizar tabla de comprobantes del turno activo
+    // Renderizar tarjetas interactivas de filtro por método de pago (SVG)
+    renderCashMethodFilterCards(shiftSales);
+
+    // Renderizar tabla de comprobantes del turno activo (con filtro de método aplicado)
     renderCashSalesTable(shiftSales);
 
     // Actualizar tabla de auditoría si está activa
@@ -3748,8 +3901,31 @@ function renderCashSalesTable(shiftSales) {
         return;
     }
 
+    const filteredSales = (currentCashMethodFilter === 'todos')
+        ? shiftSales
+        : shiftSales.filter(s => getSalePaymentMethodKey(s) === currentCashMethodFilter);
+
+    if (filteredSales.length === 0) {
+        const activeCfg = CASH_PAYMENT_METHODS_CONFIG.find(c => c.key === currentCashMethodFilter);
+        const methodTitle = activeCfg ? activeCfg.label : currentCashMethodFilter;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 32px 16px; color: var(--text-muted);">
+                    <div style="width:40px; height:40px; border-radius:50%; background:#f1f5f9; color:#64748b; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <p style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: var(--text-main);">No hay ventas con "${methodTitle}" en este turno</p>
+                    <p style="font-size: 12px; margin: 0 0 10px 0; color: var(--text-muted);">No se han registrado pagos bajo este método en el turno activo.</p>
+                    <button type="button" class="header-action-btn btn-secondary-action" style="margin: 0 auto; padding: 4px 12px; font-size: 11.5px;" onclick="setCashMethodFilter('todos')">
+                        Ver todas las transacciones
+                    </button>
+                </td>
+            </tr>`;
+        return;
+    }
+
     let rowsHtml = '';
-    shiftSales.forEach(s => {
+    filteredSales.forEach(s => {
         const isVoid = !!s.anulada;
         const custName = s.cliente?.nombre || 'Cliente Mostrador';
         const totalUSD = (typeof s.totalUSD === 'number') ? s.totalUSD.toFixed(2) : '0.00';
@@ -4434,7 +4610,7 @@ function submitCashReconciliation() {
     const countedBs = parseFloat(document.getElementById('recCountedBs')?.value) || 0;
     const nextUSD = parseFloat(document.getElementById('recNextShiftUSD')?.value) || 50;
 
-    NovaDB.closeActiveShift({
+    const closedShift = NovaDB.closeActiveShift({
         conteoFisicoUSD: countedUSD,
         conteoFisicoBs: countedBs,
         montoInicialSiguienteUSD: nextUSD,
@@ -4443,11 +4619,809 @@ function submitCashReconciliation() {
 
     closeModal('reconciliationModal');
     renderCashView();
+
+    if (closedShift) {
+        window._lastClosedShift = closedShift;
+        openClosedShiftSuccessModal(closedShift);
+    } else {
+        showNovaAlert({
+            title: "¡Arqueo Completado!",
+            message: "El turno ha sido cerrado con conciliación bancaria y se ha abierto automáticamente el nuevo ciclo de caja.",
+            type: "success"
+        });
+    }
+}
+
+function formatDateTimeSafe(d) {
+    if (!d) return '-';
+    try {
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return String(d);
+        return dateObj.toLocaleDateString('es-VE') + ' ' + dateObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch (e) {
+        return String(d);
+    }
+}
+
+function getShiftClosingReportData(shiftOrId) {
+    let shift = null;
+    const allShifts = (typeof NovaDB !== 'undefined' && NovaDB.getCashShifts) ? NovaDB.getCashShifts() : [];
+
+    if (!shiftOrId || shiftOrId === 'active') {
+        shift = (typeof NovaDB !== 'undefined' && NovaDB.getActiveShift) ? NovaDB.getActiveShift() : null;
+    } else if (typeof shiftOrId === 'string') {
+        shift = allShifts.find(s => s.id === shiftOrId) || null;
+    } else if (typeof shiftOrId === 'object' && shiftOrId !== null) {
+        shift = shiftOrId;
+    }
+
+    if (!shift) {
+        shift = allShifts[0] || null;
+    }
+
+    if (!shift) return null;
+
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78 };
+    const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
+
+    const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const sales = allSales.filter(s => shift.ventasIds && shift.ventasIds.includes(s.id));
+    const activeSales = sales.filter(s => !s.anulada && s.tipoDocumento !== 'presupuesto');
+
+    const methodTotals = {
+        'Efectivo USD': { label: 'Efectivo USD ($)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Efectivo Bs': { label: 'Efectivo Bolívares (Bs)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Pago Móvil': { label: 'Pago Móvil (Bs)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Punto de Venta': { label: 'Punto de Venta / Débito', count: 0, totalUSD: 0, totalBs: 0 },
+        'Biopago': { label: 'Biopago (Patria / BDV)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Transferencia': { label: 'Transferencia Bancaria', count: 0, totalUSD: 0, totalBs: 0 },
+        'Zelle': { label: 'Zelle ($)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Binance': { label: 'Binance Pay ($)', count: 0, totalUSD: 0, totalBs: 0 }
+    };
+
+    let totalCobradoUSD = 0;
+    let totalCobradoBs = 0;
+    const bankTotals = {};
+
+    activeSales.forEach(s => {
+        const u = parseFloat(s.totalUSD) || 0;
+        const b = (parseFloat(s.totalBs) && !isNaN(s.totalBs)) ? parseFloat(s.totalBs) : (u * bcvRate);
+        totalCobradoUSD += u;
+        totalCobradoBs += b;
+
+        let bankName = s.banco;
+        if (!bankName && Array.isArray(s.metodosPago) && s.metodosPago.length > 0 && s.metodosPago[0].banco) {
+            bankName = s.metodosPago[0].banco;
+        }
+        if (!bankName) {
+            const m = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) || '';
+            bankName = (m.toLowerCase().includes('efectivo')) ? 'Caja Efectivo' : 'Otros Bancos';
+        }
+        if (!bankTotals[bankName]) {
+            bankTotals[bankName] = { count: 0, totalBs: 0, totalUSD: 0 };
+        }
+        bankTotals[bankName].count += 1;
+        bankTotals[bankName].totalBs += b;
+        bankTotals[bankName].totalUSD += u;
+
+        const mKey = getSalePaymentMethodKey(s);
+        let targetKey = 'Efectivo USD';
+        if (mKey === 'efectivo_bs') targetKey = 'Efectivo Bs';
+        else if (mKey === 'pago_movil') targetKey = 'Pago Móvil';
+        else if (mKey === 'punto_venta') targetKey = 'Punto de Venta';
+        else if (mKey === 'biopago') targetKey = 'Biopago';
+        else if (mKey === 'transferencia') targetKey = 'Transferencia';
+        else if (mKey === 'zelle') targetKey = 'Zelle';
+        else if (mKey === 'binance') targetKey = 'Binance';
+
+        if (methodTotals[targetKey]) {
+            methodTotals[targetKey].count += 1;
+            methodTotals[targetKey].totalUSD += u;
+            methodTotals[targetKey].totalBs += b;
+        }
+    });
+
+    if (shift.totalesPorBanco && Object.keys(shift.totalesPorBanco).length > 0) {
+        Object.keys(shift.totalesPorBanco).forEach(k => {
+            if (!bankTotals[k]) {
+                bankTotals[k] = shift.totalesPorBanco[k];
+            }
+        });
+    }
+
+    const modalInpUSD = document.getElementById('recCountedUSD');
+    const modalInpBs = document.getElementById('recCountedBs');
+    const modalNextUSD = document.getElementById('recNextShiftUSD');
+
+    let conteoFisicoUSD = 0;
+    let conteoFisicoBs = 0;
+    let montoInicialSiguienteUSD = 50;
+
+    if (shift.arqueoFisico) {
+        conteoFisicoUSD = parseFloat(shift.arqueoFisico.conteoFisicoUSD) || 0;
+        conteoFisicoBs = parseFloat(shift.arqueoFisico.conteoFisicoBs) || 0;
+        montoInicialSiguienteUSD = parseFloat(shift.arqueoFisico.montoInicialSiguienteUSD) || 50;
+    } else if (modalInpUSD && modalInpUSD.value !== '') {
+        conteoFisicoUSD = parseFloat(modalInpUSD.value) || 0;
+        conteoFisicoBs = parseFloat(modalInpBs?.value) || 0;
+        montoInicialSiguienteUSD = parseFloat(modalNextUSD?.value) || 50;
+    }
+
+    return {
+        shift,
+        sales,
+        activeSales,
+        methodTotals,
+        bankTotals,
+        summary: {
+            totalCobradoUSD,
+            totalCobradoBs,
+            totalVentasCount: activeSales.length,
+            conteoFisicoUSD,
+            conteoFisicoBs,
+            montoInicialSiguienteUSD
+        },
+        settings
+    };
+}
+
+function downloadShiftClosingExcel(shiftOrId) {
+    const data = getShiftClosingReportData(shiftOrId);
+    if (!data) {
+        showNovaAlert({ title: "Error", message: "No se encontraron datos del turno solicitado para exportar a Excel.", type: "danger" });
+        return;
+    }
+
+    const { shift, sales, methodTotals, bankTotals, summary, settings } = data;
+    const colCount = 8;
+
+    const excelDoc = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office"
+              xmlns:x="urn:schemas-microsoft-com:office:excel"
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+            <!--[if gte mso 9]>
+            <xml>
+                <x:ExcelWorkbook>
+                    <x:ExcelWorksheets>
+                        <x:ExcelWorksheet>
+                            <x:Name>Corte_Z_${shift.id}</x:Name>
+                            <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                        </x:ExcelWorksheet>
+                    </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+                body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #0f172a; }
+                table { border-collapse: collapse; width: 100%; }
+                th { background-color: #003366; color: #ffffff; font-weight: bold; padding: 6px 10px; border: 0.5pt solid #cbd5e1; }
+                td { padding: 5px 10px; border: 0.5pt solid #cbd5e1; font-size: 10pt; }
+                .title-row { font-size: 15pt; font-weight: bold; color: #003366; text-align: center; }
+                .section-header { background-color: #e2e8f0; font-weight: bold; font-size: 11pt; color: #003366; }
+                .num-usd { mso-number-format: "\\$#,##0.00"; text-align: right; }
+                .num-bs { mso-number-format: "#,##0.00"; text-align: right; }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr><td colspan="${colCount}" class="title-row">NOVA REFRIMOTORS C.A.</td></tr>
+                <tr><td colspan="${colCount}" style="text-align:center; font-size:10pt; color:#475569;">RIF: J-504401994 | Galpón al lado del Estacionamiento Centro Clínico, Av. Carabobo, Cabimas, Zulia</td></tr>
+                <tr><td colspan="${colCount}" style="text-align:center; font-size:12pt; font-weight:bold; color:#0f172a; padding:6px 0;">COMPROBANTE DE CIERRE DE CAJA Y ARQUEO DIARIO (CORTE Z)</td></tr>
+                <tr><td colspan="${colCount}" style="height:10px;"></td></tr>
+
+                <tr style="background:#f8fafc;">
+                    <td colspan="2"><b>N° de Turno / Corte Z:</b> ${shift.id}</td>
+                    <td colspan="2"><b>Estado:</b> ${shift.estado === 'cerrada' ? 'CERRADA (CORTE Z)' : 'TURNO ACTIVO (CORTE X)'}</td>
+                    <td colspan="2"><b>Cajero(a):</b> ${shift.usuario || 'MASTER'}</td>
+                    <td colspan="2"><b>Tasa Oficial BCV:</b> Bs. ${settings.tasaBCV}</td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td colspan="4"><b>Fecha/Hora Apertura:</b> ${formatDateTimeSafe(shift.fechaApertura)}</td>
+                    <td colspan="4"><b>Fecha/Hora Cierre:</b> ${formatDateTimeSafe(shift.fechaCierre || new Date().toISOString())}</td>
+                </tr>
+                <tr><td colspan="${colCount}" style="height:12px;"></td></tr>
+
+                <tr><td colspan="${colCount}" class="section-header">1. RESUMEN FINANCIERO Y CUADRE DE GAVETA (ARQUEO FÍSICO)</td></tr>
+                <tr style="background:#f1f5f9; font-weight:bold;">
+                    <td colspan="2">Concepto</td>
+                    <td colspan="2" style="text-align:right;">Monto ($ USD)</td>
+                    <td colspan="2" style="text-align:right;">Monto (Bs.)</td>
+                    <td colspan="2">Auditoría / Estado</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Total Cobrado en Turno (Sistema)</td>
+                    <td colspan="2" class="num-usd">$${summary.totalCobradoUSD.toFixed(2)}</td>
+                    <td colspan="2" class="num-bs">Bs. ${summary.totalCobradoBs.toFixed(2)}</td>
+                    <td colspan="2">${summary.totalVentasCount} ventas cobradas</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Efectivo Físico Contado en Gaveta</td>
+                    <td colspan="2" class="num-usd">$${summary.conteoFisicoUSD.toFixed(2)}</td>
+                    <td colspan="2" class="num-bs">Bs. ${summary.conteoFisicoBs.toFixed(2)}</td>
+                    <td colspan="2">Reportado por cajero</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Fondo Base para Próximo Turno</td>
+                    <td colspan="2" class="num-usd">$${summary.montoInicialSiguienteUSD.toFixed(2)}</td>
+                    <td colspan="2" class="num-bs">-</td>
+                    <td colspan="2">Efectivo reservado en gaveta</td>
+                </tr>
+                <tr><td colspan="${colCount}" style="height:12px;"></td></tr>
+
+                <tr><td colspan="${colCount}" class="section-header">2. RESUMEN DE COBROS POR TIPO DE MÉTODO DE PAGO</td></tr>
+                <tr style="background:#003366; color:#ffffff; font-weight:bold;">
+                    <td colspan="3" style="color:#ffffff;">Tipo de Método de Pago</td>
+                    <td colspan="2" style="text-align:center; color:#ffffff;">N° Operaciones</td>
+                    <td colspan="1" style="text-align:right; color:#ffffff;">Total ($ USD)</td>
+                    <td colspan="2" style="text-align:right; color:#ffffff;">Total Bolívares (Bs.)</td>
+                </tr>
+                ${Object.keys(methodTotals).map(k => {
+                    const m = methodTotals[k];
+                    return `
+                    <tr>
+                        <td colspan="3"><b>${m.label}</b></td>
+                        <td colspan="2" style="text-align:center;">${m.count}</td>
+                        <td colspan="1" class="num-usd">$${m.totalUSD.toFixed(2)}</td>
+                        <td colspan="2" class="num-bs">Bs. ${m.totalBs.toFixed(2)}</td>
+                    </tr>`;
+                }).join('')}
+                <tr style="background:#f8fafc; font-weight:bold;">
+                    <td colspan="3">TOTAL POR MÉTODOS DE PAGO</td>
+                    <td colspan="2" style="text-align:center;">${summary.totalVentasCount}</td>
+                    <td colspan="1" class="num-usd">$${summary.totalCobradoUSD.toFixed(2)}</td>
+                    <td colspan="2" class="num-bs">Bs. ${summary.totalCobradoBs.toFixed(2)}</td>
+                </tr>
+                <tr><td colspan="${colCount}" style="height:12px;"></td></tr>
+
+                <tr><td colspan="${colCount}" class="section-header">3. CONCILIACIÓN DE INGRESOS POR BANCO EMISOR</td></tr>
+                <tr style="background:#003366; color:#ffffff; font-weight:bold;">
+                    <td colspan="3" style="color:#ffffff;">Banco Emisor / Receptor</td>
+                    <td colspan="2" style="text-align:center; color:#ffffff;">Operaciones</td>
+                    <td colspan="2" style="text-align:right; color:#ffffff;">Total Bolívares (Bs.)</td>
+                    <td colspan="1" style="text-align:right; color:#ffffff;">Equivalente ($ USD)</td>
+                </tr>
+                ${Object.keys(bankTotals).map(b => {
+                    const bk = bankTotals[b];
+                    return `
+                    <tr>
+                        <td colspan="3"><b>${b}</b></td>
+                        <td colspan="2" style="text-align:center;">${bk.count} trans.</td>
+                        <td colspan="2" class="num-bs">Bs. ${bk.totalBs.toFixed(2)}</td>
+                        <td colspan="1" class="num-usd">$${bk.totalUSD.toFixed(2)}</td>
+                    </tr>`;
+                }).join('')}
+                <tr><td colspan="${colCount}" style="height:12px;"></td></tr>
+
+                <tr><td colspan="${colCount}" class="section-header">4. RELACIÓN DETALLADA DE FACTURAS Y NOTAS DEL TURNO</td></tr>
+                <tr style="background:#003366; color:#ffffff; font-weight:bold;">
+                    <th style="color:#ffffff;">Comprobante</th>
+                    <th style="color:#ffffff;">Hora</th>
+                    <th style="color:#ffffff;">Cliente</th>
+                    <th style="color:#ffffff;">RIF / CI</th>
+                    <th style="color:#ffffff;">Método de Pago</th>
+                    <th style="color:#ffffff;">Banco Emisor</th>
+                    <th style="color:#ffffff; text-align:right;">Total ($ USD)</th>
+                    <th style="color:#ffffff; text-align:right;">Total (Bs.)</th>
+                </tr>
+                ${sales.map(s => {
+                    const isVoid = !!s.anulada;
+                    const u = parseFloat(s.totalUSD) || 0;
+                    const b = parseFloat(s.totalBs) || (u * (parseFloat(settings.tasaBCV) || 917.78));
+                    const cust = s.cliente || {};
+                    let payMethod = 'Efectivo USD';
+                    let bank = s.banco || '-';
+                    if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
+                        payMethod = s.metodosPago[0].metodo || payMethod;
+                        bank = s.metodosPago[0].banco || bank;
+                    }
+                    return `
+                    <tr style="${isVoid ? 'color:#94a3b8; text-decoration:line-through;' : ''}">
+                        <td style="text-align:center;"><b>${s.id}</b></td>
+                        <td style="text-align:center;">${s.horaStr || '-'}</td>
+                        <td>${cust.nombre || 'Cliente Mostrador'}</td>
+                        <td>${cust.rif || '-'}</td>
+                        <td>${payMethod}</td>
+                        <td>${bank}</td>
+                        <td class="num-usd">${isVoid ? 'ANULADA' : '$' + u.toFixed(2)}</td>
+                        <td class="num-bs">${isVoid ? 'ANULADA' : 'Bs. ' + b.toFixed(2)}</td>
+                    </tr>`;
+                }).join('')}
+                <tr><td colspan="${colCount}" style="height:20px;"></td></tr>
+
+                <tr>
+                    <td colspan="4" style="text-align:center; padding-top:30px; border-top:1pt solid #0f172a;">
+                        <b>Cajero(a) Responsable:</b><br>${shift.usuario || 'MASTER'}<br><span style="font-size:9pt; color:#64748b;">Firma y Huella Dactilar</span>
+                    </td>
+                    <td colspan="4" style="text-align:center; padding-top:30px; border-top:1pt solid #0f172a;">
+                        <b>Gerencia / Administración Central MASTER:</b><br>NOVA REFRIMOTORS C.A.<br><span style="font-size:9pt; color:#64748b;">Firma y Sello de Validación</span>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob([excelDoc], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const filename = `NOVA_CierreCaja_CorteZ_${shift.id}_${new Date().toISOString().slice(0, 10)}.xls`;
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
     showNovaAlert({
-        title: "¡Arqueo Completado!",
-        message: "El turno ha sido cerrado con conciliación bancaria y se ha abierto automáticamente el nuevo ciclo de caja.",
+        title: "Archivo Excel Descargado",
+        message: `El archivo "${filename}" se ha descargado con éxito en su computadora.`,
         type: "success"
     });
+}
+
+function printShiftClosingPDF(shiftOrId) {
+    const data = getShiftClosingReportData(shiftOrId);
+    if (!data) {
+        showNovaAlert({ title: "Error", message: "No se encontraron datos del turno solicitado para generar PDF.", type: "danger" });
+        return;
+    }
+
+    const { shift, sales, methodTotals, bankTotals, summary, settings } = data;
+    const nowStr = new Date().toLocaleDateString('es-VE') + ' ' + new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const html = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Corte Z - Cierre de Caja ${shift.id} - NOVA RefriMotors</title>
+            <style>
+                @page { size: letter portrait; margin: 12mm 15mm; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                    font-size: 11px;
+                    line-height: 1.4;
+                    color: #0f172a;
+                    background: #ffffff;
+                    margin: 0;
+                    padding: 0;
+                }
+                .corte-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 2px solid #003366;
+                    padding-bottom: 12px;
+                    margin-bottom: 14px;
+                }
+                .company-name {
+                    font-size: 20px;
+                    font-weight: 900;
+                    color: #003366;
+                    letter-spacing: -0.5px;
+                }
+                .company-sub {
+                    font-size: 10px;
+                    color: #475569;
+                    margin-top: 2px;
+                }
+                .corte-title-badge {
+                    text-align: right;
+                }
+                .badge-z {
+                    display: inline-block;
+                    background: #003366;
+                    color: #ffffff;
+                    font-size: 13px;
+                    font-weight: 800;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                }
+                .meta-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 8px;
+                    background: #f8fafc;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 6px;
+                    padding: 10px;
+                    margin-bottom: 14px;
+                }
+                .meta-item-label {
+                    font-size: 9px;
+                    text-transform: uppercase;
+                    color: #64748b;
+                    font-weight: 700;
+                }
+                .meta-item-val {
+                    font-size: 12px;
+                    font-weight: 800;
+                    color: #0f172a;
+                }
+                .kpi-row {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 10px;
+                    margin-bottom: 14px;
+                }
+                .kpi-box {
+                    background: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 6px;
+                    padding: 10px;
+                    border-top: 3px solid #003366;
+                }
+                .kpi-box-title {
+                    font-size: 9px;
+                    text-transform: uppercase;
+                    font-weight: 800;
+                    color: #64748b;
+                }
+                .kpi-box-amount {
+                    font-size: 16px;
+                    font-weight: 900;
+                    color: #003366;
+                    margin: 3px 0 1px 0;
+                }
+                .kpi-box-sub {
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: #475569;
+                }
+                h3.sec-title {
+                    font-size: 12px;
+                    font-weight: 800;
+                    color: #003366;
+                    text-transform: uppercase;
+                    border-bottom: 1px solid #cbd5e1;
+                    padding-bottom: 4px;
+                    margin: 14px 0 8px 0;
+                }
+                table.corte-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10.5px;
+                    margin-bottom: 12px;
+                }
+                table.corte-table th {
+                    background: #003366;
+                    color: #ffffff;
+                    font-weight: 700;
+                    text-align: left;
+                    padding: 6px 8px;
+                    border: 1px solid #003366;
+                }
+                table.corte-table td {
+                    padding: 5px 8px;
+                    border: 1px solid #e2e8f0;
+                }
+                table.corte-table tr:nth-child(even) {
+                    background: #f8fafc;
+                }
+                .signatures {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 40px;
+                    margin-top: 30px;
+                    padding-top: 10px;
+                }
+                .sig-line {
+                    border-top: 1px solid #0f172a;
+                    text-align: center;
+                    padding-top: 6px;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="corte-header">
+                <div>
+                    <div class="company-name">NOVA REFRIMOTORS C.A.</div>
+                    <div class="company-sub">RIF: J-504401994 &bull; Galpón al lado del Estacionamiento Centro Clínico, Av. Carabobo, Cabimas, Zulia</div>
+                    <div class="company-sub">TELF: +58 424-6192394 &bull; Sistema Integrado de Control y Arqueo Fiscal</div>
+                </div>
+                <div class="corte-title-badge">
+                    <span class="badge-z">${shift.estado === 'cerrada' ? 'CORTE Z DE CAJA' : 'CORTE X PARCIAL'}</span>
+                    <div style="font-size:11px; font-weight:800; color:#0f172a;">${shift.id}</div>
+                    <div style="font-size:9.5px; color:#64748b;">Emisión: ${nowStr}</div>
+                </div>
+            </div>
+
+            <div class="meta-grid">
+                <div>
+                    <div class="meta-item-label">Cajero(a) Responsable:</div>
+                    <div class="meta-item-val">${shift.usuario || 'MASTER'}</div>
+                </div>
+                <div>
+                    <div class="meta-item-label">Tasa Oficial BCV:</div>
+                    <div class="meta-item-val">Bs. ${settings.tasaBCV}</div>
+                </div>
+                <div>
+                    <div class="meta-item-label">Apertura de Turno:</div>
+                    <div class="meta-item-val">${formatDateTimeSafe(shift.fechaApertura)}</div>
+                </div>
+                <div>
+                    <div class="meta-item-label">Cierre de Turno:</div>
+                    <div class="meta-item-val">${formatDateTimeSafe(shift.fechaCierre || new Date().toISOString())}</div>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi-box">
+                    <div class="kpi-box-title">Total Cobrado (Sistema)</div>
+                    <div class="kpi-box-amount">$${summary.totalCobradoUSD.toFixed(2)}</div>
+                    <div class="kpi-box-sub">Bs. ${summary.totalCobradoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-box-title">Efectivo Físico Gaveta ($)</div>
+                    <div class="kpi-box-amount" style="color:#15803d;">$${summary.conteoFisicoUSD.toFixed(2)}</div>
+                    <div class="kpi-box-sub">Arqueo contado real</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-box-title">Efectivo Físico Gaveta (Bs)</div>
+                    <div class="kpi-box-amount" style="color:#15803d;">Bs. ${summary.conteoFisicoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div class="kpi-box-sub">Arqueo contado real</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-box-title">Fondo Próximo Turno</div>
+                    <div class="kpi-box-amount" style="color:#0284c7;">$${summary.montoInicialSiguienteUSD.toFixed(2)}</div>
+                    <div class="kpi-box-sub">Base caja chica</div>
+                </div>
+            </div>
+
+            <h3 class="sec-title">1. Resumen de Cobros por Tipo de Método de Pago</h3>
+            <table class="corte-table">
+                <thead>
+                    <tr>
+                        <th>Método de Pago</th>
+                        <th style="text-align:center;">N° Transacciones</th>
+                        <th style="text-align:right;">Total Divisas ($ USD)</th>
+                        <th style="text-align:right;">Total Bolívares (Bs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.keys(methodTotals).map(k => {
+                        const m = methodTotals[k];
+                        return `
+                        <tr>
+                            <td><b>${m.label}</b></td>
+                            <td style="text-align:center;">${m.count}</td>
+                            <td style="text-align:right; font-weight:700;">$${m.totalUSD.toFixed(2)}</td>
+                            <td style="text-align:right; font-weight:700;">Bs. ${m.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f1f5f9; font-weight:800;">
+                        <td>TOTAL RECAUDADO</td>
+                        <td style="text-align:center;">${summary.totalVentasCount}</td>
+                        <td style="text-align:right; color:#003366;">$${summary.totalCobradoUSD.toFixed(2)}</td>
+                        <td style="text-align:right; color:#003366;">Bs. ${summary.totalCobradoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <h3 class="sec-title">2. Conciliación de Ingresos por Banco Emisor</h3>
+            <table class="corte-table">
+                <thead>
+                    <tr>
+                        <th>Banco Emisor Receptor</th>
+                        <th style="text-align:center;">Operaciones</th>
+                        <th style="text-align:right;">Total Bolívares (Bs.)</th>
+                        <th style="text-align:right;">Equivalente ($ USD)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.keys(bankTotals).map(b => {
+                        const bk = bankTotals[b];
+                        return `
+                        <tr>
+                            <td><b>${b}</b></td>
+                            <td style="text-align:center;">${bk.count} trans.</td>
+                            <td style="text-align:right; font-weight:700;">Bs. ${bk.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align:right; font-weight:700;">$${bk.totalUSD.toFixed(2)}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+
+            <h3 class="sec-title">3. Detalle de Comprobantes Emitidos en el Turno (${sales.length} registros)</h3>
+            <table class="corte-table">
+                <thead>
+                    <tr>
+                        <th>Comprobante</th>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Método</th>
+                        <th>Banco</th>
+                        <th style="text-align:right;">Total ($ USD)</th>
+                        <th style="text-align:right;">Total (Bs.)</th>
+                        <th style="text-align:center;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sales.map(s => {
+                        const isVoid = !!s.anulada;
+                        const u = parseFloat(s.totalUSD) || 0;
+                        const b = parseFloat(s.totalBs) || (u * (parseFloat(settings.tasaBCV) || 917.78));
+                        const cust = s.cliente || {};
+                        let payMethod = 'Efectivo USD';
+                        let bank = s.banco || '-';
+                        if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
+                            payMethod = s.metodosPago[0].metodo || payMethod;
+                            bank = s.metodosPago[0].banco || bank;
+                        }
+                        return `
+                        <tr style="${isVoid ? 'color:#94a3b8; text-decoration:line-through;' : ''}">
+                            <td style="font-weight:700;">${s.id}</td>
+                            <td>${s.horaStr || '-'}</td>
+                            <td>${cust.nombre || 'Cliente Mostrador'}</td>
+                            <td>${payMethod}</td>
+                            <td>${bank}</td>
+                            <td style="text-align:right; font-weight:700;">$${u.toFixed(2)}</td>
+                            <td style="text-align:right; font-weight:700;">Bs. ${b.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="text-align:center;">${isVoid ? '<span style="color:#b91c1c; font-weight:700;">ANULADA</span>' : '<span style="color:#15803d; font-weight:700;">COBRADA</span>'}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+
+            <div class="signatures">
+                <div class="sig-line">
+                    <b>Cajero(a) Responsable:</b><br>${shift.usuario || 'MASTER'}<br><span style="font-weight:normal; color:#64748b;">Firma y Huella Dactilar</span>
+                </div>
+                <div class="sig-line">
+                    <b>Gerencia General MASTER:</b><br>NOVA REFRIMOTORS C.A.<br><span style="font-weight:normal; color:#64748b;">Firma y Sello Administrativo</span>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    let iframe = document.getElementById('reportPrintHiddenIframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'reportPrintHiddenIframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+    }
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    }, 250);
+}
+
+function downloadCurrentReconciliationExcel() {
+    downloadShiftClosingExcel('active');
+}
+
+function printCurrentReconciliationPDF() {
+    printShiftClosingPDF('active');
+}
+
+function downloadClosedShiftExcel(shiftId) {
+    const id = shiftId || (window._lastClosedShift ? window._lastClosedShift.id : 'active');
+    downloadShiftClosingExcel(id);
+}
+
+function downloadClosedShiftPDF(shiftId) {
+    const id = shiftId || (window._lastClosedShift ? window._lastClosedShift.id : 'active');
+    printShiftClosingPDF(id);
+}
+
+function openClosedShiftSuccessModal(closedShift) {
+    const detailsEl = document.getElementById('closedShiftSuccessDetails');
+    if (detailsEl && closedShift) {
+        const u = (typeof closedShift.totalVentasUSD === 'number') ? closedShift.totalVentasUSD : 0;
+        const b = (typeof closedShift.totalVentasBs === 'number') ? closedShift.totalVentasBs : 0;
+        const count = Array.isArray(closedShift.ventasIds) ? closedShift.ventasIds.length : 0;
+        const arqueo = closedShift.arqueoFisico || {};
+        detailsEl.innerHTML = `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div><span style="color:var(--text-muted); font-size:11px;">Comprobante de Cierre:</span><div style="font-weight:800; font-size:13px; color:var(--primary);">${closedShift.id}</div></div>
+                <div><span style="color:var(--text-muted); font-size:11px;">Fecha de Cierre:</span><div style="font-weight:700;">${formatDateTimeSafe(closedShift.fechaCierre)}</div></div>
+                <div><span style="color:var(--text-muted); font-size:11px;">Total Cobrado (Sistema):</span><div style="font-weight:800; font-size:14px; color:#15803d;">$${u.toFixed(2)} (Bs. ${b.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div></div>
+                <div><span style="color:var(--text-muted); font-size:11px;">Operaciones Cobradas:</span><div style="font-weight:700;">${count} ventas</div></div>
+                <div><span style="color:var(--text-muted); font-size:11px;">Efectivo Gaveta ($ USD):</span><div style="font-weight:800; color:#0f172a;">$${(arqueo.conteoFisicoUSD || 0).toFixed(2)}</div></div>
+                <div><span style="color:var(--text-muted); font-size:11px;">Efectivo Gaveta (Bs):</span><div style="font-weight:800; color:#0f172a;">Bs. ${(arqueo.conteoFisicoBs || 0).toFixed(2)}</div></div>
+            </div>
+        `;
+    }
+    openModal('closedShiftSuccessModal');
+}
+
+function openShiftHistoryModal() {
+    const shifts = (typeof NovaDB !== 'undefined' && NovaDB.getCashShifts) ? NovaDB.getCashShifts() : [];
+    const container = document.getElementById('shiftHistoryTableContainer');
+    if (!container) return;
+
+    if (shifts.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                <p style="font-weight:700; font-size:14px; color:var(--text-main);">No hay turnos registrados aún en la base de datos.</p>
+            </div>`;
+        openModal('shiftHistoryModal');
+        return;
+    }
+
+    let rowsHtml = '';
+    shifts.forEach((s) => {
+        const isClosed = (s.estado === 'cerrada');
+        const count = Array.isArray(s.ventasIds) ? s.ventasIds.length : 0;
+        const totalUSD = (typeof s.totalVentasUSD === 'number') ? s.totalVentasUSD : (s.totalesPorMetodo ? Object.values(s.totalesPorMetodo).reduce((a, b) => a + (parseFloat(b.totalUSD || b) || 0), 0) : 0);
+        const totalBs = (typeof s.totalVentasBs === 'number') ? s.totalVentasBs : (totalUSD * 917.78);
+        const fecha = s.fechaCierre ? formatDateTimeSafe(s.fechaCierre) : formatDateTimeSafe(s.fechaApertura);
+
+        rowsHtml += `
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:10px 12px; font-weight:800; color:var(--text-main);">
+                    <span class="code-badge" style="font-weight:800; font-size:11px;">${s.id}</span>
+                </td>
+                <td style="padding:10px 12px; font-size:12px; color:var(--text-muted);">${fecha}</td>
+                <td style="padding:10px 12px; font-size:12px; font-weight:700;">${s.usuario || 'MASTER'}</td>
+                <td style="padding:10px 12px; text-align:center; font-size:12px;">${count} ventas</td>
+                <td style="padding:10px 12px; text-align:right; font-weight:800; color:#0f172a; font-size:13px;">$${totalUSD.toFixed(2)}</td>
+                <td style="padding:10px 12px; text-align:right; font-weight:700; color:#475569; font-size:12px;">Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="padding:10px 12px; text-align:center;">
+                    ${isClosed
+                        ? '<span class="badge" style="background:#dcfce7; color:#15803d; font-weight:800; border:1px solid #bbf7d0; font-size:10.5px;">Cerrada (Z)</span>'
+                        : '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:800; border:1px solid #bae6fd; font-size:10.5px;">Turno Activo</span>'}
+                </td>
+                <td style="padding:10px 12px; text-align:right;">
+                    <div style="display:flex; justify-content:flex-end; gap:6px;">
+                        <button type="button" class="header-action-btn btn-secondary-action" style="padding:4px 8px; font-size:11px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;" onclick="printShiftClosingPDF('${s.id}')" title="Imprimir o guardar en PDF">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            PDF
+                        </button>
+                        <button type="button" class="header-action-btn btn-secondary-action" style="padding:4px 8px; font-size:11px; background:#ecfdf5; color:#047857; border-color:#a7f3d0;" onclick="downloadShiftClosingExcel('${s.id}')" title="Descargar en Excel">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                            Excel
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    container.innerHTML = `
+        <table class="data-table" style="width:100%;">
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th>N° Turno (Corte Z)</th>
+                    <th>Fecha / Hora</th>
+                    <th>Cajero</th>
+                    <th style="text-align:center;">Operaciones</th>
+                    <th style="text-align:right;">Total USD</th>
+                    <th style="text-align:right;">Total Bs.</th>
+                    <th style="text-align:center;">Estado</th>
+                    <th style="text-align:right;">Descargas</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
+    `;
+
+    openModal('shiftHistoryModal');
 }
 
 // ==============================================================================

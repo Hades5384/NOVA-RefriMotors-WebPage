@@ -3015,5 +3015,117 @@ body {
     animation: stockin-row-pulse 1.2s ease-out;
 }
 
+/* ==============================================================================
+   FILTRO DE MÉTODOS DE PAGO CON CUADROS E ICONOS SVG (CAJA Y ARQUEO)
+   ============================================================================== */
+.cash-method-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.cash-method-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease-in-out;
+    user-select: none;
+    position: relative;
+    text-align: center;
+}
+
+.cash-method-card:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.cash-method-card.active {
+    border-color: var(--primary, #003366);
+    background: #eff6ff;
+    box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.18);
+}
+
+.cash-method-card .method-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    transition: all 0.18s ease-in-out;
+}
+
+.cash-method-card:hover .method-icon-wrap {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.cash-method-card.active .method-icon-wrap {
+    background: var(--primary, #003366);
+    color: #ffffff;
+}
+
+.cash-method-card .method-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 2px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.cash-method-card.active .method-label {
+    color: var(--primary, #003366);
+    font-weight: 800;
+}
+
+.cash-method-card .method-stats {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+}
+
+.cash-method-card.active .method-stats {
+    color: #0369a1;
+}
+
+.cash-method-card .method-count-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.cash-method-card.active .method-count-badge {
+    background: var(--primary, #003366);
+    color: #ffffff;
+    border-color: var(--primary, #003366);
+}
+
 
 
