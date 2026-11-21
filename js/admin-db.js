@@ -115,9 +115,41 @@ const NovaDB = (function () {
 
         // Inicializar inventario a partir de los 460 productos y variantes
         _syncInitialInventory();
+        _migrateProductDistinctNames();
 
         // Verificar o abrir turno de caja inicial si no existe
         _checkActiveCashShift();
+    }
+
+    function _migrateProductDistinctNames() {
+        let inv = _read('inventory', {});
+        const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+        if (prods.length === 0 || Object.keys(inv).length === 0) return;
+
+        const cleanMap = {};
+        prods.forEach(p => {
+            if (p.variants && Array.isArray(p.variants)) {
+                p.variants.forEach(v => {
+                    if (v && v.id && v.name) cleanMap[v.id] = v.name;
+                });
+            } else if (p.id && p.name) {
+                cleanMap[p.id] = p.name;
+            }
+        });
+
+        let modified = false;
+        Object.keys(inv).forEach(id => {
+            const cleanName = cleanMap[id];
+            if (cleanName && inv[id].name !== cleanName) {
+                inv[id].name = cleanName;
+                modified = true;
+            }
+        });
+
+        if (modified) {
+            _write('inventory', inv);
+            console.log('[NovaDB] Catálogo local actualizado a nombres distintivos.');
+        }
     }
 
     function _syncInitialInventory() {
@@ -137,7 +169,7 @@ const NovaDB = (function () {
                         inv[vCode] = {
                             id: vCode,
                             parentId: p.id,
-                            name: `${p.name} (${v.name})`,
+                            name: v.name || `${p.name} (${v.name})`,
                             category: p.category,
                             stock: 12, // Stock inicial configurable
                             stockMinimo: 3,
@@ -558,6 +590,7 @@ const NovaDB = (function () {
             tasaBCV: saleData.tasaBCV || getSettings().tasaBCV,
             totalUSD: saleData.totalUSD || 0,
             totalBs: saleData.totalBs || 0,
+            banco: saleData.banco || null,
             metodosPago: saleData.metodosPago || [],
             montoPagadoUSD: saleData.montoPagadoUSD || 0,
             montoPagadoBs: saleData.montoPagadoBs || 0,
@@ -873,6 +906,52 @@ const NovaDB = (function () {
         const shift = shifts[idx];
         shift.estado = 'cerrada';
         shift.fechaCierre = new Date().toISOString();
+
+        // Calcular y almacenar el resumen definitivo de cobros por banco receptor y por método
+        const allSales = getSales();
+        const shiftSales = allSales.filter(s => shift.ventasIds && shift.ventasIds.includes(s.id) && !s.anulada && s.tipoDocumento !== 'presupuesto');
+        const totalesPorBanco = {};
+        const totalesPorMetodo = {};
+        let totalVentasUSD = 0;
+        let totalVentasBs = 0;
+
+        shiftSales.forEach(s => {
+            const u = parseFloat(s.totalUSD) || 0;
+            const b = parseFloat(s.totalBs) || 0;
+            totalVentasUSD += u;
+            totalVentasBs += b;
+
+            let bankName = s.banco;
+            if (!bankName && Array.isArray(s.metodosPago) && s.metodosPago.length > 0 && s.metodosPago[0].banco) {
+                bankName = s.metodosPago[0].banco;
+            }
+            if (!bankName) {
+                const m = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) || '';
+                bankName = (m.toLowerCase().includes('efectivo')) ? 'Caja Efectivo' : 'Otros Bancos';
+            }
+
+            if (!totalesPorBanco[bankName]) {
+                totalesPorBanco[bankName] = { count: 0, totalBs: 0, totalUSD: 0 };
+            }
+            totalesPorBanco[bankName].count += 1;
+            totalesPorBanco[bankName].totalBs += b;
+            totalesPorBanco[bankName].totalUSD += u;
+
+            const mName = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) || 'Sin Especificar';
+            if (!totalesPorMetodo[mName]) {
+                totalesPorMetodo[mName] = { count: 0, totalBs: 0, totalUSD: 0 };
+            }
+            totalesPorMetodo[mName].count += 1;
+            totalesPorMetodo[mName].totalBs += b;
+            totalesPorMetodo[mName].totalUSD += u;
+        });
+
+        shift.totalesPorBanco = (reconciliation && reconciliation.totalesPorBanco && Object.keys(reconciliation.totalesPorBanco).length > 0)
+            ? reconciliation.totalesPorBanco
+            : totalesPorBanco;
+        shift.totalesPorMetodo = totalesPorMetodo;
+        shift.totalVentasUSD = totalVentasUSD;
+        shift.totalVentasBs = totalVentasBs;
         shift.arqueoFisico = reconciliation; // Conteo real en gaveta vs sistema
         _write('cash_shifts', shifts);
 
@@ -880,8 +959,8 @@ const NovaDB = (function () {
         const nextShift = {
             id: 'TURNO-' + Date.now().toString().slice(-6),
             fechaApertura: new Date().toISOString(),
-            montoInicialUSD: reconciliation.montoInicialSiguienteUSD || 50.00,
-            montoInicialBs: reconciliation.montoInicialSiguienteBs || 0.00,
+            montoInicialUSD: (reconciliation && reconciliation.montoInicialSiguienteUSD) || 50.00,
+            montoInicialBs: (reconciliation && reconciliation.montoInicialSiguienteBs) || 0.00,
             estado: 'abierta',
             ventasIds: [],
             egresosIds: []

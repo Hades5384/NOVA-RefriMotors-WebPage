@@ -1215,6 +1215,8 @@ function reprintViewDocument(saleId) {
 // ==========================================
 function isDivisaPaymentMethod(method) {
     const m = (method || '').toLowerCase();
+    // Biopago / Patria es estrictamente Moneda Nacional (Bolívares / Tasa BCV)
+    if (m.includes('biopago') || m.includes('patria')) return false;
     return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance');
 }
 
@@ -1222,7 +1224,7 @@ function isDivisaPaymentMethod(method) {
  * Resuelve de forma unificada y estricta los datos de pago y moneda de cualquier venta.
  * En presupuestos nunca hay pago ni es divisa.
  * En facturas y notas de despacho: es divisa SOLAMENTE si el método es explícitamente USD/Zelle/Binance.
- * En pagos en Bolívares (Punto de Venta, Pago Móvil, Transferencia, Efectivo Bs) NUNCA es divisa.
+ * En pagos en Bolívares (Punto de Venta, Pago Móvil, Biopago, Transferencia, Efectivo Bs) NUNCA es divisa.
  */
 function getSalePaymentInfo(sale) {
     if (!sale) return { primaryMethod: '', isUSD: false, refNum: '', methodLabel: '' };
@@ -1262,10 +1264,11 @@ function getSalePaymentInfo(sale) {
 
     const methodLower = primaryMethod.toLowerCase();
     let methodLabel = primaryMethod ? primaryMethod.toUpperCase() : '';
-    if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
+    if (methodLower.includes('biopago') || methodLower.includes('patria')) methodLabel = "BIOPAGO";
+    else if (methodLower.includes('efectivo') && isUSD) methodLabel = "EFECTIVO ($ USD)";
     else if (methodLower.includes('efectivo') && !isUSD) methodLabel = "EFECTIVO (BS)";
     else if (methodLower.includes('punto') || methodLower.includes('débito') || methodLower.includes('debito')) methodLabel = "PUNTO DE VENTA (DEBITO)";
-    else if (methodLower.includes('móvil') || methodLower.includes('movil') || methodLower.includes('biopago')) methodLabel = "PAGO MOVIL (BIOPAGO)";
+    else if (methodLower.includes('móvil') || methodLower.includes('movil')) methodLabel = "PAGO MOVIL";
     else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA BANCARIA";
     else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
     else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
@@ -1282,6 +1285,7 @@ function onDocTypeChange() {
     const isQuote = (docType === 'presupuesto');
 
     const payMethodEl = document.getElementById('coPaymentMethod');
+    const payBankEl = document.getElementById('coPaymentBank');
     const payRefEl = document.getElementById('coPaymentRef');
     const payRowEl = document.getElementById('coPaymentRow');
     const breakdownEl = document.getElementById('coPaymentBreakdownBox');
@@ -1290,6 +1294,7 @@ function onDocTypeChange() {
     const submitBtn = document.getElementById('coSubmitBtn');
 
     if (payMethodEl) payMethodEl.disabled = isQuote;
+    if (payBankEl) payBankEl.disabled = isQuote;
     if (payRefEl) {
         payRefEl.disabled = isQuote;
         if (isQuote) payRefEl.value = '';
@@ -1368,20 +1373,48 @@ function updateCheckoutTotals() {
 }
 
 function onPaymentMethodChange() {
+    const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : '';
+    const bankSelect = document.getElementById('coPaymentBank');
+    if (bankSelect) {
+        if (payMethod === 'Biopago') {
+            bankSelect.value = 'Patria (Biopago)';
+        } else if (payMethod === 'Efectivo USD' || payMethod === 'Efectivo Bs') {
+            bankSelect.value = 'Caja Efectivo';
+        } else if (payMethod === 'Pago Móvil' || payMethod === 'Transferencia' || payMethod === 'Punto de Venta') {
+            if (bankSelect.value === 'Caja Efectivo') {
+                bankSelect.value = 'Banesco';
+            }
+        }
+    }
     updateCheckoutTotals();
 }
 
 function openCheckoutModal() {
     if (posCart.length === 0) return;
 
-    // Precargar cliente en el modal
-    if (posSelectedCustomer) {
-        const nameEl = document.getElementById('coCustName');
-        const rifEl = document.getElementById('coCustRif');
-        const phoneEl = document.getElementById('coCustPhone');
-        if (nameEl) nameEl.value = posSelectedCustomer.nombre || '';
-        if (rifEl) rifEl.value = posSelectedCustomer.rif || '';
-        if (phoneEl) phoneEl.value = posSelectedCustomer.telefono || '';
+    // Precargar cliente en el badge informativo del modal
+    const cust = posSelectedCustomer || { nombre: 'Cliente Mostrador (Contado)', rif: 'V-00000000', telefono: '' };
+    const nameEl = document.getElementById('coCustBadgeName');
+    const rifEl = document.getElementById('coCustBadgeRif');
+    const phoneEl = document.getElementById('coCustBadgePhone');
+    if (nameEl) nameEl.innerText = cust.nombre || 'Cliente Mostrador (Contado)';
+    if (rifEl) rifEl.innerText = `RIF: ${cust.rif || 'V-00000000'}`;
+    if (phoneEl) {
+        if (cust.telefono && cust.telefono.trim()) {
+            phoneEl.innerText = `Telf: ${cust.telefono.trim()}`;
+            phoneEl.style.display = 'inline-block';
+        } else {
+            phoneEl.innerText = '';
+            phoneEl.style.display = 'none';
+        }
+    }
+
+    // Auto-seleccionar banco emisor acorde al método seleccionado
+    const payMethodEl = document.getElementById('coPaymentMethod');
+    const bankEl = document.getElementById('coPaymentBank');
+    if (payMethodEl && bankEl) {
+        if (payMethodEl.value === 'Biopago') bankEl.value = 'Patria (Biopago)';
+        else if (payMethodEl.value.includes('Efectivo')) bankEl.value = 'Caja Efectivo';
     }
 
     // Sincronizar estado de campos de pago según tipo de documento y recalcular montos
@@ -1433,12 +1466,14 @@ function calculateChange() {
 }
 
 async function finalizeSale() {
-    const custName = document.getElementById('coCustName').value.trim() || 'Cliente Mostrador';
-    const custRif = document.getElementById('coCustRif').value.trim() || 'V-00000000';
-    const custPhone = document.getElementById('coCustPhone').value.trim() || '';
+    const cust = posSelectedCustomer || { nombre: 'Cliente Mostrador (Contado)', rif: 'V-00000000', telefono: '', tipo: 'cliente' };
+    const custName = cust.nombre || 'Cliente Mostrador (Contado)';
+    const custRif = cust.rif || 'V-00000000';
+    const custPhone = cust.telefono || '';
     const docType = document.getElementById('coDocType').value;
     const isQuote = (docType === 'presupuesto');
     const payMethod = document.getElementById('coPaymentMethod').value;
+    const payBank = document.getElementById('coPaymentBank') ? document.getElementById('coPaymentBank').value : 'Caja Efectivo';
     const refNum = document.getElementById('coPaymentRef').value.trim();
 
     // Si no es presupuesto (es Factura o Nota de Entrega), validar existencias disponibles antes de cobrar
@@ -1500,7 +1535,7 @@ async function finalizeSale() {
     const originalOrigin = window._currentHeldSaleOrigin;
 
     const saleRecord = {
-        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: 'cliente' },
+        cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: cust.tipo || 'cliente' },
         items: frozenItems,
         tipoPrecio: isUSD ? 'divisas' : 'publico',
         descuentoDivisas: isUSD,
@@ -1508,7 +1543,14 @@ async function finalizeSale() {
         tasaBCV: settings.tasaBCV,
         totalUSD,
         totalBs,
-        metodosPago: isQuote ? [] : [{ metodo: payMethod, montoUSD: totalUSD, montoBs: totalBs, referencia: refNum }],
+        banco: isQuote ? null : payBank,
+        metodosPago: isQuote ? [] : [{
+            metodo: payMethod,
+            montoUSD: totalUSD,
+            montoBs: totalBs,
+            referencia: refNum,
+            banco: payBank
+        }],
         vendedor: originalOrigin ? (originalOrigin.estacion || originalOrigin.vendedor) : activeUser.name,
         cajero: activeUser.name,
         pedIdOriginal: originalOrigin ? originalOrigin.id : null
@@ -1741,7 +1783,7 @@ async function generateInvoiceDocument(sale) {
         // Estimación dinámica de altura (ajusta espacio extra para IVA en factura y Tasa BCV)
         const extraFacturaH = isFactura ? (ivaData && ivaData.exento > 0.005 ? 54 : 38) : (isPresupuesto ? -18 : 0);
         const extraTasaH = (!isUSD) ? 22 : 0;
-        const estimatedH = Math.ceil((435 + extraFacturaH + extraTasaH + ((sale.items ? sale.items.length : 0) * 38) + (PAD * 2)) * SCALE);
+        const estimatedH = Math.ceil((415 + extraFacturaH + extraTasaH + ((sale.items ? sale.items.length : 0) * 38) + (PAD * 2)) * SCALE);
         canvas.width = WIDTH;
         canvas.height = estimatedH;
 
@@ -1914,20 +1956,6 @@ async function generateInvoiceDocument(sale) {
             ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
         }
         curY += 18 * SCALE;
-
-        // FORMA DE PAGO UTILIZADA (OCULTA SI ES PRESUPUESTO)
-        if (!isPresupuesto && methodLabel) {
-            ctx.font = `bold ${11.5 * SCALE}px ${FONT_MONO}`;
-            ctx.textAlign = 'left';
-            ctx.fillText(methodLabel, PAD, curY);
-            ctx.textAlign = 'right';
-            if (isUSD) {
-                ctx.fillText(`$${sale.totalUSD.toFixed(2)}`, WIDTH - PAD, curY);
-            } else {
-                ctx.fillText(`Bs. ${sale.totalBs.toFixed(2)}`, WIDTH - PAD, curY);
-            }
-            curY += 18 * SCALE;
-        }
 
         // TOTAL PRODUCTOS
         ctx.font = `bold ${12 * SCALE}px ${FONT_MONO}`;
@@ -2270,13 +2298,6 @@ function buildThermal58mmHTML(sale) {
             <span class="nowrap">${totalFormatted}</span>
         </div>
 
-        ${!isPresupuesto && methodLabel ? `
-        <div class="row">
-            <span>${_escThermal(methodLabel)}</span>
-            <span class="nowrap">${totalFormatted}</span>
-        </div>
-        ${refNum ? `<div class="row-wrap"><b>REF:</b> ${_escThermal(refNum)}</div>` : ''}
-        ` : ''}
         <div class="row">
             <span>${isPresupuesto ? 'PRODUCTOS COTIZADOS:' : 'PRODUCTOS VENDIDOS:'}</span>
             <span>${totalProductosVendidos}</span>
@@ -3613,7 +3634,7 @@ function isPaymentNational(sale) {
     if (Array.isArray(sale.metodosPago) && sale.metodosPago.length > 0) {
         const first = sale.metodosPago[0];
         const m = String((typeof first === 'object' && first) ? (first.metodo || first.name || '') : first).toLowerCase();
-        if (m.includes('punto') || m.includes('pago móvil') || m.includes('pago movil') || m.includes('transferencia') || m.includes('bs') || m.includes('bolívares') || m.includes('bolivares')) {
+        if (m.includes('punto') || m.includes('pago móvil') || m.includes('pago movil') || m.includes('biopago') || m.includes('patria') || m.includes('transferencia') || m.includes('bs') || m.includes('bolívares') || m.includes('bolivares')) {
             return true;
         }
         if (m.includes('usd') || m.includes('dólar') || m.includes('dolar') || m.includes('zelle') || m.includes('binance') || m.includes('$')) {
@@ -3739,6 +3760,10 @@ function renderCashSalesTable(shiftSales) {
         if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
             const m = String(s.metodosPago[0].metodo || s.metodosPago[0] || '');
             payBadge = m;
+            const b = s.banco || s.metodosPago[0].banco;
+            if (b && b !== 'Caja Efectivo') {
+                payBadge += ` (${b})`;
+            }
             if (isPaymentNational(s)) {
                 payBadgeStyle = 'background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;';
             }
@@ -4305,28 +4330,122 @@ function openCashReconciliationModal() {
     const active = NovaDB.getActiveShift();
     if (!active) return;
 
-    const sales = NovaDB.getSales().filter(s => active.ventasIds && active.ventasIds.includes(s.id) && !s.anulada);
-    const totalUSD = sales.reduce((acc, s) => acc + s.totalUSD, 0);
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78 };
+    const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
 
-    const recEl = document.getElementById('recExpectedUSD');
-    if (recEl) recEl.innerText = `$${totalUSD.toFixed(2)}`;
+    const sales = NovaDB.getSales().filter(s => active.ventasIds && active.ventasIds.includes(s.id) && !s.anulada && s.tipoDocumento !== 'presupuesto');
+    
+    let totalUSD = 0;
+    let totalBs = 0;
+    const bankTotals = {};
+
+    sales.forEach(s => {
+        const u = parseFloat(s.totalUSD) || 0;
+        const b = (parseFloat(s.totalBs) && !isNaN(s.totalBs)) ? parseFloat(s.totalBs) : (u * bcvRate);
+        totalUSD += u;
+        totalBs += b;
+
+        let bankName = s.banco;
+        if (!bankName && Array.isArray(s.metodosPago) && s.metodosPago.length > 0 && s.metodosPago[0].banco) {
+            bankName = s.metodosPago[0].banco;
+        }
+        if (!bankName) {
+            const m = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) || '';
+            bankName = m.toLowerCase().includes('efectivo') ? 'Caja Efectivo' : 'Otros Bancos';
+        }
+
+        if (!bankTotals[bankName]) {
+            bankTotals[bankName] = { count: 0, totalBs: 0, totalUSD: 0 };
+        }
+        bankTotals[bankName].count += 1;
+        bankTotals[bankName].totalBs += b;
+        bankTotals[bankName].totalUSD += u;
+    });
+
+    window._currentShiftBankTotals = bankTotals;
+
+    const recUSD = document.getElementById('recExpectedUSD');
+    const recBs = document.getElementById('recExpectedBs');
+    if (recUSD) recUSD.innerText = `$${totalUSD.toFixed(2)}`;
+    if (recBs) recBs.innerText = `Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const bankContainer = document.getElementById('recBankBreakdownContainer');
+    if (bankContainer) {
+        const bankKeys = Object.keys(bankTotals);
+        if (bankKeys.length === 0) {
+            bankContainer.innerHTML = `
+                <div style="padding:16px; text-align:center; color:var(--text-muted); font-size:12px;">
+                    No se han registrado cobranzas con bancos en este turno aún.
+                </div>`;
+        } else {
+            let tableHtml = `
+                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:1px solid var(--border-color); color:var(--text-muted); text-align:left;">
+                            <th style="padding:8px 12px; font-weight:700;">Banco Emisor</th>
+                            <th style="padding:8px 12px; text-align:center; font-weight:700;">Operaciones</th>
+                            <th style="padding:8px 12px; text-align:right; font-weight:700;">Total Bolívares (Bs)</th>
+                            <th style="padding:8px 12px; text-align:right; font-weight:700;">Equivalente ($ USD)</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            bankKeys.forEach(bank => {
+                const bData = bankTotals[bank];
+                const isCash = bank.toLowerCase().includes('caja');
+                const badgeBg = isCash ? '#f1f5f9' : '#eff6ff';
+                const badgeColor = isCash ? '#475569' : '#1d4ed8';
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:8px 12px; font-weight:700;">
+                            <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:${badgeBg}; color:${badgeColor}; font-weight:800;">
+                                ${bank}
+                            </span>
+                        </td>
+                        <td style="padding:8px 12px; text-align:center; color:var(--text-muted);">${bData.count} trans.</td>
+                        <td style="padding:8px 12px; text-align:right; font-weight:700; color:var(--text-main);">Bs. ${bData.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style="padding:8px 12px; text-align:right; font-weight:800; color:var(--primary);">$${bData.totalUSD.toFixed(2)}</td>
+                    </tr>`;
+            });
+            tableHtml += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f8fafc; border-top:2px solid var(--border-color); font-weight:800;">
+                            <td style="padding:8px 12px;" colspan="2">TOTAL CONCILIADO POR BANCO EMISOR</td>
+                            <td style="padding:8px 12px; text-align:right; color:var(--text-main);">Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="padding:8px 12px; text-align:right; color:var(--primary);">$${totalUSD.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+            bankContainer.innerHTML = tableHtml;
+        }
+    }
+
+    // Limpiar campos de conteo para nuevo arqueo
+    const inputUSD = document.getElementById('recCountedUSD');
+    const inputBs = document.getElementById('recCountedBs');
+    if (inputUSD) inputUSD.value = '';
+    if (inputBs) inputBs.value = '';
+
     openModal('reconciliationModal');
 }
 
 function submitCashReconciliation() {
     const countedUSD = parseFloat(document.getElementById('recCountedUSD')?.value) || 0;
+    const countedBs = parseFloat(document.getElementById('recCountedBs')?.value) || 0;
     const nextUSD = parseFloat(document.getElementById('recNextShiftUSD')?.value) || 50;
 
     NovaDB.closeActiveShift({
         conteoFisicoUSD: countedUSD,
-        montoInicialSiguienteUSD: nextUSD
+        conteoFisicoBs: countedBs,
+        montoInicialSiguienteUSD: nextUSD,
+        totalesPorBanco: window._currentShiftBankTotals || {}
     });
 
     closeModal('reconciliationModal');
     renderCashView();
     showNovaAlert({
         title: "¡Arqueo Completado!",
-        message: "El turno ha sido cerrado y se ha abierto automáticamente el nuevo ciclo de caja.",
+        message: "El turno ha sido cerrado con conciliación bancaria y se ha abierto automáticamente el nuevo ciclo de caja.",
         type: "success"
     });
 }

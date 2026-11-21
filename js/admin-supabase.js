@@ -657,10 +657,23 @@ const NovaSupabase = (function () {
                 // En tablas relacionales con primary key 'id', usamos upsert
                 // para garantizar idempotencia total y evitar bloqueos por clave duplicada (23505).
                 if (item.action === 'insert' || item.action === 'upsert') {
-                    const { error } = await _client.from(item.table).upsert([item.data], { onConflict: 'id' });
+                    let { error } = await _client.from(item.table).upsert([item.data], { onConflict: 'id' });
+                    // Tolerancia si la columna 'direccion' aún no ha sido agregada en la tabla clientes de Supabase
+                    if (error && item.table === 'clientes' && item.data && item.data.direccion && (error.code === 'PGRST204' || (error.message && error.message.includes('direccion')))) {
+                        const sanitized = Object.assign({}, item.data);
+                        delete sanitized.direccion;
+                        const retryRes = await _client.from(item.table).upsert([sanitized], { onConflict: 'id' });
+                        error = retryRes.error;
+                    }
                     err = error;
                 } else if (item.action === 'update') {
-                    const { error } = await _client.from(item.table).update(item.data).eq('id', item.data.id);
+                    let { error } = await _client.from(item.table).update(item.data).eq('id', item.data.id);
+                    if (error && item.table === 'clientes' && item.data && item.data.direccion && (error.code === 'PGRST204' || (error.message && error.message.includes('direccion')))) {
+                        const sanitized = Object.assign({}, item.data);
+                        delete sanitized.direccion;
+                        const retryRes = await _client.from(item.table).update(sanitized).eq('id', item.data.id);
+                        error = retryRes.error;
+                    }
                     err = error;
                 } else if (item.action === 'delete') {
                     const { error } = await _client.from(item.table).delete().eq('id', item.data.id);
@@ -807,7 +820,7 @@ const NovaSupabase = (function () {
                                 missingRows.push({
                                     id: skuId,
                                     parent_id: v ? p.id : null,
-                                    nombre: (localItem && localItem.name) ? localItem.name : (v ? `${p.name} (${v.name})` : p.name),
+                                    nombre: (localItem && localItem.name) ? localItem.name : (v ? v.name : p.name),
                                     categoria: (localItem && localItem.category) ? localItem.category : (p.category || "General"),
                                     modelo: p.model || null,
                                     descripcion: (localItem && (localItem.descripcionDetallada || localItem.description)) || p.desc || null,
@@ -877,7 +890,7 @@ const NovaSupabase = (function () {
                     rowsMap.set(v.id, {
                         id: v.id,
                         parent_id: p.id,
-                        nombre: (localItem && localItem.name) ? localItem.name : `${p.name} (${v.name})`,
+                        nombre: (localItem && localItem.name) ? localItem.name : v.name,
                         categoria: (localItem && localItem.category) ? localItem.category : (p.category || "General"),
                         modelo: p.model || null,
                         descripcion: (localItem && (localItem.descripcionDetallada || localItem.description)) ? (localItem.descripcionDetallada || localItem.description) : (p.desc || null),
@@ -975,7 +988,7 @@ const NovaSupabase = (function () {
         if (typeof NovaDB !== 'undefined') {
             const customers = NovaDB.getCustomers();
             if (customers && customers.length > 0) {
-                await _client.from('clientes').upsert(customers.map(c => ({
+                const custRows = customers.map(c => ({
                     id: c.id,
                     nombre: c.nombre,
                     rif: c.rif,
@@ -983,7 +996,12 @@ const NovaSupabase = (function () {
                     direccion: c.direccion || '',
                     tipo: c.tipo || 'cliente',
                     notas: c.notas
-                })), { onConflict: 'id' });
+                }));
+                const { error: custUpErr } = await _client.from('clientes').upsert(custRows, { onConflict: 'id' });
+                if (custUpErr && (custUpErr.code === 'PGRST204' || (custUpErr.message && custUpErr.message.includes('direccion')))) {
+                    custRows.forEach(r => delete r.direccion);
+                    await _client.from('clientes').upsert(custRows, { onConflict: 'id' });
+                }
             }
 
             const suppliers = NovaDB.getSuppliers();
@@ -1097,11 +1115,12 @@ const NovaSupabase = (function () {
         const ivaVal = (typeof specs.iva === 'number') ? specs.iva : (prevItem?.iva ?? 16);
         const precioFinal = parseFloat(r.precio_novacliente) || +(cost * (1 + util / 100) * (1 + ivaVal / 100)).toFixed(2);
         const detailedDesc = r.descripcion || '';
+        const catalogCleanName = _findCleanCatalogName(r.id);
 
         return Object.assign({}, prevItem || {}, {
             id: r.id,
             parentId: r.parent_id || (prevItem ? prevItem.parentId : null),
-            name: r.nombre || (prevItem ? prevItem.name : r.id),
+            name: catalogCleanName || r.nombre || (prevItem ? prevItem.name : r.id),
             descripcionDetallada: detailedDesc,
             description: detailedDesc,
             category: r.categoria || (prevItem ? prevItem.category : 'General'),
@@ -1113,6 +1132,20 @@ const NovaSupabase = (function () {
             stockMinimo: parseInt(r.stock_minimo) || (prevItem ? prevItem.stockMinimo : 3),
             ubicacion: r.ubicacion || (prevItem ? prevItem.ubicacion : 'Almacén Central')
         });
+    }
+
+    function _findCleanCatalogName(id) {
+        if (typeof window.products === 'undefined' || !Array.isArray(window.products)) return null;
+        for (let i = 0; i < window.products.length; i++) {
+            const p = window.products[i];
+            if (p.variants && Array.isArray(p.variants)) {
+                const v = p.variants.find(x => x && x.id === id);
+                if (v && v.name) return v.name;
+            } else if (p.id === id && p.name) {
+                return p.name;
+            }
+        }
+        return null;
     }
 
     function _syncMemoryProductsFromInv(inv, remoteRowsById) {
@@ -1127,7 +1160,7 @@ const NovaSupabase = (function () {
                 p.variants.forEach(v => {
                     if (inv[v.id]) {
                         const item = inv[v.id];
-                        v.name = item.name;
+                        if (!v.name || v.name === v.id) v.name = item.name;
                         v.descripcionDetallada = item.descripcionDetallada || '';
                         v.description = item.descripcionDetallada || '';
                         v.costoCompra = item.costoCompra;
@@ -1308,7 +1341,7 @@ const NovaSupabase = (function () {
             // 2. CLIENTES (CRM)
             const { data: remoteCust, error: custErr } = await _client
                 .from('clientes')
-                .select('id, nombre, rif, telefono, direccion, tipo, notas')
+                .select('*')
                 .order('id', { ascending: true });
 
             if (!custErr && Array.isArray(remoteCust)) {
@@ -1627,15 +1660,18 @@ const NovaSupabase = (function () {
             await _client.from('movimientos_stock').delete().neq('id', 0);
             await _client.from('clientes').delete().neq('id', 'CLI-001');
 
-            await _client.from('clientes').upsert([{
+            const defCustRow = {
                 id: "CLI-001",
                 nombre: "Cliente Mostrador (Contado)",
                 rif: "V-00000000",
                 telefono: "0424-0000000",
-                direccion: "Cabimas, Edo. Zulia",
                 tipo: "cliente",
                 notas: "Cliente general"
-            }], { onConflict: 'id' });
+            };
+            const { error: purgeCustErr } = await _client.from('clientes').upsert([Object.assign({ direccion: "Cabimas, Edo. Zulia" }, defCustRow)], { onConflict: 'id' });
+            if (purgeCustErr && (purgeCustErr.code === 'PGRST204' || (purgeCustErr.message && purgeCustErr.message.includes('direccion')))) {
+                await _client.from('clientes').upsert([defCustRow], { onConflict: 'id' });
+            }
 
             clearQueue();
             console.log("[NovaSupabase] Purga en la nube finalizada con éxito.");

@@ -797,68 +797,90 @@
                     </div>
                 </div>
 
-                <div class="form-row-2">
-                    <div class="form-group">
-                        <label>Nombre del Cliente:</label>
-                        <input type="text" id="coCustName" class="form-input">
+                <!-- RESUMEN PRECARGADO DEL CLIENTE (SELECCIONADO EN TICKET) -->
+                <div id="coCustPreviewBadge" style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:#f8fafc; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-top:16px; margin-bottom:18px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:38px; height:38px; border-radius:50%; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        </div>
+                        <div>
+                            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Cliente Asignado:</div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-top:1px;" id="coCustBadgeName">Cliente Mostrador (Contado)</div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>RIF / Cédula:</label>
-                        <input type="text" id="coCustRif" class="form-input">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                        <span id="coCustBadgeRif" class="badge" style="background:#e0f2fe; color:#0369a1; font-size:12px; font-weight:800; padding:6px 14px; border-radius:6px; border:1px solid #bae6fd;">RIF: V-00000000</span>
+                        <span id="coCustBadgePhone" class="badge" style="background:#f1f5f9; color:#475569; font-size:11.5px; font-weight:700; padding:6px 14px; border-radius:6px; border:1px solid #cbd5e1; display:none;"></span>
                     </div>
                 </div>
 
-                <div class="form-row-2">
-                    <div class="form-group">
-                        <label>Teléfono WhatsApp:</label>
-                        <input type="text" id="coCustPhone" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo de Documento:</label>
+                <div class="form-row-2" style="margin-bottom: 16px; gap: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Tipo de Documento:</label>
                         <select id="coDocType" class="form-select" onchange="onDocTypeChange()">
                             <option value="factura">Factura / Ticket Digital</option>
                             <option value="presupuesto">Presupuesto / Cotización</option>
                             <option value="nota_entrega">Nota de Entrega</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="form-row-2" id="coPaymentRow">
-                    <div class="form-group">
-                        <label>Método de Pago Principal:</label>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Método de Pago Principal:</label>
                         <select id="coPaymentMethod" class="form-select" onchange="onPaymentMethodChange()">
                             <option value="Efectivo USD">Efectivo USD ($) - Descuento Divisas</option>
                             <option value="Zelle">Zelle ($) - Descuento Divisas</option>
                             <option value="Binance">Binance Pay ($) - Descuento Divisas</option>
                             <option value="Punto de Venta">Punto de Venta (Tarjeta de Débito)</option>
                             <option value="Pago Móvil">Pago Móvil (Bolívares)</option>
+                            <option value="Biopago">Biopago (Banco de Venezuela / Patria)</option>
                             <option value="Transferencia">Transferencia Bancaria (Bolívares)</option>
                             <option value="Efectivo Bs">Efectivo Bolívares</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Número de Referencia / Comprobante:</label>
+                </div>
+
+                <div class="form-row-2" id="coPaymentRow" style="margin-bottom: 18px; gap: 16px;">
+                    <div class="form-group" id="coBankGroup" style="margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Banco Emisor:</label>
+                        <select id="coPaymentBank" class="form-select">
+                            <option value="Banesco">Banesco</option>
+                            <option value="BNC">BNC</option>
+                            <option value="Venezuela">Venezuela</option>
+                            <option value="Mercantil">Mercantil</option>
+                            <option value="Provincial">Provincial</option>
+                            <option value="Patria (Biopago)">Patria (Biopago)</option>
+                            <option value="Bancamiga">Bancamiga</option>
+                            <option value="Banco de los Trabajadores">Banco de los Trabajadores</option>
+                            <option value="Banco del Tesoro">Banco del Tesoro</option>
+                            <option value="100% Banco">100% Banco</option>
+                            <option value="Bancaribe">Bancaribe</option>
+                            <option value="Banco Caroni">Banco Caroni</option>
+                            <option value="Otros Bancos">Otros Bancos</option>
+                            <option value="Caja Efectivo">Caja Efectivo / No Aplica</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Número de Referencia / Comprobante:</label>
                         <input type="text" id="coPaymentRef" class="form-input" placeholder="Opcional">
                     </div>
                 </div>
 
-                <div id="coPaymentBreakdownBox" style="padding:14px; background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md);">
-                    <span style="font-size:12px; font-weight:800; display:block; margin-bottom:8px;">DESGLOSE DE PAGO Y VUELTO:</span>
-                    <div class="form-row-2">
-                        <div class="form-group">
-                            <label>Entregado en Dólares ($):</label>
+                <div id="coPaymentBreakdownBox" style="padding:16px 18px; background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md); margin-top:4px;">
+                    <span style="font-size:12px; font-weight:800; display:block; margin-bottom:12px; color:var(--text-main); text-transform:uppercase;">DESGLOSE DE PAGO Y VUELTO:</span>
+                    <div class="form-row-2" style="gap: 16px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Entregado en Dólares ($):</label>
                             <input type="number" step="0.01" id="payAmountUSD" class="form-input" oninput="calculateChange()">
                         </div>
-                        <div class="form-group">
-                            <label>Entregado en Bolívares (Bs):</label>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px; font-weight: 700; margin-bottom: 6px; display: block;">Entregado en Bolívares (Bs):</label>
                             <input type="number" step="0.01" id="payAmountBs" class="form-input" oninput="calculateChange()">
                         </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:1px dashed var(--border-color);">
                         <span style="font-size:12px; font-weight:700;">Vuelto / Cambio:</span>
                         <div style="text-align:right;">
-                            <b id="changeUSDDisplay" style="font-size:15px; font-weight:900; color:var(--success);">$0.00</b>
-                            <span id="changeBsDisplay" style="font-size:12px; color:var(--text-muted); margin-left:6px;">(Bs. 0.00)</span>
+                            <b id="changeUSDDisplay" style="font-size:16px; font-weight:900; color:var(--success);">$0.00</b>
+                            <span id="changeBsDisplay" style="font-size:12.5px; color:var(--text-muted); margin-left:8px;">(Bs. 0.00)</span>
                         </div>
                     </div>
                 </div>
@@ -1027,21 +1049,53 @@
          MODAL 5: ARQUEO Y CIERRE DE CAJA (CORTE Z)
          ========================================================== -->
     <div class="erp-modal-overlay" id="reconciliationModal">
-        <div class="erp-modal-card" style="max-width: 620px; width: 95%;">
-            <div class="erp-modal-header">
-                <span class="erp-modal-title">Cierre de Caja y Arqueo Diario</span>
-                <button class="erp-modal-close" onclick="closeModal('reconciliationModal')">✕</button>
-            </div>
-            <div class="erp-modal-body">
-                <div style="padding:12px; background:#f8fafc; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span>Ventas registradas en sistema:</span>
-                        <b id="recExpectedUSD">$0.00</b>
+        <div class="erp-modal-card" style="max-width: 760px; width: 95%;">
+            <div class="erp-modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:38px; height:38px; border-radius:8px; background:rgba(37,99,235,0.12); color:var(--primary); display:flex; align-items:center; justify-content:center;">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="12" x2="18" y2="12"></line><line x1="12" y1="6" x2="12" y2="18"></line></svg>
+                    </div>
+                    <div>
+                        <span class="erp-modal-title" style="display:block; font-size:16px; font-weight:800;">Cierre de Caja y Arqueo Diario (Corte Z)</span>
+                        <span style="font-size:12px; color:var(--text-muted);">Cuadre de caja, conciliación bancaria y corte de turno</span>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Efectivo Físico en Gaveta ($ USD):</label>
-                    <input type="number" step="0.01" id="recCountedUSD" class="form-input" placeholder="0.00">
+                <button class="erp-modal-close" onclick="closeModal('reconciliationModal')">✕</button>
+            </div>
+            <div class="erp-modal-body" style="padding: 20px;">
+                <div style="padding:14px; background:var(--primary-light); border-radius:var(--radius-md); border:1px solid #bfdbfe; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span style="font-size:11px; font-weight:800; color:var(--primary); text-transform:uppercase;">TOTAL COBRANZAS DEL TURNO:</span>
+                            <div style="font-size:24px; font-weight:900; color:var(--primary);" id="recExpectedUSD">$0.00</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">EQUIVALENTE OFICIAL BCV:</span>
+                            <div style="font-size:17px; font-weight:800; color:var(--text-main);" id="recExpectedBs">Bs. 0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DESGLOSE DE INGRESOS POR BANCO EMISOR -->
+                <div style="margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:12px; font-weight:800; color:var(--text-main); text-transform:uppercase;">Conciliación por Banco Emisor del Turno:</span>
+                        <span style="font-size:11px; color:var(--text-muted);">Verifica contra estados de cuenta</span>
+                    </div>
+                    <div id="recBankBreakdownContainer" style="border:1px solid var(--border-color); border-radius:var(--radius-md); overflow:hidden; background:#ffffff;">
+                        <!-- Poblado dinámicamente -->
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Efectivo Físico Contado en Gaveta ($ USD):</label>
+                        <input type="number" step="0.01" id="recCountedUSD" class="form-input" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Efectivo Físico Contado en Gaveta (Bs):</label>
+                        <input type="number" step="0.01" id="recCountedBs" class="form-input" placeholder="0.00">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Fondo Base para el Próximo Turno ($ USD):</label>

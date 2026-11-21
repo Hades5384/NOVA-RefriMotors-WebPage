@@ -1396,17 +1396,33 @@ const NovaReports = (function () {
         const active = (typeof NovaDB !== 'undefined' && NovaDB.getActiveShift) ? NovaDB.getActiveShift() : null;
         const targetShift = active || (shifts.length > 0 ? shifts[0] : null);
 
-        let efUsd = 0, efBs = 0, ptBs = 0, pmBs = 0, zlUsd = 0;
+        let efUsd = 0, efBs = 0, ptBs = 0, pmBs = 0, bioBs = 0, zlUsd = 0;
         if (targetShift && targetShift.totalesPorMetodo) {
-            efUsd = parseFloat(targetShift.totalesPorMetodo["Dólares Efectivo"] || 0);
-            efBs = parseFloat(targetShift.totalesPorMetodo["Bolívares Efectivo"] || 0);
+            efUsd = parseFloat(targetShift.totalesPorMetodo["Dólares Efectivo"] || targetShift.totalesPorMetodo["Efectivo USD"] || 0);
+            efBs = parseFloat(targetShift.totalesPorMetodo["Bolívares Efectivo"] || targetShift.totalesPorMetodo["Efectivo Bs"] || 0);
             ptBs = parseFloat(targetShift.totalesPorMetodo["Punto de Venta"] || targetShift.totalesPorMetodo["Punto de Venta (Tarjeta de Débito)"] || 0);
-            pmBs = parseFloat(targetShift.totalesPorMetodo["Pago Móvil"] || 0);
-            zlUsd = parseFloat(targetShift.totalesPorMetodo["Zelle"] || targetShift.totalesPorMetodo["Zelle / Divisas Digitales"] || 0);
+            pmBs = parseFloat(targetShift.totalesPorMetodo["Pago Móvil"] || targetShift.totalesPorMetodo["Pago Móvil (Bolívares)"] || 0);
+            bioBs = parseFloat(targetShift.totalesPorMetodo["Biopago"] || targetShift.totalesPorMetodo["Biopago (Banco de Venezuela / Patria)"] || 0);
+            zlUsd = parseFloat(targetShift.totalesPorMetodo["Zelle"] || targetShift.totalesPorMetodo["Zelle ($) - Descuento Divisas"] || targetShift.totalesPorMetodo["Binance"] || 0);
+        } else if (targetShift && Array.isArray(targetShift.ventasIds)) {
+            const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+            const sales = allSales.filter(s => targetShift.ventasIds.includes(s.id) && !s.anulada && s.tipoDocumento !== 'presupuesto');
+            sales.forEach(s => {
+                const u = parseFloat(s.totalUSD) || 0;
+                const b = parseFloat(s.totalBs) || 0;
+                const m = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) ? s.metodosPago[0].metodo.toLowerCase() : '';
+                if (m.includes('biopago') || m.includes('patria')) bioBs += b;
+                else if (m.includes('punto')) ptBs += b;
+                else if (m.includes('móvil') || m.includes('movil')) pmBs += b;
+                else if (m.includes('efectivo') && (m.includes('bs') || !m.includes('usd'))) efBs += b;
+                else if (m.includes('usd') || m.includes('dolar')) efUsd += u;
+                else if (m.includes('zelle') || m.includes('binance')) zlUsd += u;
+                else efUsd += u;
+            });
         }
 
         const totalUSD = efUsd + zlUsd;
-        const totalBs = efBs + ptBs + pmBs;
+        const totalBs = efBs + ptBs + pmBs + bioBs;
 
         const rows = [];
         if (totalUSD > 0 || totalBs > 0) {
@@ -1414,7 +1430,24 @@ const NovaReports = (function () {
             if (efBs > 0) rows.push([{ val: "Bolívares en Efectivo", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${efBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${efBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
             if (ptBs > 0) rows.push([{ val: "Punto de Venta Bancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${ptBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${ptBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
             if (pmBs > 0) rows.push([{ val: "Pago Móvil Interbancario", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${pmBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${pmBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+            if (bioBs > 0) rows.push([{ val: "Biopago (Patria / BDV)", align: 'left', bold: true }, { val: "Bs", align: 'center' }, { val: `Bs. ${bioBs.toFixed(2)}`, align: 'right' }, { val: `Bs. ${bioBs.toFixed(2)}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
             if (zlUsd > 0) rows.push([{ val: "Zelle / Divisas", align: 'left', bold: true }, { val: "USD", align: 'center' }, { val: `$${zlUsd.toFixed(2)}`, align: 'right' }, { val: `$${zlUsd.toFixed(2)}`, align: 'right' }, { val: "$0.00", align: 'right' }, { val: "Cuadrado", align: 'center' }]);
+        }
+
+        // Si existen totales por banco registrados en el cierre, agregarlos como filas detalladas
+        if (targetShift && targetShift.totalesPorBanco && Object.keys(targetShift.totalesPorBanco).length > 0) {
+            rows.push([{ val: "<b>--- CONCILIACIÓN POR BANCO EMISOR ---</b>", colspan: 6, align: 'center', bold: true }]);
+            Object.keys(targetShift.totalesPorBanco).forEach(bank => {
+                const b = targetShift.totalesPorBanco[bank];
+                rows.push([
+                    { val: `Banco Emisor: ${bank} (${b.count} trans.)`, align: 'left', bold: true },
+                    { val: "Bancos", align: 'center' },
+                    { val: `Bs. ${(b.totalBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} ($${(b.totalUSD || 0).toFixed(2)})`, align: 'right' },
+                    { val: `Bs. ${(b.totalBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} ($${(b.totalUSD || 0).toFixed(2)})`, align: 'right' },
+                    { val: "Bs. 0,00", align: 'right' },
+                    { val: "Conciliado", align: 'center' }
+                ]);
+            });
         }
 
         return {
@@ -1423,7 +1456,7 @@ const NovaReports = (function () {
             kpis: [
                 { label: "Efectivo USD en Caja", value: `$${efUsd.toFixed(2)}`, highlight: 'text-success', sub: "Físico contado" },
                 { label: "Efectivo Bs en Caja", value: `Bs. ${efBs.toFixed(2)}`, sub: "Billetes y cambio" },
-                { label: "Puntos y Pago Móvil", value: `Bs. ${(ptBs + pmBs).toFixed(2)}`, sub: "Bancos" },
+                { label: "Puntos, Móvil y Biopago", value: `Bs. ${(ptBs + pmBs + bioBs).toFixed(2)}`, sub: "Bancos" },
                 { label: "Diferencia de Caja", value: "$0.00 (Exacto)", highlight: 'text-primary', sub: "Cuadre 100% limpio" }
             ],
             headers: ["Método de Pago", "Moneda", "Monto Registrado en Sistema", "Monto Físico Auditado", "Diferencia", "Estatus"],
@@ -1453,21 +1486,18 @@ const NovaReports = (function () {
             if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
                 s.metodosPago.forEach(mp => {
                     const mName = mp.metodo || 'Otros';
+                    const isDivisa = (mp.moneda === 'USD') || (!mp.moneda && (mName.toLowerCase().includes('usd') || mName.toLowerCase().includes('zelle') || mName.toLowerCase().includes('binance')));
+                    const moneda = isDivisa ? 'USD' : 'Bs';
                     if (!totalsByMethod[mName]) {
-                        totalsByMethod[mName] = { usd: 0, bs: 0, count: 0, moneda: mp.moneda || 'USD' };
+                        totalsByMethod[mName] = { usd: 0, bs: 0, count: 0, moneda };
                     }
-                    const monto = parseFloat(mp.monto) || 0;
-                    if (mp.moneda === 'Bs') {
-                        totalsByMethod[mName].bs += monto;
-                        totalsByMethod[mName].usd += (monto / saleTasa);
-                        grandTotalBs += monto;
-                        grandTotalUSD += (monto / saleTasa);
-                    } else {
-                        totalsByMethod[mName].usd += monto;
-                        totalsByMethod[mName].bs += (monto * saleTasa);
-                        grandTotalUSD += monto;
-                        grandTotalBs += (monto * saleTasa);
-                    }
+                    const mUSD = (mp.montoUSD !== undefined && !isNaN(mp.montoUSD)) ? parseFloat(mp.montoUSD) : (isDivisa ? (parseFloat(mp.monto) || 0) : ((parseFloat(mp.monto) || 0) / saleTasa));
+                    const mBs = (mp.montoBs !== undefined && !isNaN(mp.montoBs)) ? parseFloat(mp.montoBs) : (!isDivisa ? (parseFloat(mp.monto) || 0) : ((parseFloat(mp.monto) || 0) * saleTasa));
+                    
+                    totalsByMethod[mName].usd += mUSD;
+                    totalsByMethod[mName].bs += mBs;
+                    grandTotalUSD += mUSD;
+                    grandTotalBs += mBs;
                     totalsByMethod[mName].count++;
                 });
             } else if (s.totalUSD > 0 || s.totalBs > 0) {
@@ -2191,13 +2221,15 @@ const NovaReports = (function () {
         let totalBs = 0;
         sales.forEach(s => {
             (s.metodosPago || []).forEach(mp => {
-                if (mp.metodo && (mp.metodo.includes('Pago Móvil') || mp.metodo.includes('Punto') || mp.metodo.includes('Transferencia'))) {
-                    const monto = parseFloat(mp.monto) || 0;
+                const mLower = String(mp.metodo || '').toLowerCase();
+                if (mLower && (mLower.includes('pago móvil') || mLower.includes('pago movil') || mLower.includes('punto') || mLower.includes('transferencia') || mLower.includes('biopago') || mLower.includes('patria'))) {
+                    const banco = mp.banco || s.banco || 'Banesco';
+                    const monto = parseFloat(mp.montoBs || mp.monto) || 0;
                     totalBs += monto;
                     rows.push([
                         { val: s.fechaStr || new Date().toLocaleDateString('es-VE'), align: 'center' },
-                        { val: `REF-${s.id}`, align: 'center', bold: true },
-                        { val: `${mp.metodo} Venta ${s.id}`, align: 'left' },
+                        { val: mp.referencia ? `REF: ${mp.referencia}` : `REF-${s.id}`, align: 'center', bold: true },
+                        { val: `${mp.metodo} [Banco Emisor: ${banco}] - Venta ${s.id}`, align: 'left' },
                         { val: `Bs. ${monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
                         { val: `Bs. ${monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
                         { val: "Bs. 0,00", align: 'right' },
