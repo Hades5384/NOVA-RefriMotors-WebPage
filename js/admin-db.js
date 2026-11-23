@@ -215,6 +215,7 @@ const NovaDB = (function () {
             shifts.unshift(newShift);
             _write('cash_shifts', shifts);
         }
+        reconcileActiveShiftSales();
     }
 
     // ==========================================
@@ -851,7 +852,60 @@ const NovaDB = (function () {
         return _read('cash_shifts', []);
     }
 
+    function reconcileActiveShiftSales() {
+        let shifts = _read('cash_shifts', []);
+        const activeIdx = shifts.findIndex(s => s.estado === 'abierta' || s.estado === 'abierto');
+        if (activeIdx === -1) return null;
+
+        const active = shifts[activeIdx];
+        if (!Array.isArray(active.ventasIds)) active.ventasIds = [];
+        if (!Array.isArray(active.egresosIds)) active.egresosIds = [];
+
+        // IDs de ventas que ya pertenecen a turnos cerrados
+        const closedSaleIds = new Set();
+        shifts.forEach(s => {
+            if ((s.estado === 'cerrada' || s.estado === 'cerrado') && Array.isArray(s.ventasIds)) {
+                s.ventasIds.forEach(id => closedSaleIds.add(id));
+            }
+        });
+
+        const allSales = _read('sales', []);
+        let changed = false;
+        allSales.forEach(s => {
+            if (s && s.id && !s.anulada && s.tipoDocumento !== 'presupuesto' && !closedSaleIds.has(s.id)) {
+                if (!active.ventasIds.includes(s.id)) {
+                    active.ventasIds.push(s.id);
+                    changed = true;
+                }
+            }
+        });
+
+        // IDs de egresos que ya pertenecen a turnos cerrados
+        const closedExpIds = new Set();
+        shifts.forEach(s => {
+            if ((s.estado === 'cerrada' || s.estado === 'cerrado') && Array.isArray(s.egresosIds)) {
+                s.egresosIds.forEach(id => closedExpIds.add(id));
+            }
+        });
+
+        const allExpenses = _read('expenses', []);
+        allExpenses.forEach(e => {
+            if (e && e.id && !closedExpIds.has(e.id)) {
+                if (!active.egresosIds.includes(e.id)) {
+                    active.egresosIds.push(e.id);
+                    changed = true;
+                }
+            }
+        });
+
+        if (changed) {
+            _write('cash_shifts', shifts);
+        }
+        return active;
+    }
+
     function getActiveShift() {
+        reconcileActiveShiftSales();
         const shifts = getCashShifts();
         return shifts.find(s => s.estado === 'abierta') || null;
     }
@@ -860,8 +914,10 @@ const NovaDB = (function () {
         const shifts = getCashShifts();
         const activeIdx = shifts.findIndex(s => s.estado === 'abierta');
         if (activeIdx !== -1) {
-            shifts[activeIdx].ventasIds.push(saleId);
-            _write('cash_shifts', shifts);
+            if (!shifts[activeIdx].ventasIds.includes(saleId)) {
+                shifts[activeIdx].ventasIds.push(saleId);
+                _write('cash_shifts', shifts);
+            }
         }
     }
 
@@ -899,6 +955,7 @@ const NovaDB = (function () {
     }
 
     function closeActiveShift(reconciliation) {
+        reconcileActiveShiftSales();
         const shifts = getCashShifts();
         const idx = shifts.findIndex(s => s.estado === 'abierta');
         if (idx === -1) return null;
@@ -1241,6 +1298,7 @@ const NovaDB = (function () {
         getCashShifts,
         getActiveShift,
         closeActiveShift,
+        reconcileActiveShiftSales,
         getExpenses,
         addExpense,
         getCustomers,

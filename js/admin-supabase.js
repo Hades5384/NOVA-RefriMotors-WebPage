@@ -113,11 +113,21 @@ const NovaSupabase = (function () {
             _syncTimer = setInterval(async () => {
                 if (_isOnline && !_isSyncing) {
                     await processQueue();
-                    if (_getQueue().length === 0) {
-                        await pullCloudUpdates();
-                    }
+                    await pullCloudUpdates();
                 }
-            }, (cfg.syncIntervalSeconds || 25) * 1000);
+            }, (cfg.syncIntervalSeconds || 10) * 1000);
+        }
+
+        // Sincronizar inmediatamente al volver a enfocar la ventana o cambiar de pestaña
+        if (typeof window !== 'undefined') {
+            window.addEventListener('focus', () => {
+                if (_isOnline && !_isSyncing) pullCloudUpdates();
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && _isOnline && !_isSyncing) {
+                    pullCloudUpdates();
+                }
+            });
         }
 
         // Monitoreo periódico de pedidos de mostrador para el usuario MASTER
@@ -150,13 +160,18 @@ const NovaSupabase = (function () {
         // Sincronizar inmediatamente la tasa BCV y datos de la empresa desde la nube
         _pullInitialConfig();
 
-        // Verificar si la base de datos necesita carga inicial y descargar cambios recientes
-        setTimeout(async () => {
-            await checkAndSeedCatalog();
-            await processQueue();
-            await pullCloudUpdates();
+        // Descargar INMEDIATAMENTE cambios de ventas, caja, inventario, etc. sin esperar
+        pullCloudUpdates().then(() => {
             _subscribeRealtime();
-        }, 1500);
+        }).catch(err => {
+            console.warn('[NovaSupabase] Error en pullCloudUpdates inicial:', err);
+            _subscribeRealtime();
+        });
+
+        // Verificación asíncrona de catálogo en segundo plano sin bloquear al usuario
+        setTimeout(() => {
+            checkAndSeedCatalog().catch(err => console.warn('[NovaSupabase] Error en checkAndSeedCatalog:', err));
+        }, 3000);
     }
 
     async function _pullInitialConfig() {
@@ -216,6 +231,29 @@ const NovaSupabase = (function () {
     // ==========================================
     // 2. INTERCEPTOR TRANSPARENTE DE NovaDB
     // ==========================================
+    function _syncActiveShiftToCloud() {
+        if (!_client || !_isOnline) return;
+        try {
+            const active = (typeof window.NovaDB !== 'undefined' && window.NovaDB.getActiveShift) ? window.NovaDB.getActiveShift() : null;
+            if (!active) return;
+            _client.from('turnos_caja').upsert([{
+                id: active.id,
+                fecha_apertura: active.fechaApertura,
+                fecha_cierre: active.fechaCierre || null,
+                monto_inicial_usd: active.montoInicialUSD || 0,
+                monto_inicial_bs: active.montoInicialBs || 0,
+                estado: active.estado || 'abierta',
+                ventas_ids: active.ventasIds || [],
+                egresos_ids: active.egresosIds || [],
+                arqueo_fisico: active.arqueoFisico || null
+            }], { onConflict: 'id' }).then(({ error }) => {
+                if (error) console.warn('[NovaSupabase] Error sincronizando turno activo:', error);
+            }).catch(e => {
+                console.warn('[NovaSupabase] Error sincronizando turno activo:', e);
+            });
+        } catch (e) {}
+    }
+
     function _hookNovaDB() {
         if (typeof window.NovaDB === 'undefined') return;
 
@@ -254,6 +292,7 @@ const NovaSupabase = (function () {
                             reason: `Venta ${record.id}`
                         });
                     });
+                    _syncActiveShiftToCloud();
                 }
             }
             return record;
@@ -323,6 +362,7 @@ const NovaSupabase = (function () {
                     monto_bs: record.montoBs,
                     metodo_pago: record.metodoPago
                 });
+                _syncActiveShiftToCloud();
             }
             return record;
         };
@@ -442,6 +482,7 @@ const NovaSupabase = (function () {
                     egresos_ids: closedShift.egresosIds,
                     arqueo_fisico: closedShift.arqueoFisico
                 });
+                _syncActiveShiftToCloud();
             }
             return closedShift;
         };
@@ -1102,10 +1143,10 @@ const NovaSupabase = (function () {
     function _scheduleRealtimePull() {
         clearTimeout(_realtimePullTimer);
         _realtimePullTimer = setTimeout(() => {
-            if (_isOnline && !_isSyncing && _getQueue().length === 0) {
+            if (_isOnline && !_isSyncing) {
                 pullCloudUpdates();
             }
-        }, 350);
+        }, 200);
     }
 
     function _mapRemoteProductToInv(r, prevItem) {
@@ -1320,7 +1361,7 @@ const NovaSupabase = (function () {
             if (!prodRes.error && Array.isArray(prodRes.data) && prodRes.data.length > 0) {
                 const prevInv = window.NovaDB.getInventory();
                 const prevInvJson = JSON.stringify(prevInv);
-                const freshInv = {};
+                const freshInv = Object.assign({}, prevInv);
                 const rowsById = {};
 
                 prodRes.data.forEach(r => {
@@ -1395,6 +1436,9 @@ const NovaSupabase = (function () {
                     localStorage.setItem('nova_erp_sales', newSalesJson);
                     cashOrSalesChanged = true;
                     anyChanged = true;
+                }
+                if (window.NovaDB && window.NovaDB.reconcileActiveShiftSales) {
+                    window.NovaDB.reconcileActiveShiftSales();
                 }
             }
 
@@ -1490,18 +1534,33 @@ const NovaSupabase = (function () {
                     egresosIds: Array.isArray(t.egresos_ids) ? t.egresos_ids : [],
                     arqueoFisico: t.arqueo_fisico || null
                 }));
-                // Mantener un turno abierto si todos los remotos están cerrados
+                // Mantener un turno abierto si todos los remotos están cerrados, o adoptar el remoto abierto
                 const localShifts = window.NovaDB.getCashShifts ? window.NovaDB.getCashShifts() : [];
-                const hasRemoteOpen = mappedShifts.some(s => s.estado === 'abierta' || s.estado === 'abierto');
-                if (!hasRemoteOpen) {
-                    const localOpen = localShifts.find(s => s.estado === 'abierta' || s.estado === 'abierto');
-                    if (localOpen) mappedShifts.unshift(localOpen);
+                const localOpen = localShifts.find(s => s.estado === 'abierta' || s.estado === 'abierto');
+                const remoteOpen = mappedShifts.find(s => s.estado === 'abierta' || s.estado === 'abierto');
+
+                if (remoteOpen) {
+                    // Si ambos tienen turno abierto pero con distinto ID, unificar ventas e IDs
+                    if (localOpen && localOpen.id !== remoteOpen.id) {
+                        (localOpen.ventasIds || []).forEach(vid => {
+                            if (!remoteOpen.ventasIds.includes(vid)) remoteOpen.ventasIds.push(vid);
+                        });
+                        (localOpen.egresosIds || []).forEach(eid => {
+                            if (!remoteOpen.egresosIds.includes(eid)) remoteOpen.egresosIds.push(eid);
+                        });
+                    }
+                } else if (localOpen) {
+                    mappedShifts.unshift(localOpen);
                 }
+
                 const newShiftJson = JSON.stringify(mappedShifts);
                 if (newShiftJson !== localStorage.getItem('nova_erp_cash_shifts')) {
                     localStorage.setItem('nova_erp_cash_shifts', newShiftJson);
                     cashOrSalesChanged = true;
                     anyChanged = true;
+                }
+                if (window.NovaDB && window.NovaDB.reconcileActiveShiftSales) {
+                    window.NovaDB.reconcileActiveShiftSales();
                 }
             }
 

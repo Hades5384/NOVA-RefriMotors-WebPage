@@ -109,6 +109,17 @@ function navigateTo(viewName) {
         if (typeof NovaReports !== 'undefined') NovaReports.renderReportsView();
     }
     else if (viewName === 'settings') renderSettingsView();
+
+    // Sincronización en segundo plano al cambiar de módulo para garantizar datos frescos entre estaciones
+    if (typeof window.NovaSupabase !== 'undefined' && window.NovaSupabase.isOnline && window.NovaSupabase.isOnline()) {
+        window.NovaSupabase.pullCloudUpdates().then(() => {
+            if (currentView === 'cash' && typeof renderCashView === 'function') renderCashView();
+            else if (currentView === 'pos' && typeof renderPOSCatalog === 'function') renderPOSCatalog();
+            else if (currentView === 'inventory' && typeof renderInventoryView === 'function') renderInventoryView();
+            else if (currentView === 'customers' && typeof renderCustomersView === 'function') renderCustomersView();
+            else if (currentView === 'purchases' && typeof renderPurchasesView === 'function') renderPurchasesView();
+        }).catch(() => {});
+    }
 }
 
 function updateHeaderTitles(viewName) {
@@ -3797,12 +3808,28 @@ function isPaymentNational(sale) {
 }
 
 function renderCashView() {
+    if (window.NovaDB && window.NovaDB.reconcileActiveShiftSales) {
+        window.NovaDB.reconcileActiveShiftSales();
+    }
     const activeShift = NovaDB.getActiveShift();
     const allSales = NovaDB.getSales();
     const settings = NovaDB.getSettings() || { tasaBCV: 917.78, tasaInterna: 1050 };
     const bcvRate = parseFloat(settings.tasaBCV) || 917.78;
 
-    const shiftSales = activeShift ? allSales.filter(s => activeShift.ventasIds && activeShift.ventasIds.includes(s.id)) : [];
+    const closedShiftSaleIds = new Set();
+    const allShifts = (NovaDB.getCashShifts ? NovaDB.getCashShifts() : []);
+    allShifts.filter(sh => (sh.estado === 'cerrada' || sh.estado === 'cerrado') && Array.isArray(sh.ventasIds)).forEach(sh => {
+        sh.ventasIds.forEach(id => closedShiftSaleIds.add(id));
+    });
+
+    const shiftSales = activeShift
+        ? allSales.filter(s => {
+            if (s.anulada || s.tipoDocumento === 'presupuesto') return false;
+            if (activeShift.ventasIds && activeShift.ventasIds.includes(s.id)) return true;
+            if (!closedShiftSaleIds.has(s.id)) return true;
+            return false;
+        })
+        : [];
     const activeSales = shiftSales.filter(s => !s.anulada);
 
     // 1. Clasificación: Ventas Moneda Nacional (Bolívares / BCV)
