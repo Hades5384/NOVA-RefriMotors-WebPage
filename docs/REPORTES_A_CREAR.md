@@ -29,6 +29,7 @@ Permiten justificar cada ingreso que entra a las cuentas bancarias o cajas físi
 * **Arqueo y Cierre de Caja (por turno y cajero):** Comparación entre lo que registra el sistema y el dinero físico/digital real (efectivo en Bs. y divisas, puntos de venta, Pago Móvil, Zelle, transferencias).
 * **Ventas por Método de Pago:** Conciliación exacta por banco y moneda, aplicando la tasa de cambio del día (**BCV**) para evitar diferencias cambiarias injustificadas.
 * **Ventas por Línea (Productos vs. Servicios):** Separación clara entre ingresos por venta de bienes tangibles y prestación de servicios (clave para impuestos municipales como *Patente de Industria y Comercio*, ya que suelen tener alícuotas distintas).
+* **Ranking de Productos Más Vendidos por Período:** Rotación y volumen de ventas por lapso temporal (hoy, semana, mes, año o histórico) con desglose de unidades vendidas, ingresos generados ($ y Bs) y disponibilidad de stock actual para reposición.
 * **Reporte de Anulaciones, Devoluciones y Descuentos:** Justificación detallada de cada factura anulada o nota de crédito emitida, indicando qué usuario la autorizó y el motivo.
 
 ---

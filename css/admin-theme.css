@@ -2610,6 +2610,95 @@ body {
     z-index: 2100;
 }
 
+/* ==============================================================================
+   BADGES Y CONTROLES DEL REPORTE DE PRODUCTOS MÁS VENDIDOS
+   ============================================================================== */
+.report-rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    min-width: 34px;
+}
+.report-rank-1 {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    box-shadow: 0 1px 2px rgba(217, 119, 6, 0.15);
+}
+.report-rank-2 {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+.report-rank-3 {
+    background: #ffedd5;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+.report-rank-other {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.report-stock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.report-stock-badge.ok {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+.report-stock-badge.low {
+    background: #fef9c3;
+    color: #854d0e;
+    border: 1px solid #fef08a;
+}
+.report-stock-badge.out {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.report-filter-period-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.report-filter-period-btn {
+    padding: 5px 11px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.report-filter-period-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+.report-filter-period-btn.active {
+    background: #003366;
+    color: #ffffff;
+    border-color: #003366;
+}
+
 /* Iframe oculto para impresión directa y limpia a PDF sin interferencias del DOM */
 #reportPrintHiddenIframe {
     position: fixed;
@@ -2729,60 +2818,803 @@ body {
     }
 }
 
-@media (max-width: 1024px) {
-    .erp-sidebar {
-        width: 72px;
+/* ==============================================================================
+   PANTALLA DE ACCESO OBLIGATORIO Y BLOQUEO DE TERMINAL (LOGIN GATE)
+   ============================================================================== */
+.erp-login-gate {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+    contain: strict;
+}
+
+body.erp-locked .erp-layout {
+    visibility: hidden !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+.erp-login-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+    max-width: 540px;
+    width: 100%;
+    padding: 34px 28px;
+    text-align: center;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    animation: loginFadeIn 0.2s ease-out;
+}
+
+@keyframes loginFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(12px);
     }
-    .erp-sidebar .sidebar-brand {
-        display: none !important;
-    }
-    .erp-sidebar .nav-section-title {
-        display: none !important;
-    }
-    .erp-sidebar .nav-item span {
-        display: none !important;
-    }
-    .erp-sidebar .sidebar-user-info,
-    .erp-sidebar .sidebar-user-switch-icon {
-        display: none !important;
-    }
-    .erp-sidebar .sidebar-user-card {
-        justify-content: center;
-        padding: 6px;
-    }
-    .header-title-box p {
-        display: none;
-    }
-    .pos-container {
-        grid-template-columns: 1fr 330px;
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
     }
 }
 
+.erp-login-brand {
+    margin-bottom: 22px;
+}
+
+.erp-login-logo {
+    max-width: 190px;
+    height: auto;
+    margin: 0 auto 12px;
+    display: block;
+}
+
+.erp-login-brand h2 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.4px;
+    margin: 0 0 6px 0;
+}
+
+.erp-login-brand p {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.45;
+}
+
+/* Rejilla de Selección de Estaciones en el Login */
+.erp-login-stations {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.login-station-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-station-btn:hover {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    transform: translateY(-1px);
+}
+
+.login-station-btn.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.login-station-btn[data-station="MASTER"].active {
+    border-color: #d97706;
+    background: #fffbeb;
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15);
+}
+
+.login-station-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.login-station-icon.master-icon {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.login-station-icon.seller-icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.login-station-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.station-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.station-role {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Formulario de Contraseña */
+.erp-login-form {
+    text-align: left;
+}
+
+.login-form-group {
+    margin-bottom: 14px;
+}
+
+.login-field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.login-field-header label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.login-password-hint {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.login-password-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.login-input-icon {
+    position: absolute;
+    left: 14px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.login-input {
+    width: 100%;
+    height: 48px;
+    padding: 0 44px 0 44px !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    transition: all 0.2s ease !important;
+}
+
+.login-input:focus {
+    border-color: #2563eb !important;
+    background: #ffffff !important;
+    outline: none !important;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
+}
+
+.btn-toggle-password {
+    position: absolute;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.btn-toggle-password:hover {
+    color: #1e293b;
+}
+
+.login-error-msg {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+@keyframes shakeAnim {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+.shake-anim {
+    animation: shakeAnim 0.35s ease;
+}
+
+.btn-login-submit {
+    width: 100%;
+    height: 48px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-login-submit:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.4);
+}
+
+.btn-login-submit:active {
+    transform: translateY(0);
+}
+
+.erp-login-footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Botones de Bloqueo de Terminal y Toggle Sidebar */
+.btn-lock-terminal {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+    color: #b91c1c !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+
+.btn-lock-terminal:hover {
+    background: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+    color: #991b1b !important;
+}
+
+.sidebar-user-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sidebar-action-lock-btn {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #ef4444;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.sidebar-action-lock-btn:hover {
+    background: #ef4444;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+.mobile-menu-toggle-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.mobile-menu-toggle-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.72);
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+}
+
+.pos-mobile-nav {
+    display: none;
+}
+
+.pos-mobile-floating-cart {
+    display: none;
+}
+
+/* ==============================================================================
+   DISEÑO RESPONSIVE AVANZADO: TABLETS (≤ 1024px)
+   ============================================================================== */
+@media (max-width: 1024px) {
+    .mobile-menu-toggle-btn {
+        display: inline-flex !important;
+    }
+
+    /* Sidebar Drawer Off-Canvas */
+    .erp-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: -290px !important;
+        bottom: 0 !important;
+        width: 280px !important;
+        height: 100vh !important;
+        z-index: 10000 !important;
+        transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 4px 0 28px rgba(0, 0, 0, 0.45) !important;
+    }
+
+    .erp-sidebar.mobile-open {
+        left: 0 !important;
+    }
+
+    /* Restaurar visualización completa dentro del Drawer */
+    .erp-sidebar .sidebar-brand {
+        display: flex !important;
+    }
+
+    .erp-sidebar .nav-section-title {
+        display: block !important;
+        opacity: 1 !important;
+        height: auto !important;
+        padding: 12px 14px 4px !important;
+    }
+
+    .erp-sidebar .nav-item {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        padding: 11px 14px !important;
+        gap: 14px !important;
+    }
+
+    .erp-sidebar .nav-item span {
+        display: inline !important;
+    }
+
+    .erp-sidebar .sidebar-user-card {
+        justify-content: space-between !important;
+        padding: 10px 12px !important;
+    }
+
+    .erp-sidebar .sidebar-user-info,
+    .erp-sidebar .sidebar-user-switch-icon {
+        display: flex !important;
+    }
+
+    .erp-main {
+        width: 100vw;
+        margin-left: 0;
+    }
+
+    .erp-header {
+        padding: 0 16px;
+        gap: 10px;
+    }
+
+    .header-title-box p {
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .pos-container {
+        grid-template-columns: 1fr 340px;
+        gap: 12px;
+        height: calc(100vh - 105px);
+    }
+
+    .pos-items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+    }
+}
+
+/* ==============================================================================
+   DISEÑO RESPONSIVE AVANZADO: TELÉFONOS Y MÓVILES (≤ 768px)
+   ============================================================================== */
 @media (max-width: 768px) {
     .erp-header {
         height: auto;
-        padding: 10px 14px;
+        min-height: 56px;
+        padding: 8px 12px;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
+        justify-content: space-between;
     }
+
+    .header-left {
+        gap: 6px;
+    }
+
+    .header-title-box h1 {
+        font-size: 14.5px;
+        margin: 0;
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-title-box p {
+        display: none;
+    }
+
     .header-right {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
         flex-wrap: wrap;
+        gap: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border-color);
     }
+
+    .header-action-btn {
+        padding: 5px 8px;
+        font-size: 11.5px;
+    }
+
+    .cloud-sync-pill {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .bcv-rate-pill {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .rate-pill-segment {
+        gap: 2px;
+    }
+
+    .rate-pill-value {
+        font-size: 11px;
+    }
+
+    .btn-lock-terminal {
+        padding: 5px 8px;
+        font-size: 11.5px;
+    }
+
+    .erp-content {
+        padding: 8px 8px;
+    }
+
+    /* Pestañas de Navegación Rápida Móvil en el POS */
+    .pos-mobile-nav {
+        display: flex !important;
+        width: 100%;
+        margin-bottom: 8px;
+        background: #e2e8f0;
+        border-radius: 10px;
+        padding: 3px;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .pos-mobile-tab-btn {
+        flex: 1;
+        padding: 8px 10px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 12.5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: transparent;
+        color: #475569;
+        transition: all 0.2s ease;
+    }
+
+    .pos-mobile-tab-btn.active {
+        background: #ffffff;
+        color: var(--primary-color);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Contenedor del POS en Móvil */
     .pos-container {
-        grid-template-columns: 1fr;
-        height: auto;
-        overflow: visible;
+        display: flex !important;
+        flex-direction: column !important;
+        height: calc(100vh - 150px) !important;
+        overflow: hidden !important;
+        gap: 0 !important;
     }
+
     .pos-catalog-panel {
-        max-height: 550px;
+        display: flex !important;
+        flex: 1;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden;
     }
-    .pos-cart-panel {
-        max-height: 500px;
+
+    .pos-ticket-panel {
+        display: none !important;
+        flex: 1;
+        height: 100% !important;
+        max-height: 100% !important;
+        overflow: hidden;
     }
+
+    .pos-container.mobile-show-ticket .pos-catalog-panel {
+        display: none !important;
+    }
+
+    .pos-container.mobile-show-ticket .pos-ticket-panel {
+        display: flex !important;
+    }
+
+    /* Resumen Flotante Inferior en Catálogo */
+    .pos-mobile-floating-cart {
+        position: sticky;
+        bottom: 8px;
+        z-index: 50;
+        margin: 4px 6px 8px;
+        background: linear-gradient(135deg, #1e40af, #2563eb);
+        color: #ffffff;
+        border-radius: 12px;
+        padding: 10px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .floating-cart-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .floating-cart-badge {
+        background: #ffffff;
+        color: #2563eb;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .floating-cart-total {
+        font-size: 12px;
+        font-weight: 700;
+        opacity: 0.95;
+    }
+
+    /* Grilla de Repuestos en Móvil */
+    .pos-items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+        gap: 8px !important;
+        padding: 8px !important;
+    }
+
+    .pos-item-card {
+        padding: 10px !important;
+    }
+
+    .pos-item-name {
+        font-size: 12px !important;
+    }
+
+    .pos-item-price-usd {
+        font-size: 13.5px !important;
+    }
+
+    /* Tablas y Barras de Herramientas */
+    .table-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+    }
+
+    .table-toolbar-left,
+    .table-toolbar-right {
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        gap: 8px !important;
+        justify-content: stretch !important;
+    }
+
+    .table-toolbar-left .search-input-wrap {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .table-toolbar-right button {
+        flex: 1 1 auto !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+        max-height: calc(100vh - 220px) !important;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+    }
+
+    /* Modales en Móviles */
+    .erp-modal-overlay {
+        padding: 8px !important;
+    }
+
+    .erp-modal-card {
+        max-width: 96vw !important;
+        max-height: 94vh !important;
+        border-radius: 14px !important;
+    }
+
+    .erp-modal-header {
+        padding: 12px 14px !important;
+    }
+
+    .erp-modal-body {
+        padding: 14px !important;
+        max-height: calc(94vh - 110px) !important;
+    }
+
+    .erp-modal-footer {
+        padding: 10px 14px !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .grid-2-col,
+    .grid-3-col,
+    .form-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* KPI Cards en Móvil */
+    .kpi-grid,
+    .reports-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .kpi-card {
+        padding: 10px 12px !important;
+    }
+
+    .kpi-title {
+        font-size: 11px !important;
+    }
+
+    .kpi-value {
+        font-size: 17px !important;
+    }
+
     .settings-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Adaptación del Login Gate en Móviles */
+    .erp-login-card {
+        padding: 22px 16px !important;
+        border-radius: 16px !important;
+    }
+
+    .erp-login-logo {
+        max-width: 160px !important;
+    }
+
+    .erp-login-brand h2 {
+        font-size: 18px !important;
+    }
+
+    .erp-login-stations {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .login-station-btn {
+        padding: 10px 12px !important;
     }
 }
 

@@ -62,6 +62,9 @@ function setupBroadcastSync() {
 }
 
 function navigateTo(viewName) {
+    if (typeof closeSidebarMobile === 'function') {
+        closeSidebarMobile();
+    }
     // Control de acceso por estación: los vendedores solo acceden a POS y Clientes CRM
     if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller()) {
         if (viewName !== 'pos' && viewName !== 'customers') {
@@ -143,8 +146,49 @@ function updateHeaderTitles(viewName) {
 
 function toggleSidebar() {
     const sidebar = document.getElementById('erpSidebar');
-    if (sidebar) sidebar.classList.toggle('collapsed');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (!sidebar) return;
+
+    if (window.innerWidth <= 1024) {
+        const isOpen = sidebar.classList.toggle('mobile-open');
+        if (backdrop) {
+            if (isOpen) {
+                backdrop.classList.add('active');
+            } else {
+                backdrop.classList.remove('active');
+            }
+        }
+    } else {
+        sidebar.classList.toggle('collapsed');
+    }
 }
+
+function closeSidebarMobile() {
+    const sidebar = document.getElementById('erpSidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+}
+window.toggleSidebar = toggleSidebar;
+window.closeSidebarMobile = closeSidebarMobile;
+
+function switchPOSMobileTab(tab) {
+    const container = document.querySelector('.pos-container');
+    const btnCat = document.getElementById('tabMobileCatalogBtn');
+    const btnTicket = document.getElementById('tabMobileTicketBtn');
+    if (!container) return;
+
+    if (tab === 'ticket') {
+        container.classList.add('mobile-show-ticket');
+        if (btnTicket) btnTicket.classList.add('active');
+        if (btnCat) btnCat.classList.remove('active');
+    } else {
+        container.classList.remove('mobile-show-ticket');
+        if (btnCat) btnCat.classList.add('active');
+        if (btnTicket) btnTicket.classList.remove('active');
+    }
+}
+window.switchPOSMobileTab = switchPOSMobileTab;
 
 function initBCVWidget() {
     updateBCVDisplay();
@@ -743,6 +787,20 @@ function updatePOSTotals(totalUSD, totalBs, itemCount) {
 
     const badge = document.getElementById('posCartCountBadge');
     if (badge) badge.innerText = itemCount;
+
+    const mobBadge = document.getElementById('posMobileCartBadge');
+    if (mobBadge) mobBadge.innerText = itemCount;
+
+    const floatBadge = document.getElementById('floatingCartBadge');
+    if (floatBadge) floatBadge.innerText = itemCount;
+
+    const floatTotal = document.getElementById('floatingCartTotal');
+    if (floatTotal) floatTotal.innerText = `$${totalUSD.toFixed(2)} • Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const floatWrap = document.getElementById('posMobileFloatingCart');
+    if (floatWrap) {
+        floatWrap.style.display = (itemCount > 0) ? 'flex' : 'none';
+    }
 }
 
 function calcularPreciosSegunAjustes(costoCompra, settings, customUtil, customIva) {
@@ -3564,48 +3622,62 @@ window.saveRatesFromModal = saveRatesFromModal;
 // ==========================================
 // CONTROL DE ESTACIONES Y USUARIOS (MASTER & VENTAS)
 // ==========================================
+let pendingStationSwitchId = null;
+
 function openSwitchStationModal() {
     openModal('userStationModal');
 }
 
 function selectStationOption(stationId) {
-    if (stationId === 'MASTER') {
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser().id === stationId) {
         closeModal('userStationModal');
-        const pinInp = document.getElementById('inputMasterPin');
-        if (pinInp) pinInp.value = '';
-        openModal('masterPinModal');
-        setTimeout(() => { if (pinInp) pinInp.focus(); }, 150);
         return;
     }
 
-    const res = NovaUsers.switchStation(stationId);
-    if (res.success) {
-        closeModal('userStationModal');
-        showNovaAlert({
-            title: "Estación Cambiada",
-            message: `Esta computadora ahora está operando como estación [${res.user.name}].`,
-            type: "success"
-        });
+    closeModal('userStationModal');
+    pendingStationSwitchId = stationId;
+
+    const modalTitle = document.querySelector('#masterPinModal .erp-modal-title');
+    const modalDesc = document.querySelector('#masterPinModal p');
+    const pinInp = document.getElementById('inputMasterPin');
+
+    const u = (typeof NovaUsers !== 'undefined' && NovaUsers.USERS[stationId]) ? NovaUsers.USERS[stationId] : { name: stationId };
+
+    if (modalTitle) modalTitle.innerText = `Seguridad: Acceso a ${u.name}`;
+    if (modalDesc) {
+        modalDesc.innerText = stationId === 'MASTER'
+            ? "Ingresa la contraseña de seguridad de Administrador para activar la estación MASTER:"
+            : `Ingresa la contraseña para activar la estación ${u.name}:`;
     }
+    if (pinInp) {
+        pinInp.value = '';
+        pinInp.placeholder = "Ingresa contraseña...";
+    }
+
+    openModal('masterPinModal');
+    setTimeout(() => { if (pinInp) pinInp.focus(); }, 150);
 }
 
 function submitMasterPin() {
     const pinInp = document.getElementById('inputMasterPin');
     const entered = pinInp ? pinInp.value.trim() : '';
+    const targetStation = pendingStationSwitchId || 'MASTER';
 
-    const res = NovaUsers.switchStation('MASTER', entered);
+    const res = NovaUsers.switchStation(targetStation, entered);
     if (res.success) {
         closeModal('masterPinModal');
         if (pinInp) pinInp.value = '';
         showNovaAlert({
-            title: "Estación MASTER Activada",
-            message: "Acceso concedido. Tienes el control total sobre el sistema, caja, facturas e inventario.",
+            title: `Estación ${res.user.name} Activada`,
+            message: targetStation === 'MASTER'
+                ? "Acceso concedido. Tienes el control total sobre el sistema, caja, facturas e inventario."
+                : `Esta computadora ahora está operando como estación [${res.user.name}].`,
             type: "success"
         });
     } else {
         showNovaAlert({
-            title: "PIN Incorrecto",
-            message: res.message || "El PIN ingresado no coincide con el de Administrador.",
+            title: "Contraseña Incorrecta",
+            message: res.message || "La contraseña ingresada no es válida para esta estación.",
             type: "warning"
         });
         if (pinInp) { pinInp.focus(); pinInp.select(); }

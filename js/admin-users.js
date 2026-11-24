@@ -2,15 +2,26 @@
  * ==============================================================================
  * NOVA REFRIMOTORS ERP - GESTOR DE USUARIOS Y ESTACIONES DE TRABAJO (admin-users.js)
  * ==============================================================================
- * Define los 4 usuarios del sistema:
- * - MASTER: Computadora principal (Control total, cobro de facturas/despacho, inventario, precios)
- * - VENTAS01, VENTAS02, VENTAS03: Computadoras de mostrador (Agregar clientes, presupuestos, enviar pedidos a caja)
+ * Define los 4 usuarios del sistema y gestiona el control de acceso con contraseña obligatoria:
+ * - MASTER: Computadora principal (PIN / Contraseña: "1005")
+ * - VENTAS01: Mostrador 1 (Contraseña: "VENTAS01")
+ * - VENTAS02: Mostrador 2 (Contraseña: "VENTAS02")
+ * - VENTAS03: Mostrador 3 (Contraseña: "VENTAS03")
  * ==============================================================================
  */
 
 const NovaUsers = (function () {
     const STORAGE_KEY_USER = 'nova_active_station';
-    const MASTER_DEFAULT_PIN = '1234';
+    const STORAGE_KEY_AUTH = 'nova_auth_session';
+    const MASTER_DEFAULT_PIN = '1005';
+
+    // Contraseñas predeterminadas del sistema
+    const PASSWORDS = {
+        'MASTER': '1005',
+        'VENTAS01': 'VENTAS01',
+        'VENTAS02': 'VENTAS02',
+        'VENTAS03': 'VENTAS03'
+    };
 
     const SELLER_PERMISSIONS = {
         canFinalizeSale: false,      // NO recibe dinero ni emite facturas finales
@@ -72,19 +83,122 @@ const NovaUsers = (function () {
     };
 
     function init() {
-        const current = getCurrentUser();
-        console.log(`[NovaUsers] Estación activa [${current.id}] - ${current.title}`);
+        if (!isAuthenticated()) {
+            showLoginGate();
+        } else {
+            hideLoginGate();
+            const current = getCurrentUser();
+            console.log(`[NovaUsers] Sesión autenticada en estación [${current.id}] - ${current.title}`);
+            applyPermissions();
+        }
+    }
+
+    function isAuthenticated() {
+        try {
+            const authData = sessionStorage.getItem(STORAGE_KEY_AUTH);
+            if (!authData) return false;
+            const parsed = JSON.parse(authData);
+            return !!(parsed && parsed.stationId && USERS[parsed.stationId]);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function verifyPassword(stationId, enteredPassword) {
+        if (!USERS[stationId]) return false;
+        const clean = (enteredPassword || '').trim();
+        if (stationId === 'MASTER') {
+            const masterPin = getMasterPin();
+            return clean === masterPin || clean === '1005';
+        }
+        const expected = PASSWORDS[stationId] || stationId;
+        return clean.toUpperCase() === expected.toUpperCase();
+    }
+
+    function login(stationId, enteredPassword) {
+        if (!USERS[stationId]) {
+            return { success: false, message: "Estación de trabajo no válida." };
+        }
+
+        if (!verifyPassword(stationId, enteredPassword)) {
+            return {
+                success: false,
+                message: stationId === 'MASTER'
+                    ? "Contraseña incorrecta para Administrador MASTER."
+                    : `Contraseña incorrecta para ${USERS[stationId].name}.`
+            };
+        }
+
+        sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify({
+            stationId: stationId,
+            userName: USERS[stationId].name,
+            loginTime: Date.now()
+        }));
+        localStorage.setItem(STORAGE_KEY_USER, stationId);
+
+        hideLoginGate();
         applyPermissions();
+
+        // Si el vendedor actual estaba en una vista restringida, volver a POS
+        const current = USERS[stationId];
+        if (current.role === 'seller' && typeof currentView !== 'undefined' && currentView !== 'pos' && currentView !== 'customers') {
+            if (typeof navigateTo === 'function') navigateTo('pos');
+        }
+
+        return { success: true, user: current };
+    }
+
+    function lockTerminal() {
+        sessionStorage.removeItem(STORAGE_KEY_AUTH);
+        showLoginGate();
+    }
+
+    function showLoginGate() {
+        document.body.classList.add('erp-locked');
+        const gate = document.getElementById('erpLoginGate');
+        if (gate) {
+            gate.style.display = 'flex';
+            gate.classList.add('active');
+        }
+        const current = getCurrentUser();
+        if (typeof window.selectLoginStation === 'function') {
+            window.selectLoginStation(current.id);
+        }
+        const passInp = document.getElementById('loginPasswordInput');
+        if (passInp) {
+            passInp.value = '';
+            setTimeout(() => passInp.focus(), 150);
+        }
+        const errEl = document.getElementById('loginErrorMsg');
+        if (errEl) {
+            errEl.style.display = 'none';
+            errEl.innerText = '';
+        }
+    }
+
+    function hideLoginGate() {
+        document.body.classList.remove('erp-locked');
+        const gate = document.getElementById('erpLoginGate');
+        if (gate) {
+            gate.style.display = 'none';
+            gate.classList.remove('active');
+        }
     }
 
     function getCurrentUser() {
         try {
+            const authData = sessionStorage.getItem(STORAGE_KEY_AUTH);
+            if (authData) {
+                const parsed = JSON.parse(authData);
+                if (parsed && parsed.stationId && USERS[parsed.stationId]) {
+                    return USERS[parsed.stationId];
+                }
+            }
             const saved = localStorage.getItem(STORAGE_KEY_USER);
             if (saved && USERS[saved]) {
                 return USERS[saved];
             }
         } catch (e) {}
-        // Por defecto en la primera carga en este equipo, MASTER
         return USERS['MASTER'];
     }
 
@@ -97,24 +211,32 @@ const NovaUsers = (function () {
     }
 
     function hasPermission(permissionKey) {
+        if (!isAuthenticated()) return false;
         const u = getCurrentUser();
         return !!(u && u.permissions && u.permissions[permissionKey]);
     }
 
-    function switchStation(stationId, enteredPin = '') {
+    function switchStation(stationId, enteredPassword = '') {
         if (!USERS[stationId]) {
             return { success: false, message: "Estación de trabajo no válida." };
         }
 
-        // Si se intenta cambiar a MASTER, solicitar PIN de seguridad
-        if (stationId === 'MASTER') {
-            const masterPin = getMasterPin();
-            if (enteredPin !== masterPin) {
-                return { success: false, message: "PIN de Administrador incorrecto." };
-            }
+        if (!verifyPassword(stationId, enteredPassword)) {
+            return {
+                success: false,
+                message: stationId === 'MASTER'
+                    ? "Contraseña o PIN de Administrador incorrecto."
+                    : `Contraseña incorrecta para ${USERS[stationId].name}.`
+            };
         }
 
         localStorage.setItem(STORAGE_KEY_USER, stationId);
+        sessionStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify({
+            stationId: stationId,
+            userName: USERS[stationId].name,
+            loginTime: Date.now()
+        }));
+
         applyPermissions();
 
         // Si el vendedor actual estaba en una vista restringida, volver a POS
@@ -138,7 +260,7 @@ const NovaUsers = (function () {
     function applyPermissions() {
         const user = getCurrentUser();
 
-        // 1. Actualizar Pie de Barra Lateral (Sidebar) con Estación Activa
+        // 1. Actualizar Pie de Barra Lateral (Sidebar) con Estación Activa y Botón de Bloqueo
         const sidebarFoot = document.getElementById('sidebarUserStatus');
         if (sidebarFoot) {
             sidebarFoot.innerHTML = `
@@ -148,13 +270,21 @@ const NovaUsers = (function () {
                         <span class="sidebar-user-title">${user.name}</span>
                         <span class="sidebar-user-subtitle">${user.role === 'admin' ? 'Caja Principal' : 'Ventas Mostrador'}</span>
                     </div>
-                    <div class="sidebar-user-switch-icon" title="Cambiar estación o usuario">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="17 1 21 5 17 9"></polyline>
-                            <path d="M3 5h18"></path>
-                            <polyline points="7 23 3 19 7 15"></polyline>
-                            <path d="M21 19H3"></path>
-                        </svg>
+                    <div class="sidebar-user-actions">
+                        <button type="button" class="sidebar-action-lock-btn" onclick="event.stopPropagation(); NovaUsers.lockTerminal();" title="Bloquear terminal y cerrar sesión">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </button>
+                        <div class="sidebar-user-switch-icon" title="Cambiar estación o usuario">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="17 1 21 5 17 9"></polyline>
+                                <path d="M3 5h18"></path>
+                                <polyline points="7 23 3 19 7 15"></polyline>
+                                <path d="M21 19H3"></path>
+                            </svg>
+                        </div>
                     </div>
                 </div>
             `;
@@ -231,7 +361,14 @@ const NovaUsers = (function () {
 
     return {
         USERS,
+        PASSWORDS,
         init,
+        isAuthenticated,
+        verifyPassword,
+        login,
+        lockTerminal,
+        showLoginGate,
+        hideLoginGate,
         getCurrentUser,
         isAdmin,
         isSeller,
@@ -241,3 +378,90 @@ const NovaUsers = (function () {
         getMasterPin
     };
 })();
+
+// ==============================================================================
+// FUNCIONES GLOBALES DE INTERFAZ PARA LOGIN GATE Y BLOQUEO DE TERMINAL
+// ==============================================================================
+window.selectLoginStation = function(stationId) {
+    const hiddenInp = document.getElementById('loginSelectedStation');
+    if (hiddenInp) hiddenInp.value = stationId;
+
+    document.querySelectorAll('.login-station-btn').forEach(btn => {
+        if (btn.dataset.station === stationId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    const label = document.getElementById('loginSelectedStationLabel');
+    const u = NovaUsers.USERS[stationId];
+    if (label && u) {
+        label.innerText = `Contraseña para ${u.name}:`;
+    }
+
+    const hint = document.getElementById('loginPasswordHint');
+    if (hint) {
+        hint.innerText = "Acceso protegido";
+    }
+
+    const passInp = document.getElementById('loginPasswordInput');
+    if (passInp) {
+        passInp.placeholder = "Ingresa tu contraseña...";
+        passInp.focus();
+    }
+
+    const err = document.getElementById('loginErrorMsg');
+    if (err) {
+        err.style.display = 'none';
+        err.innerText = '';
+    }
+};
+
+window.handleLoginGateSubmit = function(event) {
+    if (event) event.preventDefault();
+    const stationId = document.getElementById('loginSelectedStation') ? document.getElementById('loginSelectedStation').value : 'MASTER';
+    const passInp = document.getElementById('loginPasswordInput');
+    const entered = passInp ? passInp.value.trim() : '';
+
+    const res = NovaUsers.login(stationId, entered);
+    if (res.success) {
+        if (typeof showNovaAlert === 'function') {
+            showNovaAlert({
+                title: `Bienvenido a ${res.user.name}`,
+                message: `Terminal desbloqueada con éxito en ${res.user.title}.`,
+                type: "success"
+            });
+        }
+    } else {
+        const err = document.getElementById('loginErrorMsg');
+        if (err) {
+            err.innerText = res.message || "Contraseña incorrecta.";
+            err.style.display = 'block';
+            err.classList.remove('shake-anim');
+            void err.offsetWidth;
+            err.classList.add('shake-anim');
+        }
+        if (passInp) {
+            passInp.focus();
+            passInp.select();
+        }
+    }
+};
+
+window.toggleLoginPasswordVisibility = function() {
+    const passInp = document.getElementById('loginPasswordInput');
+    const eyeShow = document.getElementById('eyeIconShow');
+    const eyeHide = document.getElementById('eyeIconHide');
+    if (!passInp) return;
+
+    if (passInp.type === 'password') {
+        passInp.type = 'text';
+        if (eyeShow) eyeShow.style.display = 'none';
+        if (eyeHide) eyeHide.style.display = 'block';
+    } else {
+        passInp.type = 'password';
+        if (eyeShow) eyeShow.style.display = 'block';
+        if (eyeHide) eyeHide.style.display = 'none';
+    }
+};

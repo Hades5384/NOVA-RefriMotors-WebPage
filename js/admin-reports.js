@@ -155,6 +155,17 @@ const NovaReports = (function () {
             legalNote: 'Permite auditar el comportamiento de compra del cliente, garantías vigentes y correlación de facturación.',
             generate: generateComprasClienteReport
         },
+        {
+            id: 'productos_mas_vendidos',
+            category: 'ventas',
+            areaName: '2. Reportes de Ventas y Punto de Venta (POS)',
+            title: 'Ranking de Productos Más Vendidos por Período',
+            tag: 'Rotación y Demanda',
+            iconSvg: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>`,
+            description: 'Ranking detallado de los repuestos y productos más vendidos por lapso de tiempo (semana, mes, año o histórico). Muestra unidades vendidas, facturación en USD y Bs, frecuencia en ventas y stock actual para reposición.',
+            legalNote: 'Control analítico de rotación de existencias y demanda comercial para la optimización de compras y abastecimiento de inventario.',
+            generate: generateProductosMasVendidos
+        },
 
         // ----------------------------------------------------
         // ÁREA 3: INVENTARIO Y COSTOS (CONTROL DE PRODUCTOS)
@@ -446,6 +457,12 @@ const NovaReports = (function () {
         }
 
         const totalAvailable = REPORT_CATALOG.length;
+        const countFiscal = REPORT_CATALOG.filter(r => r.category === 'fiscal').length;
+        const countVentas = REPORT_CATALOG.filter(r => r.category === 'ventas').length;
+        const countInventario = REPORT_CATALOG.filter(r => r.category === 'inventario').length;
+        const countServicios = REPORT_CATALOG.filter(r => r.category === 'servicios').length;
+        const countFinanciero = REPORT_CATALOG.filter(r => r.category === 'financiero').length;
+        const countAuditoria = REPORT_CATALOG.filter(r => r.category === 'auditoria').length;
 
         container.innerHTML = `
             <div class="reports-view-wrapper">
@@ -459,12 +476,12 @@ const NovaReports = (function () {
 
                     <div class="reports-tab-pills">
                         <button class="reports-tab-pill ${currentFilterCategory === 'all' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('all')">Todos (${totalAvailable})</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'fiscal' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('fiscal')">1. Fiscal SENIAT (6)</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'ventas' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('ventas')">2. Ventas y POS (4)</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'inventario' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('inventario')">3. Inventario (4)</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'servicios' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('servicios')">4. Servicios (3)</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'financiero' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('financiero')">5. Finanzas ERP (6)</button>
-                        <button class="reports-tab-pill ${currentFilterCategory === 'auditoria' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('auditoria')">6. Auditoría (3)</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'fiscal' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('fiscal')">1. Fiscal SENIAT (${countFiscal})</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'ventas' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('ventas')">2. Ventas y POS (${countVentas})</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'inventario' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('inventario')">3. Inventario (${countInventario})</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'servicios' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('servicios')">4. Servicios (${countServicios})</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'financiero' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('financiero')">5. Finanzas ERP (${countFinanciero})</button>
+                        <button class="reports-tab-pill ${currentFilterCategory === 'auditoria' ? 'active' : ''}" onclick="NovaReports.setFilterCategory('auditoria')">6. Auditoría (${countAuditoria})</button>
                     </div>
                 </div>
 
@@ -499,6 +516,8 @@ const NovaReports = (function () {
     // MODAL DE VISUALIZACIÓN INTERACTIVA
     // ==========================================
     let activeClientReportFilter = '';
+    let activeTopProductsSort = 'units'; // 'units' | 'revenue' | 'frequency'
+    let activeTopProductsSearch = '';
 
     function openReportModal(reportId, customParam) {
         const rep = REPORT_CATALOG.find(r => r.id === reportId);
@@ -507,6 +526,10 @@ const NovaReports = (function () {
         if (reportId === 'compras_cliente') {
             if (customParam !== undefined) {
                 activeClientReportFilter = customParam;
+            }
+        } else if (reportId === 'productos_mas_vendidos') {
+            if (customParam !== undefined && typeof customParam === 'string') {
+                activeTopProductsSearch = customParam;
             }
         }
 
@@ -517,6 +540,12 @@ const NovaReports = (function () {
         const container = document.getElementById('reportViewerContent');
         if (!modal || !container) return;
 
+        // Sincronizar el selector de período en el header del modal
+        const periodSelect = document.getElementById('reportModalPeriodSelect');
+        if (periodSelect) {
+            periodSelect.value = activeDateRange;
+        }
+
         container.innerHTML = buildReportHTML(rep, data);
         modal.classList.add('active');
     }
@@ -524,7 +553,48 @@ const NovaReports = (function () {
     function setDateRangeInModal(newRange) {
         activeDateRange = newRange;
         if (activeReportData && activeReportData.report) {
-            openReportModal(activeReportData.report.id, activeClientReportFilter);
+            const param = activeReportData.report.id === 'compras_cliente' ? activeClientReportFilter : activeTopProductsSearch;
+            openReportModal(activeReportData.report.id, param);
+        }
+    }
+
+    function setTopProductsPeriod(period) {
+        activeDateRange = period;
+        const select = document.getElementById('reportModalPeriodSelect');
+        if (select) select.value = period;
+        if (activeReportData && activeReportData.report) {
+            openReportModal(activeReportData.report.id, activeTopProductsSearch);
+        }
+    }
+
+    function setTopProductsSort(sortBy) {
+        activeTopProductsSort = sortBy;
+        if (activeReportData && activeReportData.report && activeReportData.report.id === 'productos_mas_vendidos') {
+            const rep = activeReportData.report;
+            const data = rep.generate(activeDateRange, activeTopProductsSearch);
+            activeReportData.data = data;
+            const container = document.getElementById('reportViewerContent');
+            if (container) {
+                container.innerHTML = buildReportHTML(rep, data);
+            }
+        }
+    }
+
+    function filterTopProducts(query) {
+        activeTopProductsSearch = query || '';
+        if (activeReportData && activeReportData.report && activeReportData.report.id === 'productos_mas_vendidos') {
+            const rep = activeReportData.report;
+            const data = rep.generate(activeDateRange, activeTopProductsSearch);
+            activeReportData.data = data;
+            const container = document.getElementById('reportViewerContent');
+            if (container) {
+                container.innerHTML = buildReportHTML(rep, data);
+                const input = document.getElementById('reportTopProductsSearchInput');
+                if (input) {
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
+            }
         }
     }
 
@@ -1838,6 +1908,270 @@ const NovaReports = (function () {
         };
     }
 
+    // 10.2 Ranking de Productos Más Vendidos por Período
+    function generateProductosMasVendidos(rangeKey, customSearch) {
+        const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
+        const tasa = parseFloat(settings.tasaBCV) || 914.02;
+        const currentYear = new Date().getFullYear();
+
+        // 1. Obtener ventas filtradas según el rango temporal seleccionado (excluye anuladas)
+        const sales = _getFilteredSales(rangeKey, false).filter(s => s.tipoDocumento !== 'presupuesto');
+
+        // 2. Inventario y catálogo maestro de productos
+        const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+        const masterProducts = (typeof window !== 'undefined' && (window.PRODUCTOS_MAESTROS || window.products)) ? (window.PRODUCTOS_MAESTROS || window.products) : [];
+        const prodMap = new Map();
+        masterProducts.forEach(p => {
+            if (p && p.id) prodMap.set(p.id, p);
+        });
+
+        // 3. Agrupar ítems vendidos por SKU / ID
+        const itemsMap = new Map();
+        let totalGeneralUnits = 0;
+        let totalGeneralRevenueUSD = 0;
+        let totalGeneralRevenueBs = 0;
+
+        sales.forEach(sale => {
+            const saleTasa = Number(sale.tasaBCV) || tasa;
+            const items = sale.items || [];
+
+            items.forEach(it => {
+                const pId = it.id || 'VARIOS';
+                const qty = parseInt(it.quantity) || 1;
+                const masterP = prodMap.get(pId);
+                const pName = it.name || (masterP ? masterP.name : pId);
+                const pCat = it.category || (masterP ? masterP.category : 'Repuestos');
+
+                // Calcular ingresos de la línea
+                let subUSD = (typeof it.subtotalUSD === 'number' && it.subtotalUSD > 0) ? it.subtotalUSD : 0;
+                let subBs = (typeof it.subtotalBs === 'number' && it.subtotalBs > 0) ? it.subtotalBs : 0;
+
+                if (subUSD <= 0) {
+                    if (typeof it.priceUSD === 'number' && it.priceUSD > 0) {
+                        subUSD = it.priceUSD * qty;
+                    } else if (typeof it.priceBs === 'number' && it.priceBs > 0) {
+                        subUSD = (it.priceBs * qty) / saleTasa;
+                    } else if (masterP && masterP.publicoUSD) {
+                        subUSD = masterP.publicoUSD * qty;
+                    }
+                }
+
+                if (subBs <= 0) {
+                    subBs = (typeof it.subtotalBs === 'number' && it.subtotalBs > 0) ? it.subtotalBs : (subUSD * saleTasa);
+                }
+
+                totalGeneralUnits += qty;
+                totalGeneralRevenueUSD += subUSD;
+                totalGeneralRevenueBs += subBs;
+
+                if (!itemsMap.has(pId)) {
+                    let stockActual = 0;
+                    if (inv[pId] !== undefined) {
+                        stockActual = parseInt(inv[pId]) || 0;
+                    } else if (masterP && masterP.stock !== undefined) {
+                        stockActual = parseInt(masterP.stock) || 0;
+                    }
+
+                    itemsMap.set(pId, {
+                        id: pId,
+                        name: pName,
+                        category: pCat,
+                        unitsSold: 0,
+                        revenueUSD: 0,
+                        revenueBs: 0,
+                        transactionCount: 0,
+                        invoiceIds: new Set(),
+                        currentStock: stockActual,
+                        lastSaleTimestamp: 0,
+                        lastSaleDate: ''
+                    });
+                }
+
+                const rec = itemsMap.get(pId);
+                rec.unitsSold += qty;
+                rec.revenueUSD += subUSD;
+                rec.revenueBs += subBs;
+                rec.invoiceIds.add(sale.id);
+                if ((sale.timestamp || 0) >= rec.lastSaleTimestamp) {
+                    rec.lastSaleTimestamp = sale.timestamp || 0;
+                    rec.lastSaleDate = sale.fechaStr || '';
+                }
+            });
+        });
+
+        // 4. Convertir mapa a lista
+        let rankingList = Array.from(itemsMap.values());
+        rankingList.forEach(r => {
+            r.transactionCount = r.invoiceIds.size;
+        });
+
+        // 5. Filtrar por término de búsqueda (si el usuario escribió en el buscador del modal)
+        const searchTerm = (customSearch !== undefined ? customSearch : activeTopProductsSearch).trim().toLowerCase();
+        if (searchTerm) {
+            rankingList = rankingList.filter(r => 
+                r.id.toLowerCase().includes(searchTerm) ||
+                r.name.toLowerCase().includes(searchTerm) ||
+                r.category.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        // 6. Ordenar lista según criterio activo
+        if (activeTopProductsSort === 'revenue') {
+            rankingList.sort((a, b) => b.revenueUSD - a.revenueUSD || b.unitsSold - a.unitsSold);
+        } else if (activeTopProductsSort === 'frequency') {
+            rankingList.sort((a, b) => b.transactionCount - a.transactionCount || b.unitsSold - a.unitsSold);
+        } else {
+            // Por defecto: Unidades vendidas (Mayor rotación)
+            rankingList.sort((a, b) => b.unitsSold - a.unitsSold || b.revenueUSD - a.revenueUSD);
+        }
+
+        // 7. KPIs del Reporte
+        const top1Item = rankingList.length > 0 ? rankingList[0] : null;
+        const totalUniqueSold = itemsMap.size;
+
+        const kpis = [
+            {
+                label: "Producto Estrella #1",
+                value: top1Item ? `${top1Item.unitsSold} Unid.` : "0 Unid.",
+                sub: top1Item ? top1Item.name : "Sin ventas en este lapso",
+                highlight: 'text-success'
+            },
+            {
+                label: "Total Unidades Vendidas",
+                value: `${totalGeneralUnits.toLocaleString('es-VE')} Unid.`,
+                sub: `${sales.length} comprobantes procesados`,
+                highlight: 'text-primary'
+            },
+            {
+                label: "Facturación Acumulada ($ USD)",
+                value: `$${totalGeneralRevenueUSD.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                sub: `Equivalente en Bs. ${(totalGeneralRevenueBs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`
+            },
+            {
+                label: "Variedad de Repuestos Vendidos",
+                value: `${totalUniqueSold} Repuestos`,
+                sub: `De ${masterProducts.length || '1300+'} en catálogo`
+            }
+        ];
+
+        // 8. Período descriptivo legible
+        let periodTitle = "Este Mes";
+        if (rangeKey === 'hoy') periodTitle = `Hoy (${new Date().toLocaleDateString('es-VE')})`;
+        else if (rangeKey === 'semana') periodTitle = "Esta Semana (Últimos 7 días)";
+        else if (rangeKey === 'quincena') periodTitle = "Esta Quincena (Últimos 15 días)";
+        else if (rangeKey === 'mes') {
+            const mName = new Date().toLocaleDateString('es-VE', { month: 'long' });
+            periodTitle = `Este Mes (${mName.charAt(0).toUpperCase() + mName.slice(1)} ${currentYear})`;
+        } else if (rangeKey === 'anio') periodTitle = `Año Fiscal ${currentYear}`;
+        else if (rangeKey === 'todo') periodTitle = "Todo el Historial Registrado";
+
+        // 9. Controles Interactivos Superiores (Cambio rápido de período, búsqueda y orden)
+        const customControlsHtml = `
+            <div class="report-client-filter-box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:12px; font-weight:800; color:#003366; white-space:nowrap;">Lapso de Tiempo:</span>
+                        <div class="report-filter-period-pills">
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'hoy' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('hoy')">Hoy</button>
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'semana' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('semana')">Esta Semana</button>
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'quincena' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('quincena')">Esta Quincena</button>
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'mes' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('mes')">Este Mes</button>
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'anio' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('anio')">Año ${currentYear}</button>
+                            <button type="button" class="report-filter-period-btn ${rangeKey === 'todo' ? 'active' : ''}" onclick="NovaReports.setTopProductsPeriod('todo')">Todo el Historial</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:12px; font-weight:800; color:#003366;">Ordenar por:</span>
+                        <select style="padding:6px 10px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff;" onchange="NovaReports.setTopProductsSort(this.value)">
+                            <option value="units" ${activeTopProductsSort === 'units' ? 'selected' : ''}>Mayor Cantidad (Unidades)</option>
+                            <option value="revenue" ${activeTopProductsSort === 'revenue' ? 'selected' : ''}>Mayor Facturación ($ USD)</option>
+                            <option value="frequency" ${activeTopProductsSort === 'frequency' ? 'selected' : ''}>Mayor N° de Tickets</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <div style="position:relative; flex:1; min-width:240px;">
+                        <input type="text" id="reportTopProductsSearchInput" value="${activeTopProductsSearch}" placeholder="Buscar repuesto por código o nombre en el ranking..." style="width:100%; padding:7px 10px 7px 32px; font-size:12px; font-weight:600; border:1px solid #cbd5e1; border-radius:6px; outline:none;" oninput="NovaReports.filterTopProducts(this.value)">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    ${activeTopProductsSearch ? `<button type="button" class="btn-quick-export" onclick="NovaReports.filterTopProducts('')" style="padding:6px 12px; font-size:11.5px;">Limpiar Búsqueda</button>` : ''}
+                </div>
+            </div>
+        `;
+
+        // 10. Filas de la Tabla Formal
+        const rows = rankingList.map((item, idx) => {
+            const rankNum = idx + 1;
+            let rankBadgeHtml = '';
+            if (rankNum === 1) {
+                rankBadgeHtml = `<span class="report-rank-badge report-rank-1">🥇 1</span>`;
+            } else if (rankNum === 2) {
+                rankBadgeHtml = `<span class="report-rank-badge report-rank-2">🥈 2</span>`;
+            } else if (rankNum === 3) {
+                rankBadgeHtml = `<span class="report-rank-badge report-rank-3">🥉 3</span>`;
+            } else {
+                rankBadgeHtml = `<span class="report-rank-badge report-rank-other">#${rankNum}</span>`;
+            }
+
+            let stockBadgeHtml = '';
+            if (item.currentStock <= 0) {
+                stockBadgeHtml = `<span class="report-stock-badge out">Agotado (0)</span>`;
+            } else if (item.currentStock <= 5) {
+                stockBadgeHtml = `<span class="report-stock-badge low">Bajo (${item.currentStock})</span>`;
+            } else {
+                stockBadgeHtml = `<span class="report-stock-badge ok">${item.currentStock} unid.</span>`;
+            }
+
+            const avgPriceUSD = item.unitsSold > 0 ? (item.revenueUSD / item.unitsSold) : 0;
+
+            return [
+                { val: rankBadgeHtml, align: 'center', bold: true },
+                { val: `<code style="font-weight:700; color:#003366;">${item.id}</code>`, align: 'center' },
+                { val: `<b>${item.name}</b>`, align: 'left' },
+                { val: item.category || 'General', align: 'left' },
+                { val: `<b>${item.unitsSold}</b>`, align: 'center', bold: true },
+                { val: `${item.transactionCount} tickets`, align: 'center' },
+                { val: `$${avgPriceUSD.toFixed(2)}`, align: 'right' },
+                { val: `$${item.revenueUSD.toFixed(2)}`, align: 'right', bold: true },
+                { val: `Bs. ${item.revenueBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' },
+                { val: stockBadgeHtml, align: 'center' }
+            ];
+        });
+
+        // 11. Totales de pie de tabla
+        const totals = [
+            { val: `<b>TOTAL RANKING (${rankingList.length} REPUESTOS REGISTRADOS)</b>`, colspan: 4, align: 'left' },
+            { val: `<b>${rankingList.reduce((acc, r) => acc + r.unitsSold, 0)} unid.</b>`, align: 'center' },
+            { val: "-", align: 'center' },
+            { val: "-", align: 'center' },
+            { val: `<b>$${rankingList.reduce((acc, r) => acc + r.revenueUSD, 0).toFixed(2)}</b>`, align: 'right' },
+            { val: `<b>Bs. ${rankingList.reduce((acc, r) => acc + r.revenueBs, 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
+            { val: "Auditado", align: 'center' }
+        ];
+
+        return {
+            title: `RANKING DE PRODUCTOS MÁS VENDIDOS Y ROTACIÓN: ${periodTitle.toUpperCase()}`,
+            periodStr: periodTitle,
+            kpis: kpis,
+            customControlsHtml: customControlsHtml,
+            headers: [
+                "# Rank",
+                "Código SKU",
+                "Producto / Repuesto",
+                "Categoría",
+                "Cant. Vendida",
+                "Frecuencia (Tickets)",
+                "Precio Prom. ($)",
+                "Facturación Total ($)",
+                "Facturación Total (Bs.)",
+                "Stock en Almacén"
+            ],
+            rows: rows,
+            totals: totals
+        };
+    }
+
     // 11. Kardex de Inventario
     function generateKardexReport(rangeKey) {
         const logs = (typeof NovaDB !== 'undefined' && NovaDB.getStockLogs) ? NovaDB.getStockLogs() : [];
@@ -2354,6 +2688,9 @@ const NovaReports = (function () {
         clearSearch,
         openReportModal,
         setDateRangeInModal,
+        setTopProductsPeriod,
+        setTopProductsSort,
+        filterTopProducts,
         filterClientPurchases,
         exportReportExcel,
         exportCurrentModalExcel,

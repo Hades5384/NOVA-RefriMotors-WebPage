@@ -23,7 +23,7 @@ const NovaDB = (function () {
         tasaInterna: 1050,
         porcentajeUtilidad: 1.30,
         porcentajeIva: 1.16,
-        masterPin: "1234",
+        masterPin: "1005",
         empresa: {
             nombre: "NOVA RefriMotors",
             rif: "J504401994",
@@ -222,7 +222,12 @@ const NovaDB = (function () {
     // 2. MÉTODOS DE CONFIGURACIÓN Y TASAS
     // ==========================================
     function getSettings() {
-        return _read('settings', DEFAULT_SETTINGS);
+        const s = _read('settings', DEFAULT_SETTINGS);
+        if (!s.masterPin || s.masterPin === '1234') {
+            s.masterPin = '1005';
+            _write('settings', s);
+        }
+        return s;
     }
 
     function updateSettings(newSettings) {
