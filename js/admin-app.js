@@ -806,11 +806,11 @@ function updatePOSTotals(totalUSD, totalBs, itemCount) {
 function calcularPreciosSegunAjustes(costoCompra, settings, customUtil, customIva) {
     const s = settings || (typeof NovaDB !== 'undefined' && NovaDB.getSettings ? NovaDB.getSettings() : {});
 
-    // Porcentaje de utilidad (si viene en porcentaje ej: 30, o factor 1.30)
+    // Porcentaje de utilidad: en producto viene siempre en porcentaje (ej: -10, 1.95, 7.8, 30)
     let utilFactor = 1.30;
     if (customUtil !== undefined && customUtil !== null && !isNaN(customUtil)) {
         const u = parseFloat(customUtil);
-        utilFactor = u >= 1 ? (u > 10 ? 1 + (u / 100) : u) : 1 + u;
+        utilFactor = !isNaN(u) ? Math.max(0, 1 + (u / 100)) : 1.30;
     } else if (s.porcentajeUtilidad) {
         utilFactor = s.porcentajeUtilidad >= 1 ? s.porcentajeUtilidad : 1 + s.porcentajeUtilidad;
     }
@@ -1286,7 +1286,7 @@ function isDivisaPaymentMethod(method) {
     const m = (method || '').toLowerCase();
     // Biopago / Patria es estrictamente Moneda Nacional (Bolívares / Tasa BCV)
     if (m.includes('biopago') || m.includes('patria')) return false;
-    return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance') || m.includes('panam');
+    return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance') || m.includes('panam') || m.includes('crédito') || m.includes('credito');
 }
 
 /**
@@ -1342,6 +1342,7 @@ function getSalePaymentInfo(sale) {
     else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
     else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
     else if (methodLower.includes('panam')) methodLabel = "BANESCO PANAMA";
+    else if (methodLower.includes('crédito') || methodLower.includes('credito')) methodLabel = "CRÉDITO (POR COBRAR)";
 
     if (refNum && !methodLabel.includes(refNum)) {
         methodLabel += ` [REF: ${refNum}]`;
@@ -1353,6 +1354,9 @@ function getSalePaymentInfo(sale) {
 function onDocTypeChange() {
     const docType = document.getElementById('coDocType')?.value || 'factura';
     const isQuote = (docType === 'presupuesto');
+    const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : '';
+    const isCredit = !isQuote && (payMethod === 'Crédito');
+    const hidePayInputs = isQuote || isCredit;
 
     const payMethodEl = document.getElementById('coPaymentMethod');
     const payBankEl = document.getElementById('coPaymentBank');
@@ -1364,24 +1368,24 @@ function onDocTypeChange() {
     const submitBtn = document.getElementById('coSubmitBtn');
 
     if (payMethodEl) payMethodEl.disabled = isQuote;
-    if (payBankEl) payBankEl.disabled = isQuote;
+    if (payBankEl) payBankEl.disabled = hidePayInputs;
     if (payRefEl) {
-        payRefEl.disabled = isQuote;
-        if (isQuote) payRefEl.value = '';
+        payRefEl.disabled = hidePayInputs;
+        if (hidePayInputs) payRefEl.value = '';
     }
-    if (payUSD) payUSD.disabled = isQuote;
-    if (payBs) payBs.disabled = isQuote;
+    if (payUSD) payUSD.disabled = hidePayInputs;
+    if (payBs) payBs.disabled = hidePayInputs;
 
     if (payRowEl) {
-        payRowEl.style.opacity = isQuote ? '0.45' : '1';
-        payRowEl.style.pointerEvents = isQuote ? 'none' : 'auto';
+        payRowEl.style.opacity = hidePayInputs ? '0.45' : '1';
+        payRowEl.style.pointerEvents = hidePayInputs ? 'none' : 'auto';
     }
     if (breakdownEl) {
-        breakdownEl.style.opacity = isQuote ? '0.45' : '1';
-        breakdownEl.style.pointerEvents = isQuote ? 'none' : 'auto';
+        breakdownEl.style.opacity = hidePayInputs ? '0.45' : '1';
+        breakdownEl.style.pointerEvents = hidePayInputs ? 'none' : 'auto';
     }
     if (submitBtn) {
-        submitBtn.innerText = isQuote ? 'Emitir Presupuesto' : 'Emitir y Concluir Venta';
+        submitBtn.innerText = isQuote ? 'Emitir Presupuesto' : (isCredit ? 'Emitir Factura a Crédito' : 'Emitir y Concluir Venta');
     }
 
     updateCheckoutTotals();
@@ -1446,7 +1450,9 @@ function onPaymentMethodChange() {
     const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : '';
     const bankSelect = document.getElementById('coPaymentBank');
     if (bankSelect) {
-        if (payMethod === 'Biopago') {
+        if (payMethod === 'Crédito') {
+            bankSelect.value = 'Caja Efectivo';
+        } else if (payMethod === 'Biopago') {
             bankSelect.value = 'Patria (Biopago)';
         } else if (payMethod === 'Efectivo USD' || payMethod === 'Efectivo Bs') {
             bankSelect.value = 'Caja Efectivo';
@@ -1456,7 +1462,7 @@ function onPaymentMethodChange() {
             }
         }
     }
-    updateCheckoutTotals();
+    onDocTypeChange();
 }
 
 function openCheckoutModal() {
@@ -1604,6 +1610,7 @@ async function finalizeSale() {
     const activeUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'MASTER', name: 'MASTER' };
     const originalOrigin = window._currentHeldSaleOrigin;
 
+    const isCredit = !isQuote && (payMethod === 'Crédito');
     const saleRecord = {
         cliente: { nombre: custName, rif: custRif, telefono: custPhone, tipo: cust.tipo || 'cliente' },
         items: frozenItems,
@@ -1613,13 +1620,16 @@ async function finalizeSale() {
         tasaBCV: settings.tasaBCV,
         totalUSD,
         totalBs,
-        banco: isQuote ? null : payBank,
+        esCredito: isCredit,
+        pagadoCredito: false,
+        estadoPago: isCredit ? 'pendiente' : 'pagado',
+        banco: (isQuote || isCredit) ? null : payBank,
         metodosPago: isQuote ? [] : [{
             metodo: payMethod,
             montoUSD: totalUSD,
-            montoBs: totalBs,
+            montoBs: isCredit ? 0 : totalBs,
             referencia: refNum,
-            banco: payBank
+            banco: isCredit ? 'Cuenta por Cobrar' : payBank
         }],
         vendedor: originalOrigin ? (originalOrigin.estacion || originalOrigin.vendedor) : activeUser.name,
         cajero: activeUser.name,
@@ -2771,8 +2781,18 @@ function openEditProductModal(productId) {
     document.getElementById('editProdId').value = productId;
     const badgeCode = document.getElementById('editProdCodeBadge');
     if (badgeCode) badgeCode.innerText = productId;
-    const badgeCat = document.getElementById('editProdCategoryBadge');
-    if (badgeCat) badgeCat.innerText = item.category || 'General';
+    syncAllCategoryDropdowns();
+    const selCat = document.getElementById('editProdCategory');
+    if (selCat) {
+        const curCat = item.category || 'General';
+        if (!Array.from(selCat.options).some(o => o.value === curCat)) {
+            const opt = document.createElement('option');
+            opt.value = curCat;
+            opt.textContent = curCat;
+            selCat.appendChild(opt);
+        }
+        selCat.value = curCat;
+    }
 
     const inpName = document.getElementById('editProdName');
     if (inpName) inpName.value = currentName;
@@ -2865,7 +2885,7 @@ function openEditProductModal(productId) {
 
 function _computeAndRenderProductPricePreview(prefix, costoId, utilId, ivaId) {
     const costo = Math.max(0, parseFloat(document.getElementById(costoId)?.value || 0) || 0);
-    const utilidad = Math.max(0, parseFloat(document.getElementById(utilId)?.value || 0) || 0);
+    const utilidad = Math.max(-99.9, parseFloat(document.getElementById(utilId)?.value || 0) || 0);
     const iva = Math.max(0, parseFloat(document.getElementById(ivaId)?.value || 0) || 0);
 
     const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02, tasaInterna: 1150 };
@@ -2873,7 +2893,7 @@ function _computeAndRenderProductPricePreview(prefix, costoId, utilId, ivaId) {
     const tasaInterna = parseFloat(settings.tasaInterna) || 1150;
 
     const ganancia = costo * (utilidad / 100);
-    const subtotal = costo + ganancia;
+    const subtotal = Math.max(0, costo + ganancia);
     const montoIva = subtotal * (iva / 100);
     const precioFinalUSD = subtotal + montoIva; // Precio en Dólares Sistema / Divisas
     const precioFinalBs = precioFinalUSD * tasaInterna; // En Bolívares usando Tasa Interna
@@ -2886,7 +2906,10 @@ function _computeAndRenderProductPricePreview(prefix, costoId, utilId, ivaId) {
     if (elUtilPct) elUtilPct.innerText = `${utilidad}%`;
 
     const elGanancia = document.getElementById(`${prefix}CalcGananciaDisplay`);
-    if (elGanancia) elGanancia.innerText = `+$${ganancia.toFixed(2)}`;
+    if (elGanancia) {
+        elGanancia.innerText = ganancia >= 0 ? `+$${ganancia.toFixed(2)}` : `-$${Math.abs(ganancia).toFixed(2)}`;
+        elGanancia.style.color = ganancia >= 0 ? '#15803d' : '#dc2626';
+    }
 
     const elIvaPct = document.getElementById(`${prefix}CalcIvaPercent`);
     if (elIvaPct) elIvaPct.innerText = `${iva}%`;
@@ -2913,9 +2936,10 @@ function calculateEditProductPrice() {
 function saveEditedProduct() {
     const id = document.getElementById('editProdId').value;
     const name = document.getElementById('editProdName').value.trim();
+    const category = document.getElementById('editProdCategory')?.value || undefined;
     const descripcionDetallada = (document.getElementById('editProdDetailedDesc')?.value || '').trim();
     const costo = Math.max(0, parseFloat(document.getElementById('editProdCosto').value) || 0);
-    const utilidad = Math.max(0, parseFloat(document.getElementById('editProdUtilidad').value) || 0);
+    const utilidad = Math.max(-99.9, parseFloat(document.getElementById('editProdUtilidad').value) || 0);
     const iva = Math.max(0, parseFloat(document.getElementById('editProdIva').value) || 0);
     const responsable = (document.getElementById('editProdResponsable')?.value || '').trim();
 
@@ -2943,6 +2967,7 @@ function saveEditedProduct() {
 
     NovaDB.updateProduct(id, {
         name,
+        category,
         descripcionDetallada,
         costoCompra: costo,
         porcentajeUtilidad: utilidad,
@@ -2959,6 +2984,260 @@ function saveEditedProduct() {
     showNovaAlert({
         title: "Producto Actualizado",
         message: `El repuesto <b>${name}</b> fue actualizado exitosamente por <b>${responsable}</b>.<br>Nuevo precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
+        type: "success"
+    });
+}
+
+// ==========================================
+// AJUSTE GLOBAL DE PRECIOS POR CATEGORÍA Y GESTIÓN DE CATEGORÍAS
+// ==========================================
+function _getAllCategoriesList() {
+    const base = ['Refrigeración', 'Aires Acondicionados', 'Lavadoras', 'Licuadoras', 'Motores', 'Capacitores', 'Protectores', 'Químicos', 'Herramientas', 'General'];
+    let custom = [];
+    try {
+        custom = JSON.parse(localStorage.getItem('nova_erp_custom_categories') || '[]');
+    } catch (e) {}
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const set = new Set([...base, ...custom]);
+    Object.values(inv).forEach(it => {
+        if (it && it.category) set.add(it.category);
+    });
+    return Array.from(set);
+}
+
+function syncAllCategoryDropdowns() {
+    const cats = _getAllCategoriesList();
+    const invFilter = document.getElementById('invCatFilter');
+    if (invFilter) {
+        const cur = invFilter.value || 'Todos';
+        invFilter.innerHTML = `<option value="Todos">Todas las Categorías</option>` + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+        invFilter.value = Array.from(invFilter.options).some(o => o.value === cur) ? cur : 'Todos';
+    }
+    ['newProdCategory', 'editProdCategory'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) {
+            const cur = sel.value;
+            sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (cur && Array.from(sel.options).some(o => o.value === cur)) sel.value = cur;
+        }
+    });
+}
+
+function openBulkCategoryModal(tab = 'prices') {
+    syncAllCategoryDropdowns();
+    const cats = _getAllCategoriesList();
+    const inv = NovaDB.getInventory();
+    const counts = {};
+    Object.values(inv).forEach(it => {
+        const c = it.category || 'General';
+        counts[c] = (counts[c] || 0) + 1;
+    });
+
+    const sel = document.getElementById('bulkPriceCategory');
+    if (sel) {
+        sel.innerHTML = cats.map(c => `<option value="${c}">${c} (${counts[c] || 0} productos)</option>`).join('');
+    }
+    const resp = document.getElementById('bulkPriceResponsible');
+    if (resp) resp.value = '';
+
+    switchBulkCategoryTab(tab);
+    updateBulkPricePreview();
+    renderBulkCategoriesTable();
+    openModal('bulkCategoryModal');
+}
+
+function switchBulkCategoryTab(tab) {
+    const pDiv = document.getElementById('bulkTabPrices');
+    const cDiv = document.getElementById('bulkTabCats');
+    const pBtn = document.getElementById('bulkTabBtnPrices');
+    const cBtn = document.getElementById('bulkTabBtnCats');
+    if (tab === 'cats') {
+        if (pDiv) pDiv.style.display = 'none';
+        if (cDiv) cDiv.style.display = 'block';
+        if (pBtn) { pBtn.classList.remove('btn-primary-action'); pBtn.classList.add('btn-secondary-action'); }
+        if (cBtn) { cBtn.classList.remove('btn-secondary-action'); cBtn.classList.add('btn-primary-action'); }
+        renderBulkCategoriesTable();
+    } else {
+        if (pDiv) pDiv.style.display = 'block';
+        if (cDiv) cDiv.style.display = 'none';
+        if (pBtn) { pBtn.classList.remove('btn-secondary-action'); pBtn.classList.add('btn-primary-action'); }
+        if (cBtn) { cBtn.classList.remove('btn-primary-action'); cBtn.classList.add('btn-secondary-action'); }
+    }
+}
+
+function updateBulkPricePreview() {
+    const cat = document.getElementById('bulkPriceCategory')?.value;
+    const mode = document.getElementById('bulkPriceMode')?.value || 'util_delta';
+    const val = parseFloat(document.getElementById('bulkPriceValue')?.value) || 0;
+    const box = document.getElementById('bulkPricePreviewBox');
+    if (!box || !cat) return;
+
+    const inv = NovaDB.getInventory();
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const settings = NovaDB.getSettings();
+    const items = Object.values(inv).filter(it => (it.category || 'General') === cat);
+
+    if (items.length === 0) {
+        box.innerHTML = `No hay productos registrados en la categoría <b>${cat}</b>.`;
+        return;
+    }
+
+    const sample = items[0];
+    const oldCost = getProductCost(sample.id, prods, sample);
+    const oldUtil = (typeof sample.porcentajeUtilidad === 'number') ? sample.porcentajeUtilidad : 30;
+    const iva = (typeof sample.iva === 'number') ? sample.iva : 16;
+    const oldPrice = calcularPreciosSegunAjustes(oldCost, settings, oldUtil, iva).novaClientesUSD;
+
+    let newCost = oldCost;
+    let newUtil = oldUtil;
+    if (mode === 'util_delta') newUtil = Math.max(-99.9, oldUtil + val);
+    else if (mode === 'util_set') newUtil = Math.max(-99.9, val);
+    else if (mode === 'cost_delta') newCost = Math.max(0, oldCost * (1 + val / 100));
+
+    const newPrice = calcularPreciosSegunAjustes(newCost, settings, newUtil, iva).novaClientesUSD;
+
+    box.innerHTML = `
+        <div>Se actualizarán <b>${items.length} producto(s)</b> de la categoría <b>${cat}</b>.</div>
+        <div style="margin-top:6px; font-size:11.5px; color:#475569;">
+            Ejemplo (<b>${sample.id} - ${sample.name}</b>):<br>
+            Antes: Costo $${oldCost.toFixed(2)} | Utilidad ${oldUtil}% | USD Sistema <b>$${oldPrice.toFixed(2)}</b><br>
+            Después: Costo $${newCost.toFixed(2)} | Utilidad ${newUtil.toFixed(1)}% | USD Sistema <b style="color:#003366;">$${newPrice.toFixed(2)}</b>
+        </div>
+    `;
+}
+
+function applyBulkCategoryPriceAdjustment() {
+    const cat = document.getElementById('bulkPriceCategory')?.value;
+    const mode = document.getElementById('bulkPriceMode')?.value || 'util_delta';
+    const rawVal = document.getElementById('bulkPriceValue')?.value;
+    const val = parseFloat(rawVal);
+    const resp = (document.getElementById('bulkPriceResponsible')?.value || '').trim();
+
+    if (!cat || isNaN(val)) {
+        showNovaAlert({ title: "Valor Inválido", message: "Indica una categoría y un porcentaje numérico válido.", type: "warning" });
+        return;
+    }
+    if (!resp) {
+        showNovaAlert({ title: "Responsable Requerido", message: "Indica el nombre de la persona que autoriza el ajuste global.", type: "warning" });
+        document.getElementById('bulkPriceResponsible')?.focus();
+        return;
+    }
+
+    const inv = NovaDB.getInventory();
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const settings = NovaDB.getSettings();
+    const items = Object.values(inv).filter(it => (it.category || 'General') === cat);
+    if (items.length === 0) return;
+
+    let updatedCount = 0;
+    items.forEach(item => {
+        const oldCost = getProductCost(item.id, prods, item);
+        const oldUtil = (typeof item.porcentajeUtilidad === 'number') ? item.porcentajeUtilidad : 30;
+        const iva = (typeof item.iva === 'number') ? item.iva : 16;
+
+        let newCost = oldCost;
+        let newUtil = oldUtil;
+        if (mode === 'util_delta') newUtil = Math.round(Math.max(-99.9, oldUtil + val) * 100) / 100;
+        else if (mode === 'util_set') newUtil = Math.round(Math.max(-99.9, val) * 100) / 100;
+        else if (mode === 'cost_delta') newCost = Math.round(Math.max(0, oldCost * (1 + val / 100)) * 100) / 100;
+
+        const calc = calcularPreciosSegunAjustes(newCost, settings, newUtil, iva);
+        NovaDB.updateProduct(item.id, {
+            costoCompra: newCost,
+            porcentajeUtilidad: newUtil,
+            iva: iva,
+            precioFinalUSD: calc.novaClientesUSD,
+            usuario: resp,
+            motivo: `Ajuste Global Categoría ${cat} (${mode}: ${val}%)`
+        }, resp);
+        updatedCount++;
+    });
+
+    closeModal('bulkCategoryModal');
+    renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+    showNovaAlert({
+        title: "Precios Actualizados Globalmente",
+        message: `Se actualizaron <b>${updatedCount} producto(s)</b> de la categoría <b>${cat}</b> por <b>${resp}</b>.`,
+        type: "success"
+    });
+}
+
+function renderBulkCategoriesTable() {
+    const tbody = document.getElementById('bulkCategoriesTableBody');
+    if (!tbody) return;
+    const cats = _getAllCategoriesList();
+    const inv = NovaDB.getInventory();
+    const counts = {};
+    Object.values(inv).forEach(it => {
+        const c = it.category || 'General';
+        counts[c] = (counts[c] || 0) + 1;
+    });
+
+    tbody.innerHTML = cats.map(c => {
+        const safeCat = c.replace(/'/g, "\\'");
+        return `
+            <tr>
+                <td><b>${c}</b></td>
+                <td style="text-align:center;">${counts[c] || 0}</td>
+                <td style="text-align:right; white-space:nowrap;">
+                    <button type="button" class="ticket-btn-sm" onclick="renameCategoryGlobal('${safeCat}')" style="padding:3px 8px; font-size:11px; color:#003366;">Renombrar</button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function addCustomCategory() {
+    const inp = document.getElementById('newCategoryNameInput');
+    const name = (inp?.value || '').trim();
+    if (!name) return;
+
+    let custom = [];
+    try { custom = JSON.parse(localStorage.getItem('nova_erp_custom_categories') || '[]'); } catch (e) {}
+    if (!custom.includes(name)) {
+        custom.push(name);
+        localStorage.setItem('nova_erp_custom_categories', JSON.stringify(custom));
+    }
+    if (inp) inp.value = '';
+    syncAllCategoryDropdowns();
+    renderBulkCategoriesTable();
+    openBulkCategoryModal('cats');
+}
+
+function renameCategoryGlobal(oldName) {
+    const newName = prompt(`Nuevo nombre para la categoría "${oldName}":`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const trimmed = newName.trim();
+
+    const inv = NovaDB.getInventory();
+    let movedCount = 0;
+    Object.keys(inv).forEach(id => {
+        if ((inv[id].category || 'General') === oldName) {
+            inv[id].category = trimmed;
+            movedCount++;
+        }
+    });
+    localStorage.setItem('nova_erp_inventory', JSON.stringify(inv));
+
+    if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
+        window.products.forEach(p => {
+            if ((p.category || 'General') === oldName) p.category = trimmed;
+        });
+    }
+
+    let custom = [];
+    try { custom = JSON.parse(localStorage.getItem('nova_erp_custom_categories') || '[]'); } catch (e) {}
+    custom = custom.filter(c => c !== oldName);
+    if (!custom.includes(trimmed)) custom.push(trimmed);
+    localStorage.setItem('nova_erp_custom_categories', JSON.stringify(custom));
+
+    syncAllCategoryDropdowns();
+    renderBulkCategoriesTable();
+    renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+    showNovaAlert({
+        title: "Categoría Actualizada",
+        message: `Se renombró <b>${oldName}</b> a <b>${trimmed}</b> (${movedCount} producto(s) actualizados).`,
         type: "success"
     });
 }
@@ -3014,7 +3293,7 @@ function submitNewProduct() {
     const descripcionDetallada = (document.getElementById('newProdDetailedDesc')?.value || '').trim();
     const category = document.getElementById('newProdCategory').value;
     const costoCompra = Math.max(0, parseFloat(document.getElementById('newProdCosto').value) || 0);
-    const porcentajeUtilidad = Math.max(0, parseFloat(document.getElementById('newProdUtilidad')?.value) || 0);
+    const porcentajeUtilidad = Math.max(-99.9, parseFloat(document.getElementById('newProdUtilidad')?.value) || 0);
     const iva = Math.max(0, parseFloat(document.getElementById('newProdIva')?.value) || 0);
     const stock = 0;
     const stockMinimo = parseInt(document.getElementById('newProdStockMin')?.value) || 3;
@@ -6905,7 +7184,64 @@ window.submitNewPurchase = submitNewPurchase;
 // ==============================================================================
 // 6. MÓDULO: CLIENTES (CRM)
 // ==============================================================================
+function renderCreditReceivablesTable() {
+    const tbody = document.getElementById('creditReceivablesTableBody');
+    const badge = document.getElementById('creditReceivablesCountBadge');
+    if (!tbody) return;
+
+    const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const pending = sales.filter(s => !s.anulada && s.esCredito && !s.pagadoCredito);
+
+    if (badge) {
+        const totalUSD = pending.reduce((acc, s) => acc + (parseFloat(s.totalUSD) || 0), 0);
+        badge.textContent = pending.length > 0 ? `${pending.length} pendiente(s) · $${totalUSD.toFixed(2)}` : '0 pendientes';
+    }
+
+    if (pending.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por cobrar pendientes.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = pending.map(s => {
+        const custName = (s.cliente && s.cliente.nombre) ? s.cliente.nombre : 'Cliente Mostrador';
+        const custRif = (s.cliente && s.cliente.rif) ? s.cliente.rif : '';
+        const safeId = String(s.id || '').replace(/'/g, "\\'");
+        return `
+            <tr>
+                <td>
+                    <b>${custName}</b>
+                    ${custRif ? `<span style="font-size:11px; color:#64748b; margin-left:4px;">(${custRif})</span>` : ''}
+                </td>
+                <td>
+                    <button type="button" class="report-doc-link-btn" onclick="openSaleInvoiceById('${safeId}')" title="Ver qué compró en esta factura">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        ${s.id}
+                    </button>
+                </td>
+                <td>${s.fechaStr || '-'}</td>
+                <td style="text-align:right;"><b style="color:#003366;">$${(parseFloat(s.totalUSD) || 0).toFixed(2)}</b></td>
+                <td style="text-align:center;">
+                    <input type="checkbox" style="width:17px; height:17px; cursor:pointer; accent-color:#003366;" onchange="markCreditSaleAsPaid('${safeId}', this)" title="Marcar factura como pagada">
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function markCreditSaleAsPaid(saleId, checkboxEl) {
+    if (!saleId) return;
+    if (typeof NovaDB !== 'undefined' && NovaDB.markSaleCreditPaid) {
+        NovaDB.markSaleCreditPaid(saleId);
+    }
+    renderCreditReceivablesTable();
+    showNovaAlert({
+        title: "Cuenta Cobrada",
+        message: `La factura a crédito <b>${saleId}</b> fue marcada como pagada y removida de Cuentas por Cobrar.`,
+        type: "success"
+    });
+}
+
 function renderCustomersView() {
+    renderCreditReceivablesTable();
     const customers = NovaDB.getCustomers();
     const tbody = document.getElementById('customersTableBody');
     if (!tbody) return;
@@ -6962,45 +7298,6 @@ function renderCustomersView() {
             </tr>`;
     });
     tbody.innerHTML = html;
-
-    if (footerEl) {
-        if (total <= INV_DEFAULT_PAGE_SIZE) {
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
-                <div class="pos-footer-actions">
-                    <span class="pos-all-loaded-pill">Inventario completo visible</span>
-                </div>`;
-        } else if (showing < total) {
-            const remaining = total - showing;
-            const nextBatch = Math.min(INV_DEFAULT_PAGE_SIZE, remaining);
-            let buttonsHtml = `
-                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMoreInventory(${INV_DEFAULT_PAGE_SIZE})">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Cargar ${nextBatch} más
-                </button>
-                <button type="button" class="pos-load-btn" onclick="loadAllInventory()">
-                    Ver todos (${total})
-                </button>`;
-            if (invVisibleLimit > INV_DEFAULT_PAGE_SIZE) {
-                buttonsHtml += `
-                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
-                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
-                    </button>`;
-            }
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
-                <div class="pos-footer-actions">${buttonsHtml}</div>`;
-        } else {
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
-                <div class="pos-footer-actions">
-                    <span class="pos-all-loaded-pill">Inventario completo cargado</span>
-                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
-                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
-                    </button>
-                </div>`;
-        }
-    }
 }
 
 function viewCustomerPurchasesReport(clientRifOrName) {

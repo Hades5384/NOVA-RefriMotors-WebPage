@@ -656,6 +656,17 @@
                                         </svg>
                                         Reportar Merma / Dañado
                                     </button>
+                                    <button class="header-action-btn btn-secondary-action" id="btnOpenBulkCategoryModal"
+                                        onclick="openBulkCategoryModal()"
+                                        style="display:inline-flex; align-items:center; gap:6px;"
+                                        title="Ajustar precios globalmente por categoría y editar categorías">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                        </svg>
+                                        Precios / Categorías
+                                    </button>
                                     <button class="header-action-btn btn-primary-action"
                                         onclick="openAddNewProductModal()">
                                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
@@ -926,6 +937,35 @@
                             </button>
                         </div>
 
+                        <div class="table-card" id="creditReceivablesCard" style="margin-top: 16px; padding: 16px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
+                                <div>
+                                    <h4 style="font-size:14.5px; font-weight:800; color:#003366; margin:0; display:flex; align-items:center; gap:6px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#003366" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Cuentas por Cobrar (Facturas a Crédito Pendientes)
+                                    </h4>
+                                    <span style="font-size:11.5px; color:#64748b;">Haz clic en el N° de factura para ver qué compró y marca el check cuando ya haya pagado.</span>
+                                </div>
+                                <span id="creditReceivablesCountBadge" style="font-size:11.5px; font-weight:800; background:#f1f5f9; color:#003366; padding:3px 10px; border-radius:10px;">0 pendientes</span>
+                            </div>
+                            <div class="table-responsive" style="max-height:240px; overflow-y:auto;">
+                                <table class="data-table" style="font-size:12px; margin-bottom:0;">
+                                    <thead>
+                                        <tr>
+                                            <th>Cliente</th>
+                                            <th>N° Factura</th>
+                                            <th>Fecha</th>
+                                            <th style="text-align:right;">Monto ($)</th>
+                                            <th style="text-align:center;">Ya Pagó</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="creditReceivablesTableBody">
+                                        <tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por cobrar pendientes.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <div class="table-card" style="margin-top: 16px;">
                             <div class="table-responsive">
                                 <table class="data-table">
@@ -960,6 +1000,35 @@
                                 </svg>
                                 Registrar Nuevo Cliente
                             </button>
+                        </div>
+
+                        <div class="table-card" id="creditReceivablesCard" style="margin-top: 16px; padding: 16px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
+                                <div>
+                                    <h4 style="font-size:14.5px; font-weight:800; color:#003366; margin:0; display:flex; align-items:center; gap:6px;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#003366" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Cuentas por Cobrar (Facturas a Crédito Pendientes)
+                                    </h4>
+                                    <span style="font-size:11.5px; color:#64748b;">Haz clic en el N° de factura para ver qué compró y marca el check cuando ya haya pagado.</span>
+                                </div>
+                                <span id="creditReceivablesCountBadge" style="font-size:11.5px; font-weight:800; background:#f1f5f9; color:#003366; padding:3px 10px; border-radius:10px;">0 pendientes</span>
+                            </div>
+                            <div class="table-responsive" style="max-height:240px; overflow-y:auto;">
+                                <table class="data-table" style="font-size:12px; margin-bottom:0;">
+                                    <thead>
+                                        <tr>
+                                            <th>Cliente</th>
+                                            <th>N° Factura</th>
+                                            <th>Fecha</th>
+                                            <th style="text-align:right;">Monto ($)</th>
+                                            <th style="text-align:center;">Ya Pagó</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="creditReceivablesTableBody">
+                                        <tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por cobrar pendientes.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div class="table-card" style="margin-top: 16px;">
@@ -1554,6 +1623,7 @@
                                 <option value="Biopago">Biopago (Banco de Venezuela / Patria)</option>
                                 <option value="Transferencia">Transferencia Bancaria (Bolívares)</option>
                                 <option value="Efectivo Bs">Efectivo Bolívares</option>
+                                <option value="Crédito">Crédito (Cuenta por Cobrar)</option>
                             </select>
                         </div>
                     </div>
@@ -3003,7 +3073,7 @@
                         </div>
                         <div class="form-group">
                             <label>% Utilidad:</label>
-                            <input type="number" step="0.1" min="0" id="newProdUtilidad" class="form-input"
+                            <input type="number" step="0.1" min="-99.9" id="newProdUtilidad" class="form-input"
                                 placeholder="30" value="30" oninput="calculateNewProductPrice()"
                                 style="font-weight:700;">
                         </div>
@@ -3104,10 +3174,20 @@
                             <span class="code-badge" id="editProdCodeBadge"
                                 style="font-size:12px; font-weight:800;">PROD-000</span>
                         </div>
-                        <div>
-                            <span
-                                style="font-size:11px; font-weight:700; color:#0369a1; background:#e0f2fe; padding:3px 9px; border-radius:6px;"
-                                id="editProdCategoryBadge">General</span>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:11px; font-weight:700; color:#475569;">Categoría:</span>
+                            <select id="editProdCategory" class="form-select" style="font-size:12px; font-weight:700; padding:4px 10px; min-width:170px; height:auto;">
+                                <option value="Refrigeración">Refrigeración</option>
+                                <option value="Aires Acondicionados">Aires Acondicionados</option>
+                                <option value="Lavadoras">Lavadoras</option>
+                                <option value="Licuadoras">Licuadoras</option>
+                                <option value="Motores">Motores</option>
+                                <option value="Capacitores">Capacitores</option>
+                                <option value="Protectores">Protectores</option>
+                                <option value="Químicos">Químicos</option>
+                                <option value="Herramientas">Herramientas</option>
+                                <option value="General">General</option>
+                            </select>
                         </div>
                     </div>
 
@@ -3183,7 +3263,7 @@
                         </div>
                         <div class="form-group">
                             <label>% Utilidad:</label>
-                            <input type="number" step="0.1" min="0" id="editProdUtilidad" class="form-input"
+                            <input type="number" step="0.1" min="-99.9" id="editProdUtilidad" class="form-input"
                                 placeholder="30" value="30" oninput="calculateEditProductPrice()"
                                 style="font-weight:700;">
                         </div>
@@ -3271,6 +3351,91 @@
                         </svg>
                         Guardar Cambios
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================
+         MODAL: AJUSTE GLOBAL DE PRECIOS POR CATEGORÍA Y CATEGORÍAS
+         ========================================================== -->
+        <div class="erp-modal-overlay" id="bulkCategoryModal">
+            <div class="erp-modal-card" style="max-width: 680px; width: 95%;">
+                <div class="erp-modal-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#003366" stroke-width="2">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                        <div>
+                            <span class="erp-modal-title" style="display:block; font-size:15.5px; font-weight:800;">Precios Globales y Categorías</span>
+                            <span style="font-size:11.5px; color:#64748b;">Ajusta márgenes/costos por categoría o renombra categorías</span>
+                        </div>
+                    </div>
+                    <button class="erp-modal-close" onclick="closeModal('bulkCategoryModal')">✕</button>
+                </div>
+                <div class="erp-modal-body" style="padding: 18px 22px;">
+                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+                        <button type="button" id="bulkTabBtnPrices" class="header-action-btn btn-primary-action" onclick="switchBulkCategoryTab('prices')" style="padding:6px 14px; font-size:12.5px;">Ajuste Global de Precios</button>
+                        <button type="button" id="bulkTabBtnCats" class="header-action-btn btn-secondary-action" onclick="switchBulkCategoryTab('cats')" style="padding:6px 14px; font-size:12.5px;">Editar / Renombrar Categorías</button>
+                    </div>
+
+                    <!-- TAB 1: AJUSTE GLOBAL DE PRECIOS -->
+                    <div id="bulkTabPrices">
+                        <div class="form-row-2" style="margin-bottom: 14px;">
+                            <div class="form-group">
+                                <label>Categoría a Ajustar:</label>
+                                <select id="bulkPriceCategory" class="form-select" onchange="updateBulkPricePreview()"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Tipo de Ajuste:</label>
+                                <select id="bulkPriceMode" class="form-select" onchange="updateBulkPricePreview()">
+                                    <option value="util_delta">Sumar / Restar % a Utilidad actual (ej. +5 o -10)</option>
+                                    <option value="util_set">Fijar % de Utilidad exacto (ej. 25 o -5)</option>
+                                    <option value="cost_delta">Aumentar / Reducir Costo en % (ej. +10 o -5)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2" style="margin-bottom: 14px;">
+                            <div class="form-group">
+                                <label>Valor del Ajuste (%):</label>
+                                <input type="number" step="0.1" id="bulkPriceValue" class="form-input" value="5" oninput="updateBulkPricePreview()" style="font-weight:800; font-size:15px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Persona Responsable / Autorizante: <span style="color:#dc2626;">*</span></label>
+                                <input type="text" id="bulkPriceResponsible" class="form-input" placeholder="Nombre y apellido..." style="font-weight:700;">
+                            </div>
+                        </div>
+
+                        <div id="bulkPricePreviewBox" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; color:#334155;">
+                            Selecciona una categoría para previsualizar el ajuste.
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; gap:8px;">
+                            <button type="button" class="header-action-btn btn-secondary-action" onclick="closeModal('bulkCategoryModal')">Cancelar</button>
+                            <button type="button" class="header-action-btn btn-primary-action" onclick="applyBulkCategoryPriceAdjustment()">Aplicar Ajuste Global</button>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: GESTIONAR / RENOMBRAR CATEGORÍAS -->
+                    <div id="bulkTabCats" style="display:none;">
+                        <div style="display:flex; gap:8px; margin-bottom:14px;">
+                            <input type="text" id="newCategoryNameInput" class="form-input" placeholder="Nueva categoría (ej: Compresores, Tuberías...)" style="flex:1;">
+                            <button type="button" class="header-action-btn btn-primary-action" onclick="addCustomCategory()" style="white-space:nowrap;">+ Agregar Categoría</button>
+                        </div>
+                        <div style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                            <table class="data-table" style="font-size:12px; margin-bottom:0;">
+                                <thead>
+                                    <tr>
+                                        <th>Categoría Actual</th>
+                                        <th style="text-align:center;">Productos</th>
+                                        <th style="text-align:right;">Renombrar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bulkCategoriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

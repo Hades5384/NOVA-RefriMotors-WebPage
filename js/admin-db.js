@@ -680,7 +680,10 @@ const NovaDB = (function () {
             vueltoUSD: saleData.vueltoUSD || 0,
             vueltoBs: saleData.vueltoBs || 0,
             vendedor: saleData.vendedor || "Caja Principal",
-            cajero: saleData.cajero || "MASTER"
+            cajero: saleData.cajero || "MASTER",
+            esCredito: !!saleData.esCredito,
+            pagadoCredito: !!saleData.pagadoCredito,
+            estadoPago: saleData.estadoPago || (saleData.esCredito ? 'pendiente' : 'pagado')
         };
 
         // Si es factura o nota de entrega, descontar del stock
@@ -818,6 +821,18 @@ const NovaDB = (function () {
 
     function getVoidSales() {
         return _read('sale_voids', []);
+    }
+
+    function markSaleCreditPaid(saleId) {
+        if (!saleId) return false;
+        const sales = getSales();
+        const idx = sales.findIndex(s => s && s.id === saleId);
+        if (idx === -1) return false;
+        sales[idx].pagadoCredito = true;
+        sales[idx].estadoPago = 'pagado';
+        sales[idx].fechaPagoCredito = new Date().toLocaleDateString('es-VE');
+        _write('sales', sales);
+        return true;
     }
 
     function getProductExchanges() {
@@ -1445,6 +1460,7 @@ const NovaDB = (function () {
         getSales,
         registerSale,
         voidSale,
+        markSaleCreditPaid,
         registerProductExchange,
         getVoidSales,
         getProductExchanges,

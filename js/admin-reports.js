@@ -3045,9 +3045,28 @@ const NovaReports = (function () {
 
     // 21. Cuentas por Cobrar
     function generateCuentasCobrarReport(rangeKey) {
+        const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+        const creditSales = allSales.filter(s => !s.anulada && s.esCredito && !s.pagadoCredito);
         const held = (typeof NovaDB !== 'undefined' && NovaDB.getHeldSales) ? NovaDB.getHeldSales() : [];
         const rows = [];
         let totalCobrarUSD = 0;
+
+        creditSales.forEach(s => {
+            const tot = parseFloat(s.totalUSD) || 0;
+            totalCobrarUSD += tot;
+            const cName = (s.cliente && s.cliente.nombre) ? s.cliente.nombre : 'Cliente Mostrador';
+            const cRif = (s.cliente && s.cliente.rif) ? ` (${s.cliente.rif})` : '';
+            rows.push([
+                { val: `<b>${cName}</b><small style="color:#64748b;">${cRif}</small>`, align: 'left' },
+                { val: (s.cliente && s.cliente.telefono) ? s.cliente.telefono : '-', align: 'center' },
+                { val: _buildInvoiceLinkHtml(s.id), align: 'center', bold: true },
+                { val: s.fechaStr || new Date(s.timestamp || Date.now()).toLocaleDateString('es-VE'), align: 'center' },
+                { val: `$${tot.toFixed(2)}`, align: 'right' },
+                { val: "$0.00", align: 'right' },
+                { val: `<b>$${tot.toFixed(2)}</b>`, align: 'right' },
+                { val: "<span style='color:#b45309; font-weight:700;'>Pendiente (Crédito)</span>", align: 'center' }
+            ]);
+        });
 
         held.forEach(h => {
             const tot = parseFloat(h.totalUSD) || 0;
@@ -3066,17 +3085,18 @@ const NovaReports = (function () {
 
         if (rows.length === 0) {
             rows.push([
-                { val: "Operación Conforme: 100% de las ventas de mostrador se liquidan al contado al momento de emisión. Cartera al día sin clientes en mora ni créditos pendientes.", colspan: 8, align: 'center' }
+                { val: "Operación Conforme: 100% de las ventas de mostrador se liquidan al contado o ya fueron cobradas. Cartera al día sin créditos pendientes.", colspan: 8, align: 'center' }
             ]);
         }
 
+        const totalDocs = creditSales.length + held.length;
         return {
             title: "CUENTAS POR COBRAR: ANTIGÜEDAD DE SALDOS Y CRÉDITOS A CLIENTES",
             periodStr: "Cartera Activa",
             kpis: [
-                { label: "Total por Cobrar", value: `$${totalCobrarUSD.toFixed(2)} USD`, sub: totalCobrarUSD > 0 ? `${held.length} Tickets pendientes` : "0 Clientes con saldo" },
-                { label: "Cartera Vigente", value: totalCobrarUSD > 0 ? `$${totalCobrarUSD.toFixed(2)}` : "$0.00", highlight: 'text-success' },
-                { label: "En Mora (>30 días)", value: "$0.00", highlight: 'text-success', sub: "0% morosidad" }
+                { label: "Total por Cobrar", value: `$${totalCobrarUSD.toFixed(2)} USD`, sub: totalDocs > 0 ? `${totalDocs} Documento(s) pendiente(s)` : "0 Clientes con saldo" },
+                { label: "Cartera Vigente", value: totalCobrarUSD > 0 ? `$${totalCobrarUSD.toFixed(2)}` : "$0.00", highlight: totalCobrarUSD > 0 ? 'text-warning' : 'text-success' },
+                { label: "Facturas a Crédito", value: `${creditSales.length}`, sub: "Pendientes de pago" }
             ],
             headers: ["Cliente / RIF", "Teléfono", "Factura", "Fecha Emisión", "Total Factura", "Abonos", "Saldo Pendiente", "Tramo Mora"],
             rows: rows,
