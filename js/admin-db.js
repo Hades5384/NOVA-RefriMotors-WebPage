@@ -35,7 +35,8 @@ const NovaDB = (function () {
     };
 
     const DEFAULT_CUSTOMERS = [
-        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" }
+        { id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" },
+        { id: "CLI-TALLER", nombre: "Taller Nova", rif: "J-504401994", telefono: "+58 424-6192394", direccion: "Galpón NOVA RefriMotors, Av. Carabobo, Cabimas, Edo. Zulia", tipo: "taller", notas: "Taller interno NOVA (Protegido)" }
     ];
 
     const DEFAULT_SUPPLIERS = [];
@@ -112,13 +113,40 @@ const NovaDB = (function () {
         if (!_read('product_exchanges', null)) {
             _write('product_exchanges', []);
         }
+        if (!_read('price_change_log', null)) {
+            _write('price_change_log', []);
+        }
+        if (!_read('security_audit_logs', null)) {
+            _write('security_audit_logs', []);
+        }
 
         // Inicializar inventario a partir de los 460 productos y variantes
         _syncInitialInventory();
         _migrateProductDistinctNames();
+        _purgeNonStandardSkus();
 
         // Verificar o abrir turno de caja inicial si no existe
         _checkActiveCashShift();
+    }
+
+    function _isStandardSku(sku) {
+        return /^[A-Z]{3}\d{3}$/.test(String(sku || '').trim().toUpperCase());
+    }
+
+    function _purgeNonStandardSkus() {
+        const inv = _read('inventory', {});
+        const keys = Object.keys(inv);
+        let removed = 0;
+        keys.forEach(k => {
+            if (!_isStandardSku(k)) {
+                delete inv[k];
+                removed++;
+            }
+        });
+        if (removed > 0) {
+            _write('inventory', inv);
+            console.log(`[NovaDB] Purgados ${removed} SKUs no estándar (fuera de regla 3 letras + 3 números).`);
+        }
     }
 
     function _migrateProductDistinctNames() {
@@ -259,7 +287,16 @@ const NovaDB = (function () {
     // 3. MÉTODOS DE INVENTARIO Y STOCK
     // ==========================================
     function getInventory() {
-        return _read('inventory', {});
+        const inv = _read('inventory', {});
+        let cleaned = false;
+        Object.keys(inv).forEach(k => {
+            if (!_isStandardSku(k)) {
+                delete inv[k];
+                cleaned = true;
+            }
+        });
+        if (cleaned) _write('inventory', inv);
+        return inv;
     }
 
     function _resolveInvKey(inv, productId) {
@@ -319,7 +356,7 @@ const NovaDB = (function () {
         return false;
     }
 
-    function deductStock(productId, qtyToDeduct, reason = "Venta Mostrador") {
+    function deductStock(productId, qtyToDeduct, reason = "Venta Mostrador", responsable = "") {
         const inv = getInventory();
         const qty = parseInt(qtyToDeduct);
         if (isNaN(qty) || qty <= 0) return false;
@@ -341,6 +378,7 @@ const NovaDB = (function () {
                 reason,
                 motivo: reason,
                 docId: docIdMatch || '-',
+                responsable: responsable || 'Responsable',
                 timestamp: new Date().toISOString()
             });
             return true;
@@ -378,7 +416,7 @@ const NovaDB = (function () {
                 reason: fullReason,
                 motivo: fullReason,
                 docId: docIdMatch || '-',
-                responsable: responsable || 'MASTER',
+                responsable: responsable || 'Responsable',
                 timestamp: new Date().toISOString()
             });
             return true;
@@ -469,10 +507,12 @@ const NovaDB = (function () {
         return false;
     }
 
-    function updateProductCost(productId, newCost) {
+    function updateProductCost(productId, newCost, user) {
         const cost = parseFloat(newCost);
         if (isNaN(cost) || cost < 0) return false;
         const inv = getInventory();
+        const oldCost = inv[productId] ? (parseFloat(inv[productId].costoCompra) || 0) : 0;
+
         if (inv[productId]) {
             inv[productId].costoCompra = cost;
             _write('inventory', inv);
@@ -487,10 +527,23 @@ const NovaDB = (function () {
                 }
             });
         }
+
+        if (oldCost !== cost) {
+            logPriceChange({
+                sku: productId,
+                name: (inv[productId] && inv[productId].name) ? inv[productId].name : productId,
+                costoAnterior: oldCost,
+                costoNuevo: cost,
+                precioAnterior: inv[productId] ? (parseFloat(inv[productId].precioFinalUSD) || 0) : 0,
+                precioNuevo: inv[productId] ? (parseFloat(inv[productId].precioFinalUSD) || 0) : 0,
+                usuario: user || (typeof NovaUsers !== 'undefined' ? NovaUsers.getCurrentUser().name : 'Responsable'),
+                motivo: 'Ajuste de costo de compra'
+            });
+        }
         return true;
     }
 
-    function updateProduct(productId, updates) {
+    function updateProduct(productId, updates, user) {
         if (!productId || !updates) return false;
         const inv = getInventory();
         let target = inv[productId];
@@ -507,6 +560,10 @@ const NovaDB = (function () {
             inv[productId] = target;
         }
 
+        const oldCosto = parseFloat(target.costoCompra) || 0;
+        const oldUtil = parseFloat(target.porcentajeUtilidad) || 0;
+        const oldPrice = parseFloat(target.precioFinalUSD) || 0;
+
         if (updates.name !== undefined) target.name = updates.name.trim();
         if (updates.descripcionDetallada !== undefined) {
             target.descripcionDetallada = updates.descripcionDetallada.trim();
@@ -519,6 +576,26 @@ const NovaDB = (function () {
         if (updates.precioFinalUSD !== undefined) target.precioFinalUSD = parseFloat(updates.precioFinalUSD) || 0;
 
         _write('inventory', inv);
+
+        const newCosto = parseFloat(target.costoCompra) || 0;
+        const newUtil = parseFloat(target.porcentajeUtilidad) || 0;
+        const newPrice = parseFloat(target.precioFinalUSD) || 0;
+
+        // Registrar auditoría de precio o costo si hubo variación
+        if (oldCosto !== newCosto || oldUtil !== newUtil || oldPrice !== newPrice) {
+            logPriceChange({
+                sku: productId,
+                name: target.name || productId,
+                costoAnterior: oldCosto,
+                costoNuevo: newCosto,
+                precioAnterior: oldPrice,
+                precioNuevo: newPrice,
+                utilidadAnterior: oldUtil,
+                utilidadNueva: newUtil,
+                usuario: updates.usuario || user || (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser ? NovaUsers.getCurrentUser().name : 'Responsable'),
+                motivo: updates.motivo || 'Modificación en Almacén'
+            });
+        }
 
         if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
             const updateItem = (item) => {
@@ -621,7 +698,7 @@ const NovaDB = (function () {
         return record;
     }
 
-    function voidSale(saleId, motivo = "Anulación solicitada en mostrador", responsable = "MASTER") {
+    function voidSale(saleId, motivo = "Anulación solicitada en mostrador", responsable = "Responsable") {
         if (!saleId) return { success: false, message: "ID de comprobante no especificado." };
         const sales = getSales();
         const sale = sales.find(s => s.id === saleId);
@@ -684,7 +761,7 @@ const NovaDB = (function () {
         }
         const rQty = parseInt(returnedQty) || 1;
         const nQty = parseInt(newQty) || 1;
-        const resp = responsable || 'MASTER';
+        const resp = responsable || 'Responsable';
         const mot = motivo || 'Cambio de repuesto';
 
         // 1. Ingresar existencias del producto devuelto
@@ -745,6 +822,63 @@ const NovaDB = (function () {
 
     function getProductExchanges() {
         return _read('product_exchanges', []);
+    }
+
+    // ==========================================
+    // 4.1 AUDITORÍA DE PRECIOS Y EVENTOS DE SEGURIDAD
+    // ==========================================
+    function logPriceChange(entry) {
+        const logs = _read('price_change_log', []);
+        const now = new Date();
+        const newEntry = {
+            id: 'PRC-' + Date.now().toString().slice(-6),
+            timestamp: now.getTime(),
+            fechaStr: now.toLocaleDateString('es-VE'),
+            horaStr: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            sku: entry.sku || entry.id || '',
+            name: entry.name || '',
+            costoAnterior: parseFloat(entry.costoAnterior) || 0,
+            costoNuevo: parseFloat(entry.costoNuevo) || 0,
+            precioAnterior: parseFloat(entry.precioAnterior) || 0,
+            precioNuevo: parseFloat(entry.precioNuevo) || 0,
+            utilidadAnterior: parseFloat(entry.utilidadAnterior) || 0,
+            utilidadNueva: parseFloat(entry.utilidadNueva) || 0,
+            usuario: entry.usuario || (typeof NovaUsers !== 'undefined' ? NovaUsers.getCurrentUser().name : 'MASTER'),
+            motivo: entry.motivo || 'Modificación en Almacén'
+        };
+        logs.unshift(newEntry);
+        if (logs.length > 1000) logs.length = 1000;
+        _write('price_change_log', logs);
+        return newEntry;
+    }
+
+    function getPriceChangeLogs() {
+        return _read('price_change_log', []);
+    }
+
+    function logSecurityEvent(eventData) {
+        const logs = _read('security_audit_logs', []);
+        const now = new Date();
+        const entry = {
+            id: 'SEC-' + Date.now().toString().slice(-6),
+            timestamp: now.getTime(),
+            fechaStr: now.toLocaleDateString('es-VE'),
+            horaStr: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            usuario: eventData.usuario || (typeof NovaUsers !== 'undefined' ? NovaUsers.getCurrentUser().name : 'MASTER'),
+            modulo: eventData.modulo || 'Seguridad',
+            accion: eventData.accion || 'Operación',
+            documento: eventData.documento || '-',
+            detalles: eventData.detalles || '',
+            nivel: eventData.nivel || 'info'
+        };
+        logs.unshift(entry);
+        if (logs.length > 1000) logs.length = 1000;
+        _write('security_audit_logs', logs);
+        return entry;
+    }
+
+    function getSecurityLogs() {
+        return _read('security_audit_logs', []);
     }
 
     // ==========================================
@@ -1036,7 +1170,25 @@ const NovaDB = (function () {
     // 7. CLIENTES (CRM) Y PROVEEDORES
     // ==========================================
     function getCustomers() {
-        return _read('customers', DEFAULT_CUSTOMERS);
+        const list = _read('customers', DEFAULT_CUSTOMERS);
+        let changed = false;
+        DEFAULT_CUSTOMERS.forEach(def => {
+            if (!list.some(c => c && c.id === def.id)) {
+                list.push(Object.assign({}, def));
+                changed = true;
+            }
+        });
+        if (changed) {
+            list.sort((a, b) => {
+                if (a.id === 'CLI-001') return -1;
+                if (b.id === 'CLI-001') return 1;
+                if (a.id === 'CLI-TALLER') return -1;
+                if (b.id === 'CLI-TALLER') return 1;
+                return 0;
+            });
+            _write('customers', list);
+        }
+        return list;
     }
 
     function saveCustomer(customer) {
@@ -1054,7 +1206,7 @@ const NovaDB = (function () {
     }
 
     function deleteCustomer(customerId) {
-        if (!customerId || customerId === 'CLI-001') return false;
+        if (!customerId || customerId === 'CLI-001' || customerId === 'CLI-TALLER') return false;
         let list = getCustomers();
         const initialLen = list.length;
         list = list.filter(c => c.id !== customerId);
@@ -1318,6 +1470,10 @@ const NovaDB = (function () {
         updateProduct,
         deleteProduct,
         updateProductCost,
+        logPriceChange,
+        getPriceChangeLogs,
+        logSecurityEvent,
+        getSecurityLogs,
         mergeIncomingHeldSales,
         exportFullBackupJSON,
         importFullBackupJSON

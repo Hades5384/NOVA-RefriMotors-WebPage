@@ -1286,7 +1286,7 @@ function isDivisaPaymentMethod(method) {
     const m = (method || '').toLowerCase();
     // Biopago / Patria es estrictamente Moneda Nacional (Bolívares / Tasa BCV)
     if (m.includes('biopago') || m.includes('patria')) return false;
-    return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance');
+    return m.includes('usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance') || m.includes('panam');
 }
 
 /**
@@ -1341,6 +1341,7 @@ function getSalePaymentInfo(sale) {
     else if (methodLower.includes('transferencia')) methodLabel = "TRANSFERENCIA BANCARIA";
     else if (methodLower.includes('zelle')) methodLabel = "ZELLE";
     else if (methodLower.includes('binance')) methodLabel = "BINANCE PAY";
+    else if (methodLower.includes('panam')) methodLabel = "BANESCO PANAMA";
 
     if (refNum && !methodLabel.includes(refNum)) {
         methodLabel += ` [REF: ${refNum}]`;
@@ -2574,8 +2575,27 @@ function getProductCost(code, prods, invItem) {
     return 0;
 }
 
+const INV_DEFAULT_PAGE_SIZE = 100;
+let invVisibleLimit = INV_DEFAULT_PAGE_SIZE;
+
+function loadMoreInventory(amount = INV_DEFAULT_PAGE_SIZE) {
+    invVisibleLimit += amount;
+    renderInventoryTable();
+}
+
+function loadAllInventory() {
+    invVisibleLimit = 999999;
+    renderInventoryTable();
+}
+
+function resetInventoryLimit() {
+    invVisibleLimit = INV_DEFAULT_PAGE_SIZE;
+    renderInventoryTable();
+}
+
 function renderInventoryTable() {
     const tbody = document.getElementById('inventoryTableBody');
+    const footerEl = document.getElementById('invCatalogFooter');
     if (!tbody) return;
 
     const query = document.getElementById('invSearchInput')?.value?.toLowerCase().trim() || '';
@@ -2585,6 +2605,19 @@ function renderInventoryTable() {
     const inv = NovaDB.getInventory();
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
     const settings = NovaDB.getSettings();
+
+    // Mapa O(1) de costos para renderizar hasta 1300+ productos sin lag
+    const catalogCostMap = {};
+    for (let i = 0; i < prods.length; i++) {
+        const p = prods[i];
+        if (p.id && typeof p.costoCompra === 'number') catalogCostMap[p.id] = p.costoCompra;
+        if (p.variants) {
+            for (let j = 0; j < p.variants.length; j++) {
+                const v = p.variants[j];
+                if (v && v.id && typeof v.costoCompra === 'number') catalogCostMap[v.id] = v.costoCompra;
+            }
+        }
+    }
 
     let filtered = Object.values(inv).filter(item => {
         const matchQ = !query || item.id.toLowerCase().includes(query) || item.name.toLowerCase().includes(query);
@@ -2600,13 +2633,17 @@ function renderInventoryTable() {
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">No se encontraron repuestos en el inventario con los criterios seleccionados.</td></tr>`;
+        if (footerEl) footerEl.innerHTML = `<span class="pos-footer-info">Mostrando <b>0</b> de <b>0</b> repuestos</span>`;
         return;
     }
 
+    const total = filtered.length;
+    const toShow = filtered.slice(0, invVisibleLimit);
+    const showing = toShow.length;
+
     let html = '';
-    // Paginación virtual ligera
-    filtered.slice(0, 100).forEach(item => {
-        const cost = getProductCost(item.id, prods, item);
+    toShow.forEach(item => {
+        const cost = (typeof item.costoCompra === 'number' && item.costoCompra > 0) ? item.costoCompra : (catalogCostMap[item.id] || 0);
         const precios = calcularPreciosSegunAjustes(cost, settings, item.porcentajeUtilidad, item.iva);
 
         let statusBadge = '<span class="status-badge status-optimal">● Óptimo</span>';
@@ -2651,6 +2688,45 @@ function renderInventoryTable() {
     });
 
     tbody.innerHTML = html;
+
+    if (footerEl) {
+        if (total <= INV_DEFAULT_PAGE_SIZE) {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo visible</span>
+                </div>`;
+        } else if (showing < total) {
+            const remaining = total - showing;
+            const nextBatch = Math.min(INV_DEFAULT_PAGE_SIZE, remaining);
+            let buttonsHtml = `
+                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMoreInventory(${INV_DEFAULT_PAGE_SIZE})">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Cargar ${nextBatch} más
+                </button>
+                <button type="button" class="pos-load-btn" onclick="loadAllInventory()">
+                    Ver todos (${total})
+                </button>`;
+            if (invVisibleLimit > INV_DEFAULT_PAGE_SIZE) {
+                buttonsHtml += `
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>`;
+            }
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">${buttonsHtml}</div>`;
+        } else {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo cargado</span>
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>
+                </div>`;
+        }
+    }
 }
 
 function quickStockAdjust(itemId, diff) {
@@ -2712,6 +2788,9 @@ function openEditProductModal(productId) {
 
     const inpIva = document.getElementById('editProdIva');
     if (inpIva) inpIva.value = currentIva;
+
+    const inpResp = document.getElementById('editProdResponsable');
+    if (inpResp) inpResp.value = '';
 
     // Poblar historial de última carga y registro de subida de costo
     const history = (typeof NovaDB !== 'undefined' && NovaDB.getProductPurchaseHistory) ? NovaDB.getProductPurchaseHistory(productId) : [];
@@ -2784,47 +2863,51 @@ function openEditProductModal(productId) {
     setTimeout(() => { if (inpName) inpName.focus(); }, 100);
 }
 
-function calculateEditProductPrice() {
-    const costoInp = document.getElementById('editProdCosto');
-    const utilInp = document.getElementById('editProdUtilidad');
-    const ivaInp = document.getElementById('editProdIva');
+function _computeAndRenderProductPricePreview(prefix, costoId, utilId, ivaId) {
+    const costo = Math.max(0, parseFloat(document.getElementById(costoId)?.value || 0) || 0);
+    const utilidad = Math.max(0, parseFloat(document.getElementById(utilId)?.value || 0) || 0);
+    const iva = Math.max(0, parseFloat(document.getElementById(ivaId)?.value || 0) || 0);
 
-    const costo = Math.max(0, parseFloat(costoInp ? costoInp.value : 0) || 0);
-    const utilidad = Math.max(0, parseFloat(utilInp ? utilInp.value : 0) || 0);
-    const iva = Math.max(0, parseFloat(ivaInp ? ivaInp.value : 0) || 0);
-
-    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
-    const tasaBCV = settings.tasaBCV || 914.02;
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02, tasaInterna: 1150 };
+    const tasaBCV = parseFloat(settings.tasaBCV) || 914.02;
+    const tasaInterna = parseFloat(settings.tasaInterna) || 1150;
 
     const ganancia = costo * (utilidad / 100);
     const subtotal = costo + ganancia;
     const montoIva = subtotal * (iva / 100);
-    const precioFinalUSD = subtotal + montoIva;
-    const precioFinalBs = precioFinalUSD * tasaBCV;
+    const precioFinalUSD = subtotal + montoIva; // Precio en Dólares Sistema / Divisas
+    const precioFinalBs = precioFinalUSD * tasaInterna; // En Bolívares usando Tasa Interna
+    const precioPublicoUSD = precioFinalBs / tasaBCV; // (Precio Sistema * Dólar Interno) / Dólar BCV
 
-    // Actualizar etiquetas en la tarjeta de cálculo
-    const elCosto = document.getElementById('editCalcCostoDisplay');
+    const elCosto = document.getElementById(`${prefix}CalcCostoDisplay`);
     if (elCosto) elCosto.innerText = `$${costo.toFixed(2)}`;
 
-    const elUtilPct = document.getElementById('editCalcUtilPercent');
+    const elUtilPct = document.getElementById(`${prefix}CalcUtilPercent`);
     if (elUtilPct) elUtilPct.innerText = `${utilidad}%`;
 
-    const elGanancia = document.getElementById('editCalcGananciaDisplay');
+    const elGanancia = document.getElementById(`${prefix}CalcGananciaDisplay`);
     if (elGanancia) elGanancia.innerText = `+$${ganancia.toFixed(2)}`;
 
-    const elIvaPct = document.getElementById('editCalcIvaPercent');
+    const elIvaPct = document.getElementById(`${prefix}CalcIvaPercent`);
     if (elIvaPct) elIvaPct.innerText = `${iva}%`;
 
-    const elIva = document.getElementById('editCalcIvaDisplay');
+    const elIva = document.getElementById(`${prefix}CalcIvaDisplay`);
     if (elIva) elIva.innerText = `+$${montoIva.toFixed(2)}`;
 
-    const elPrecioUSD = document.getElementById('editCalcPrecioUSD');
+    const elPrecioUSD = document.getElementById(`${prefix}CalcPrecioUSD`);
     if (elPrecioUSD) elPrecioUSD.innerText = `$${precioFinalUSD.toFixed(2)}`;
 
-    const elPrecioBs = document.getElementById('editCalcPrecioBs');
+    const elPrecioBs = document.getElementById(`${prefix}CalcPrecioBs`);
     if (elPrecioBs) elPrecioBs.innerText = `Bs. ${precioFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    return { costo, utilidad, iva, subtotal, ganancia, montoIva, precioFinalUSD, precioFinalBs };
+    const elPublicoUSD = document.getElementById(`${prefix}CalcPrecioPublicoUSD`);
+    if (elPublicoUSD) elPublicoUSD.innerText = `$${precioPublicoUSD.toFixed(2)} USD`;
+
+    return { costo, utilidad, iva, subtotal, ganancia, montoIva, precioFinalUSD, precioFinalBs, precioPublicoUSD };
+}
+
+function calculateEditProductPrice() {
+    return _computeAndRenderProductPricePreview('edit', 'editProdCosto', 'editProdUtilidad', 'editProdIva');
 }
 
 function saveEditedProduct() {
@@ -2834,6 +2917,7 @@ function saveEditedProduct() {
     const costo = Math.max(0, parseFloat(document.getElementById('editProdCosto').value) || 0);
     const utilidad = Math.max(0, parseFloat(document.getElementById('editProdUtilidad').value) || 0);
     const iva = Math.max(0, parseFloat(document.getElementById('editProdIva').value) || 0);
+    const responsable = (document.getElementById('editProdResponsable')?.value || '').trim();
 
     if (!id || !name) {
         showNovaAlert({
@@ -2841,6 +2925,16 @@ function saveEditedProduct() {
             message: "La descripción del producto no puede estar vacía.",
             type: "warning"
         });
+        return;
+    }
+
+    if (!responsable) {
+        showNovaAlert({
+            title: "Responsable Requerido",
+            message: "Por favor indique el nombre y apellido de la persona responsable que autoriza o realiza esta modificación.",
+            type: "warning"
+        });
+        document.getElementById('editProdResponsable')?.focus();
         return;
     }
 
@@ -2853,8 +2947,10 @@ function saveEditedProduct() {
         costoCompra: costo,
         porcentajeUtilidad: utilidad,
         iva: iva,
-        precioFinalUSD: precioFinalUSD
-    });
+        precioFinalUSD: precioFinalUSD,
+        usuario: responsable,
+        motivo: 'Ajuste de producto en Almacén'
+    }, responsable);
 
     closeModal('editProductModal');
     renderInventoryView();
@@ -2862,7 +2958,7 @@ function saveEditedProduct() {
 
     showNovaAlert({
         title: "Producto Actualizado",
-        message: `El repuesto <b>${name}</b> fue actualizado exitosamente.<br>Nuevo precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
+        message: `El repuesto <b>${name}</b> fue actualizado exitosamente por <b>${responsable}</b>.<br>Nuevo precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
         type: "success"
     });
 }
@@ -2909,45 +3005,7 @@ function openAddNewProductModal() {
 }
 
 function calculateNewProductPrice() {
-    const costoInp = document.getElementById('newProdCosto');
-    const utilInp = document.getElementById('newProdUtilidad');
-    const ivaInp = document.getElementById('newProdIva');
-
-    const costo = Math.max(0, parseFloat(costoInp ? costoInp.value : 0) || 0);
-    const utilidad = Math.max(0, parseFloat(utilInp ? utilInp.value : 0) || 0);
-    const iva = Math.max(0, parseFloat(ivaInp ? ivaInp.value : 0) || 0);
-
-    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
-    const tasaBCV = settings.tasaBCV || 914.02;
-
-    const ganancia = costo * (utilidad / 100);
-    const subtotal = costo + ganancia;
-    const montoIva = subtotal * (iva / 100);
-    const precioFinalUSD = subtotal + montoIva;
-    const precioFinalBs = precioFinalUSD * tasaBCV;
-
-    const elCosto = document.getElementById('newCalcCostoDisplay');
-    if (elCosto) elCosto.innerText = `$${costo.toFixed(2)}`;
-
-    const elUtilPct = document.getElementById('newCalcUtilPercent');
-    if (elUtilPct) elUtilPct.innerText = `${utilidad}%`;
-
-    const elGanancia = document.getElementById('newCalcGananciaDisplay');
-    if (elGanancia) elGanancia.innerText = `+$${ganancia.toFixed(2)}`;
-
-    const elIvaPct = document.getElementById('newCalcIvaPercent');
-    if (elIvaPct) elIvaPct.innerText = `${iva}%`;
-
-    const elIva = document.getElementById('newCalcIvaDisplay');
-    if (elIva) elIva.innerText = `+$${montoIva.toFixed(2)}`;
-
-    const elPrecioUSD = document.getElementById('newCalcPrecioUSD');
-    if (elPrecioUSD) elPrecioUSD.innerText = `$${precioFinalUSD.toFixed(2)}`;
-
-    const elPrecioBs = document.getElementById('newCalcPrecioBs');
-    if (elPrecioBs) elPrecioBs.innerText = `Bs. ${precioFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    return { costo, utilidad, iva, subtotal, ganancia, montoIva, precioFinalUSD, precioFinalBs };
+    return _computeAndRenderProductPricePreview('new', 'newProdCosto', 'newProdUtilidad', 'newProdIva');
 }
 
 function submitNewProduct() {
@@ -3058,6 +3116,55 @@ function getMatchingStockProducts(term, mode = 'code') {
     }
 }
 
+let stockBatchMode = 'in'; // 'in' = cargar existencias | 'out' = reportar merma / dañado
+
+function _configureStockBatchModalUI(mode) {
+    stockBatchMode = mode;
+    const titleEl = document.getElementById('loadStockModalTitle');
+    const subEl = document.getElementById('loadStockModalSubtitle');
+    const chipsEl = document.getElementById('stockInReasonChips');
+    const reasonEl = document.getElementById('stockInReason');
+    const colQtyEl = document.getElementById('stockInColHeaderQty');
+    const submitBtn = document.getElementById('btnSubmitStockIn');
+    const submitTxt = document.getElementById('btnSubmitStockInText');
+
+    if (mode === 'out') {
+        if (titleEl) titleEl.textContent = 'Reportar Merma, Producto Dañado o Baja';
+        if (subEl) subEl.textContent = 'Descuenta del inventario productos dañados de fábrica, mermas o fugas con justificativo y responsable';
+        if (reasonEl) reasonEl.placeholder = 'Ej: Producto vino dañado de proveedor, fuga de gas, dañado en almacén...';
+        if (chipsEl) {
+            chipsEl.innerHTML = `
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Producto vino dañado de proveedor')">📦 Vino Dañado</button>
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Dañado en almacén / manipulación')">⚠️ Dañado en Almacén</button>
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Fuga de gas / Merma')">💨 Fuga / Merma</button>
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Autoconsumo en taller')">🔧 Autoconsumo</button>
+            `;
+        }
+        if (colQtyEl) colQtyEl.textContent = 'Baja (-)';
+        if (submitBtn) {
+            submitBtn.style.background = '#b91c1c';
+            submitBtn.style.borderColor = '#b91c1c';
+        }
+        if (submitTxt) submitTxt.textContent = 'Confirmar Baja / Merma';
+    } else {
+        if (titleEl) titleEl.textContent = 'Cargar Existencias al Inventario';
+        if (subEl) subEl.textContent = 'Añade unidades a los repuestos del catálogo con justificativo y responsable';
+        if (reasonEl) reasonEl.placeholder = 'Ej: Conteo físico, reingreso de mercancía, garantía...';
+        if (chipsEl) {
+            chipsEl.innerHTML = `
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Ajuste Conteo Físico')">📋 Conteo Físico</button>
+                <button type="button" class="stock-reason-chip" onclick="setStockInReasonPreset('Reingreso / Devolución')">🔄 Reingreso</button>
+            `;
+        }
+        if (colQtyEl) colQtyEl.textContent = 'Cargar (+)';
+        if (submitBtn) {
+            submitBtn.style.background = '';
+            submitBtn.style.borderColor = '';
+        }
+        if (submitTxt) submitTxt.textContent = 'Confirmar Carga de Existencias';
+    }
+}
+
 function openStockInModal() {
     if (typeof NovaUsers !== 'undefined' && !NovaUsers.hasPermission('canManageInventory')) {
         showNovaAlert({
@@ -3068,21 +3175,57 @@ function openStockInModal() {
         return;
     }
 
+    _configureStockBatchModalUI('in');
     stockInBatchItems = [];
     stockInDropdownActiveIndex = -1;
     stockInCurrentMatches = [];
 
-    // Pre-llenar responsable con usuario actual
-    const currentUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
-    const defaultResp = currentUser ? (currentUser.name || currentUser.id || 'MASTER') : 'MASTER';
+    // Pre-llenar responsable vacío para obligar a indicar la persona
     const respInput = document.getElementById('stockInResponsible');
-    if (respInput) respInput.value = defaultResp;
+    if (respInput) respInput.value = '';
 
     // Limpiar justificativo
     const reasonInput = document.getElementById('stockInReason');
     if (reasonInput) reasonInput.value = '';
 
     // Limpiar campos de selección
+    const codeInput = document.getElementById('stockInCodeInput');
+    if (codeInput) codeInput.value = '';
+    const descInput = document.getElementById('stockInDescInput');
+    if (descInput) descInput.value = '';
+    const hidId = document.getElementById('stockInSelectedProductId');
+    if (hidId) hidId.value = '';
+    const qtyInput = document.getElementById('stockInQuantity');
+    if (qtyInput) qtyInput.value = '1';
+
+    closeStockInDropdown();
+    renderStockInItemsTable();
+    openModal('loadStockModal');
+
+    setTimeout(() => {
+        if (codeInput) codeInput.focus();
+    }, 150);
+}
+
+function openStockOutModal() {
+    if (typeof NovaUsers !== 'undefined' && !NovaUsers.hasPermission('canManageInventory')) {
+        showNovaAlert({
+            title: "Acceso Denegado",
+            message: "Solo usuarios con permisos administrativos pueden reportar mermas o bajas de almacén.",
+            type: "warning"
+        });
+        return;
+    }
+
+    _configureStockBatchModalUI('out');
+    stockInBatchItems = [];
+    stockInDropdownActiveIndex = -1;
+    stockInCurrentMatches = [];
+
+    const respInput = document.getElementById('stockInResponsible');
+    if (respInput) respInput.value = '';
+    const reasonInput = document.getElementById('stockInReason');
+    if (reasonInput) reasonInput.value = '';
     const codeInput = document.getElementById('stockInCodeInput');
     if (codeInput) codeInput.value = '';
     const descInput = document.getElementById('stockInDescInput');
@@ -3398,6 +3541,17 @@ function addSelectedProductToStockInList() {
     const itemCost = getProductCost(productId, prods, inv[productId]);
 
     const existing = stockInBatchItems.find(item => item.id === productId);
+    const totalRequested = (existing ? existing.qtyToAdd : 0) + qty;
+    if (stockBatchMode === 'out' && totalRequested > currentStock) {
+        showNovaAlert({
+            title: "Stock Insuficiente",
+            message: `Solo hay <b>${currentStock} unidad(es)</b> disponibles de <b>${productName}</b> para dar de baja.`,
+            type: "warning"
+        });
+        if (qtyInput) qtyInput.focus();
+        return;
+    }
+
     if (existing) {
         existing.qtyToAdd += qty;
         renderStockInItemsTable();
@@ -3573,9 +3727,13 @@ function submitStockInBatch() {
     let totalUnits = 0;
     let totalValuation = 0;
 
-    // Aplicar entrada a cada producto
+    // Aplicar entrada o baja/merma a cada producto
     stockInBatchItems.forEach(item => {
-        NovaDB.addStock(item.id, item.qtyToAdd, reason, responsible);
+        if (stockBatchMode === 'out') {
+            NovaDB.deductStock(item.id, item.qtyToAdd, `Merma / Baja: ${reason}`, responsible);
+        } else {
+            NovaDB.addStock(item.id, item.qtyToAdd, reason, responsible);
+        }
         totalUnits += item.qtyToAdd;
         totalValuation += (Number(item.cost) || 0) * item.qtyToAdd;
     });
@@ -3590,8 +3748,10 @@ function submitStockInBatch() {
     const totalValuationBs = totalValuation * (settings.tasaBCV || 917.78);
 
     showNovaAlert({
-        title: "Existencias Cargadas con Éxito",
-        message: `Se han ingresado correctamente <b>${totalUnits} unidades</b> distribuidas en <b>${totalProds} repuesto(s)</b> al inventario.<br><div style="margin-top:8px; font-size:12px; color:var(--text-muted); background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; line-height:1.4;"><b>Motivo:</b> ${reason}<br><b>Responsable:</b> ${responsible}<br><b>Valorización Ingreso:</b> $${totalValuation.toFixed(2)} USD (Bs. ${totalValuationBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div>`,
+        title: stockBatchMode === 'out' ? "Merma / Baja Registrada" : "Existencias Cargadas con Éxito",
+        message: stockBatchMode === 'out'
+            ? `Se han descontado correctamente <b>${totalUnits} unidad(es)</b> en <b>${totalProds} repuesto(s)</b> por concepto de merma/baja y quedó asentado en el reporte de Mermas y Kardex.<br><div style="margin-top:8px; font-size:12px; color:var(--text-muted); background:#fef2f2; padding:8px 12px; border-radius:6px; border:1px solid #fecaca; line-height:1.4;"><b>Motivo:</b> ${reason}<br><b>Responsable:</b> ${responsible}<br><b>Impacto de Costo:</b> $${totalValuation.toFixed(2)} USD (Bs. ${totalValuationBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div>`
+            : `Se han ingresado correctamente <b>${totalUnits} unidades</b> distribuidas en <b>${totalProds} repuesto(s)</b> al inventario.<br><div style="margin-top:8px; font-size:12px; color:var(--text-muted); background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid #e2e8f0; line-height:1.4;"><b>Motivo:</b> ${reason}<br><b>Responsable:</b> ${responsible}<br><b>Valorización Ingreso:</b> $${totalValuation.toFixed(2)} USD (Bs. ${totalValuationBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div>`,
         type: "success"
     });
 
@@ -3600,6 +3760,7 @@ function submitStockInBatch() {
 
 // Exportar globalmente
 window.openStockInModal = openStockInModal;
+window.openStockOutModal = openStockOutModal;
 window.setStockInReasonPreset = setStockInReasonPreset;
 window.onStockInCodeInput = onStockInCodeInput;
 window.onStockInCodeKeyDown = onStockInCodeKeyDown;
@@ -3735,6 +3896,11 @@ const CASH_PAYMENT_METHODS_CONFIG = [
         key: 'binance',
         label: 'Binance Pay',
         iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M14.5 9h-5v6h5"></path><path d="M9.5 12h4"></path></svg>`
+    },
+    {
+        key: 'banesco_panama',
+        label: 'Banesco Panamá',
+        iconSvg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><circle cx="12" cy="12" r="3"></circle><path d="M6 12h.01M18 12h.01"></path></svg>`
     }
 ];
 
@@ -3755,6 +3921,7 @@ function getSalePaymentMethodKey(sale) {
     if (m.includes('transferencia')) return 'transferencia';
     if (m.includes('zelle')) return 'zelle';
     if (m.includes('binance')) return 'binance';
+    if (m.includes('panam')) return 'banesco_panama';
     if (m.includes('efectivo bs') || m.includes('bolívares') || m.includes('bolivares')) return 'efectivo_bs';
     if (m.includes('efectivo') || m.includes('usd') || m.includes('$')) return 'efectivo_usd';
     if (isPaymentNational(sale)) return 'pago_movil';
@@ -3778,7 +3945,8 @@ function renderCashMethodFilterCards(shiftSales) {
         biopago: { count: 0, totalUSD: 0, totalBs: 0 },
         transferencia: { count: 0, totalUSD: 0, totalBs: 0 },
         zelle: { count: 0, totalUSD: 0, totalBs: 0 },
-        binance: { count: 0, totalUSD: 0, totalBs: 0 }
+        binance: { count: 0, totalUSD: 0, totalBs: 0 },
+        banesco_panama: { count: 0, totalUSD: 0, totalBs: 0 }
     };
 
     (shiftSales || []).forEach(s => {
@@ -3870,7 +4038,7 @@ function isPaymentNational(sale) {
         if (m.includes('punto') || m.includes('pago móvil') || m.includes('pago movil') || m.includes('biopago') || m.includes('patria') || m.includes('transferencia') || m.includes('bs') || m.includes('bolívares') || m.includes('bolivares')) {
             return true;
         }
-        if (m.includes('usd') || m.includes('dólar') || m.includes('dolar') || m.includes('zelle') || m.includes('binance') || m.includes('$')) {
+        if (m.includes('usd') || m.includes('dólar') || m.includes('dolar') || m.includes('zelle') || m.includes('binance') || m.includes('panam') || m.includes('$')) {
             return false;
         }
     }
@@ -4098,7 +4266,7 @@ function renderCashAuditTable() {
             details: (v.items || []).map(it => `[${it.id}] ${it.name || ''} (x${it.quantity})`).join(', ') || 'Todos los ítems',
             montoStr: `-$${(v.totalUSD || 0).toFixed(2)} USD`,
             motivo: v.motivo || 'Anulación de venta',
-            responsable: v.responsable || 'MASTER'
+            responsable: v.responsable || 'Responsable'
         });
     });
 
@@ -4118,7 +4286,7 @@ function renderCashAuditTable() {
             details: `${ret} ➔ ${ent}`,
             montoStr: diffStr,
             motivo: ex.motivo || 'Cambio de repuesto',
-            responsable: ex.responsable || 'MASTER'
+            responsable: ex.responsable || 'Responsable'
         });
     });
 
@@ -4191,8 +4359,7 @@ function openVoidSaleModal(preselectedSaleId = null) {
 
     const respInput = document.getElementById('voidSaleResponsible');
     if (respInput) {
-        const curUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
-        respInput.value = (curUser && curUser.name) ? curUser.name : 'MASTER';
+        respInput.value = '';
     }
 
     if (preselectedSaleId) {
@@ -4258,7 +4425,12 @@ function submitVoidSale() {
         return;
     }
 
-    const resp = document.getElementById('voidSaleResponsible')?.value.trim() || 'MASTER';
+    const resp = document.getElementById('voidSaleResponsible')?.value.trim();
+    if (!resp) {
+        showNovaAlert({ title: "Persona Responsable Requerida", message: "Por favor indique el nombre y apellido de la persona que autoriza la anulación para la bitácora inmutable de auditoría.", type: "warning" });
+        document.getElementById('voidSaleResponsible')?.focus();
+        return;
+    }
 
     const res = NovaDB.voidSale(saleId, reason, resp);
     if (!res.success) {
@@ -4287,27 +4459,37 @@ let currentExchangeNewProduct = null;
 
 function openProductExchangeModal(preselectedSaleId = null) {
     const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
-    const select = document.getElementById('exchangeSaleSelect');
-    if (!select) return;
+    const saleHidden = document.getElementById('exchangeSaleSelect');
+    const saleInput = document.getElementById('exchangeSaleSearchInput');
+    const saleResults = document.getElementById('exchangeSaleSearchResults');
+    const clearSaleBtn = document.getElementById('btnClearExchangeSale');
+    if (!saleHidden) return;
 
-    select.innerHTML = '<option value="">-- Cambio libre de mostrador / Sin comprobante previo --</option>';
-    allSales.filter(s => !s.anulada && s.tipoDocumento !== 'presupuesto').forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = `${s.id} - ${s.cliente?.nombre || 'Cliente'} ($${(s.totalUSD || 0).toFixed(2)}) - ${s.fechaStr || ''}`;
-        select.appendChild(opt);
-    });
+    if (saleResults) saleResults.style.display = 'none';
 
     if (preselectedSaleId) {
-        select.value = preselectedSaleId;
+        const found = allSales.find(s => s.id === preselectedSaleId);
+        saleHidden.value = preselectedSaleId;
+        if (saleInput) {
+            saleInput.value = found
+                ? `${found.id} - ${found.cliente?.nombre || 'Cliente'} ($${(found.totalUSD || 0).toFixed(2)}) - ${found.fechaStr || ''}`
+                : preselectedSaleId;
+        }
+        if (clearSaleBtn) clearSaleBtn.style.display = 'inline-flex';
+    } else {
+        saleHidden.value = '';
+        if (saleInput) saleInput.value = '';
+        if (clearSaleBtn) clearSaleBtn.style.display = 'none';
     }
 
-    onExchangeSaleSelected(select.value);
+    onExchangeSaleSelected(saleHidden.value);
 
     // Resetear producto nuevo
     currentExchangeNewProduct = null;
     const searchInput = document.getElementById('exchangeNewSearchInput');
     if (searchInput) searchInput.value = '';
+    const newResults = document.getElementById('exchangeNewSearchResults');
+    if (newResults) newResults.style.display = 'none';
     const selBox = document.getElementById('exchangeNewProductSelectedBox');
     if (selBox) selBox.style.display = 'none';
     const newQty = document.getElementById('exchangeNewQty');
@@ -4319,66 +4501,230 @@ function openProductExchangeModal(preselectedSaleId = null) {
     if (reasonInput) reasonInput.value = '';
     const respInput = document.getElementById('exchangeResponsible');
     if (respInput) {
-        const curUser = (typeof NovaUsers !== 'undefined' && NovaUsers.getCurrentUser) ? NovaUsers.getCurrentUser() : null;
-        respInput.value = (curUser && curUser.name) ? curUser.name : 'MASTER';
+        respInput.value = '';
     }
 
     updateExchangePreview();
     openModal('exchangeProductModal');
 }
 
-function onExchangeSaleSelected(saleId) {
-    const retSelect = document.getElementById('exchangeReturnedSelect');
-    if (!retSelect) return;
+function onExchangeSaleSearch(query, showAllOnEmpty = false) {
+    const resultsContainer = document.getElementById('exchangeSaleSearchResults');
+    if (!resultsContainer) return;
 
-    retSelect.innerHTML = '<option value="">-- Selecciona repuesto --</option>';
+    const term = (query || '').toLowerCase().trim();
+    if (!term && !showAllOnEmpty) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const validSales = allSales.filter(s => !s.anulada && s.tipoDocumento !== 'presupuesto');
+    const matches = term
+        ? validSales.filter(s => {
+            const idMatch = (s.id || '').toLowerCase().includes(term);
+            const custMatch = (s.cliente?.nombre || '').toLowerCase().includes(term);
+            const rifMatch = (s.cliente?.rif || '').toLowerCase().includes(term);
+            const dateMatch = (s.fechaStr || '').toLowerCase().includes(term);
+            return idMatch || custMatch || rifMatch || dateMatch;
+        })
+        : validSales;
+
+    let html = `
+        <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; background:#f8fafc; font-weight:700; font-size:12px; color:#475569;"
+             onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'"
+             onclick="selectExchangeSale('')">
+            -- Cambio libre de mostrador / Sin comprobante previo --
+        </div>
+    `;
+
+    if (matches.length === 0) {
+        html += '<div style="padding:10px 12px; font-size:12px; color:var(--text-muted);">No se encontraron facturas con esa coincidencia.</div>';
+    } else {
+        matches.slice(0, 15).forEach(s => {
+            const custName = s.cliente?.nombre || 'Cliente Mostrador';
+            const totalUSD = (parseFloat(s.totalUSD) || 0).toFixed(2);
+            const fecha = s.fechaStr || '';
+            const safeLabel = `${s.id} - ${custName} ($${totalUSD}) - ${fecha}`.replace(/'/g, "\\'");
+            html += `
+                <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                     onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='#ffffff'"
+                     onclick="selectExchangeSale('${s.id}', '${safeLabel}')">
+                    <div>
+                        <span class="code-badge" style="font-size:10.5px;">${s.id}</span>
+                        <b style="font-size:12px; margin-left:6px; color:#0f172a;">${custName}</b>
+                        <span style="display:block; font-size:10.5px; color:#64748b;">${s.cliente?.rif || 'V-00000000'} · ${fecha}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <b style="color:#0369a1; font-size:12.5px;">$${totalUSD}</b>
+                    </div>
+                </div>`;
+        });
+    }
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+}
+
+function selectExchangeSale(saleId, labelText = '') {
+    const saleHidden = document.getElementById('exchangeSaleSelect');
+    const saleInput = document.getElementById('exchangeSaleSearchInput');
+    const resultsContainer = document.getElementById('exchangeSaleSearchResults');
+    const clearSaleBtn = document.getElementById('btnClearExchangeSale');
+
+    if (saleHidden) saleHidden.value = saleId || '';
+    if (saleInput) saleInput.value = saleId ? labelText : '';
+    if (clearSaleBtn) clearSaleBtn.style.display = saleId ? 'inline-flex' : 'none';
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    onExchangeSaleSelected(saleId || '');
+}
+
+function onExchangeSaleSelected(saleId) {
+    const retHidden = document.getElementById('exchangeReturnedSelect');
+    const retInput = document.getElementById('exchangeReturnedSearchInput');
+    const retBox = document.getElementById('exchangeReturnedSelectedBox');
+    const retResults = document.getElementById('exchangeReturnedSearchResults');
+    const priceInput = document.getElementById('exchangeReturnedPrice');
+    const qtyInput = document.getElementById('exchangeReturnedQty');
+
+    if (retResults) retResults.style.display = 'none';
 
     if (saleId) {
         const allSales = NovaDB.getSales();
         const sale = allSales.find(s => s.id === saleId);
         if (sale && Array.isArray(sale.items) && sale.items.length > 0) {
-            sale.items.forEach(it => {
-                const opt = document.createElement('option');
-                opt.value = it.id;
-                const price = (typeof it.priceUSD === 'number') ? it.priceUSD : ((it.subtotalUSD || 0) / (it.quantity || 1));
-                opt.textContent = `[${it.id}] ${it.name} ($${price.toFixed(2)})`;
-                opt.dataset.price = price;
-                opt.dataset.maxQty = it.quantity || 1;
-                retSelect.appendChild(opt);
-            });
-            retSelect.selectedIndex = 1;
-            onExchangeReturnedProductChange();
+            const first = sale.items[0];
+            const price = (typeof first.priceUSD === 'number') ? first.priceUSD : ((first.subtotalUSD || 0) / (first.quantity || 1));
+            const avail = NovaDB.getStock(first.id);
+            selectExchangeReturnedProduct(first.id, first.name, price, avail);
             return;
         }
     }
 
-    // Si no hay venta seleccionada o es cambio libre, poblar desde catálogo
-    const inv = NovaDB.getInventory();
-    Object.keys(inv).slice(0, 80).forEach(key => {
-        const p = inv[key];
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        const price = p.precioFinalUSD || p.price || 0;
-        opt.textContent = `[${p.id}] ${p.name} ($${price.toFixed(2)})`;
-        opt.dataset.price = price;
-        opt.dataset.maxQty = 999;
-        retSelect.appendChild(opt);
-    });
-    onExchangeReturnedProductChange();
+    if (retHidden) retHidden.value = '';
+    if (retInput) retInput.value = '';
+    if (retBox) retBox.style.display = 'none';
+    if (priceInput) priceInput.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    updateExchangePreview();
 }
 
-function onExchangeReturnedProductChange() {
-    const retSelect = document.getElementById('exchangeReturnedSelect');
-    const selectedOpt = retSelect?.options[retSelect.selectedIndex];
-    const priceInput = document.getElementById('exchangeReturnedPrice');
-    const qtyInput = document.getElementById('exchangeReturnedQty');
+function onExchangeReturnedProductSearch(query, showSuggestionsOnFocus = false) {
+    const resultsContainer = document.getElementById('exchangeReturnedSearchResults');
+    if (!resultsContainer) return;
 
-    if (selectedOpt && selectedOpt.dataset.price) {
-        if (priceInput) priceInput.value = parseFloat(selectedOpt.dataset.price).toFixed(2);
+    const term = (query || '').toLowerCase().trim();
+    const saleId = document.getElementById('exchangeSaleSelect')?.value || '';
+
+    // Si hay una factura seleccionada y no escribió término aún (o busca dentro de ella), mostrar primero los ítems de la factura
+    if (saleId && (!term || showSuggestionsOnFocus)) {
+        const allSales = NovaDB.getSales();
+        const sale = allSales.find(s => s.id === saleId);
+        if (sale && Array.isArray(sale.items) && sale.items.length > 0) {
+            const inv = NovaDB.getInventory();
+            const invoiceItems = sale.items.filter(it => !term || (it.id || '').toLowerCase().includes(term) || (it.name || '').toLowerCase().includes(term));
+            if (invoiceItems.length > 0) {
+                let html = `<div style="padding:5px 12px; font-size:10.5px; font-weight:800; color:#c2410c; background:#fff7ed; border-bottom:1px solid #fed7aa;">Ítems de la factura ${saleId}</div>`;
+                invoiceItems.forEach(it => {
+                    const price = (typeof it.priceUSD === 'number') ? it.priceUSD : ((it.subtotalUSD || 0) / (it.quantity || 1));
+                    const stock = inv[it.id] ? (parseInt(inv[it.id].stock) || 0) : 0;
+                    html += `
+                        <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                             onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#ffffff'"
+                             onclick="selectExchangeReturnedProduct('${it.id}', '${(it.name || it.id).replace(/'/g, "\\'")}', ${price}, ${stock})">
+                            <div>
+                                <span class="code-badge" style="font-size:10.5px;">${it.id}</span>
+                                <b style="font-size:12px; margin-left:6px; color:#0f172a;">${it.name}</b>
+                                <span style="display:block; font-size:10.5px; color:#64748b;">Facturado: <b>${it.quantity || 1}</b> unid(s) · Stock actual: <b>${stock}</b></span>
+                            </div>
+                            <div style="text-align:right;">
+                                <b style="color:#c2410c; font-size:13px;">$${price.toFixed(2)}</b>
+                            </div>
+                        </div>`;
+                });
+                resultsContainer.innerHTML = html;
+                resultsContainer.style.display = 'block';
+                return;
+            }
+        }
     }
+
+    if (!term) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const inv = NovaDB.getInventory();
+    const settings = NovaDB.getSettings() || { tasaBCV: 917.78, tasaInterna: 1050 };
+
+    const matches = [];
+    Object.keys(inv).forEach(key => {
+        const p = inv[key];
+        const idMatch = (p.id || '').toLowerCase().includes(term);
+        const nameMatch = (p.name || '').toLowerCase().includes(term);
+        if (idMatch || nameMatch) {
+            matches.push(p);
+        }
+    });
+
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = '<div style="padding:10px 12px; font-size:12px; color:var(--text-muted);">No se encontraron repuestos con ese código o nombre.</div>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    matches.slice(0, 12).forEach(p => {
+        const stock = parseInt(p.stock) || 0;
+        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, p.porcentajeUtilidad, p.iva);
+        const priceUSD = prices.publicoUSD;
+        html += `
+            <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
+                 onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#ffffff'"
+                 onclick="selectExchangeReturnedProduct('${p.id}', '${(p.name || p.id).replace(/'/g, "\\'")}', ${priceUSD}, ${stock})">
+                <div>
+                    <span class="code-badge" style="font-size:10.5px;">${p.id}</span>
+                    <b style="font-size:12px; margin-left:6px; color:#0f172a;">${p.name}</b>
+                    <span style="display:block; font-size:10.5px; color:#64748b;">Stock actual: <b>${stock}</b> unid(s)</span>
+                </div>
+                <div style="text-align:right;">
+                    <b style="color:#c2410c; font-size:13px;">$${priceUSD.toFixed(2)}</b>
+                </div>
+            </div>`;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+}
+
+function selectExchangeReturnedProduct(id, name, price, stock) {
+    const retHidden = document.getElementById('exchangeReturnedSelect');
+    if (retHidden) retHidden.value = id;
+
+    const resultsContainer = document.getElementById('exchangeReturnedSearchResults');
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    const searchInput = document.getElementById('exchangeReturnedSearchInput');
+    if (searchInput) searchInput.value = `[${id}] ${name}`;
+
+    const selBox = document.getElementById('exchangeReturnedSelectedBox');
+    if (selBox) selBox.style.display = 'block';
+
+    const selName = document.getElementById('exchangeReturnedSelectedName');
+    if (selName) selName.innerText = `[${id}] ${name}`;
+
+    const selStock = document.getElementById('exchangeReturnedSelectedStock');
+    if (selStock) selStock.innerHTML = `Stock actual en almacén: <b>${stock}</b> unidades`;
+
+    const priceInput = document.getElementById('exchangeReturnedPrice');
+    if (priceInput) priceInput.value = parseFloat(price || 0).toFixed(2);
+
+    const qtyInput = document.getElementById('exchangeReturnedQty');
     if (qtyInput && (!qtyInput.value || parseInt(qtyInput.value) <= 0)) {
-        qtyInput.value = 1;
+        qtyInput.value = '1';
     }
+
     updateExchangePreview();
 }
 
@@ -4542,7 +4888,12 @@ function submitProductExchange() {
         return;
     }
 
-    const resp = document.getElementById('exchangeResponsible')?.value.trim() || 'MASTER';
+    const resp = document.getElementById('exchangeResponsible')?.value.trim();
+    if (!resp) {
+        showNovaAlert({ title: "Persona Responsable Requerida", message: "Por favor indique el nombre y apellido de la persona que autoriza el cambio de mercancía.", type: "warning" });
+        document.getElementById('exchangeResponsible')?.focus();
+        return;
+    }
 
     const diffUSD = (newQty * newPrice) - (returnedQty * returnedPrice);
     const settings = NovaDB.getSettings() || { tasaBCV: 917.78 };
@@ -4775,7 +5126,8 @@ function getShiftClosingReportData(shiftOrId) {
         'Biopago': { label: 'Biopago (Patria / BDV)', count: 0, totalUSD: 0, totalBs: 0 },
         'Transferencia': { label: 'Transferencia Bancaria', count: 0, totalUSD: 0, totalBs: 0 },
         'Zelle': { label: 'Zelle ($)', count: 0, totalUSD: 0, totalBs: 0 },
-        'Binance': { label: 'Binance Pay ($)', count: 0, totalUSD: 0, totalBs: 0 }
+        'Binance': { label: 'Binance Pay ($)', count: 0, totalUSD: 0, totalBs: 0 },
+        'Banesco Panamá': { label: 'Banesco Panamá ($)', count: 0, totalUSD: 0, totalBs: 0 }
     };
 
     let totalCobradoUSD = 0;
@@ -4812,6 +5164,7 @@ function getShiftClosingReportData(shiftOrId) {
         else if (mKey === 'transferencia') targetKey = 'Transferencia';
         else if (mKey === 'zelle') targetKey = 'Zelle';
         else if (mKey === 'binance') targetKey = 'Binance';
+        else if (mKey === 'banesco_panama') targetKey = 'Banesco Panamá';
 
         if (methodTotals[targetKey]) {
             methodTotals[targetKey].count += 1;
@@ -5577,6 +5930,45 @@ function renderPurchasesView() {
             </tr>`;
     });
     tbody.innerHTML = html;
+
+    if (footerEl) {
+        if (total <= INV_DEFAULT_PAGE_SIZE) {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo visible</span>
+                </div>`;
+        } else if (showing < total) {
+            const remaining = total - showing;
+            const nextBatch = Math.min(INV_DEFAULT_PAGE_SIZE, remaining);
+            let buttonsHtml = `
+                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMoreInventory(${INV_DEFAULT_PAGE_SIZE})">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Cargar ${nextBatch} más
+                </button>
+                <button type="button" class="pos-load-btn" onclick="loadAllInventory()">
+                    Ver todos (${total})
+                </button>`;
+            if (invVisibleLimit > INV_DEFAULT_PAGE_SIZE) {
+                buttonsHtml += `
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>`;
+            }
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">${buttonsHtml}</div>`;
+        } else {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo cargado</span>
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>
+                </div>`;
+        }
+    }
 }
 
 function openAddPurchaseModal() {
@@ -6533,11 +6925,13 @@ function renderCustomersView() {
             </button>
         `;
 
-        if (c.id === 'CLI-001') {
+        if (c.id === 'CLI-001' || c.id === 'CLI-TALLER') {
+            const badgeText = c.id === 'CLI-001' ? 'Principal' : 'Taller Fijo';
+            const badgeTitle = c.id === 'CLI-001' ? 'Cliente predeterminado de mostrador' : 'Cliente interno protegido (no eliminable)';
             actionHtml = `
                 <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
                     ${reportBtn}
-                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg-card-subtle, rgba(0,0,0,0.04)); padding:3px 8px; border-radius:4px;" title="Cliente predeterminado de mostrador">Principal</span>
+                    <span style="font-size:11px; font-weight:700; color:var(--text-muted); background:var(--bg-card-subtle, rgba(0,0,0,0.04)); padding:3px 8px; border-radius:4px;" title="${badgeTitle}">${badgeText}</span>
                 </div>
             `;
         } else {
@@ -6568,6 +6962,45 @@ function renderCustomersView() {
             </tr>`;
     });
     tbody.innerHTML = html;
+
+    if (footerEl) {
+        if (total <= INV_DEFAULT_PAGE_SIZE) {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo visible</span>
+                </div>`;
+        } else if (showing < total) {
+            const remaining = total - showing;
+            const nextBatch = Math.min(INV_DEFAULT_PAGE_SIZE, remaining);
+            let buttonsHtml = `
+                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMoreInventory(${INV_DEFAULT_PAGE_SIZE})">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Cargar ${nextBatch} más
+                </button>
+                <button type="button" class="pos-load-btn" onclick="loadAllInventory()">
+                    Ver todos (${total})
+                </button>`;
+            if (invVisibleLimit > INV_DEFAULT_PAGE_SIZE) {
+                buttonsHtml += `
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>`;
+            }
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
+                <div class="pos-footer-actions">${buttonsHtml}</div>`;
+        } else {
+            footerEl.innerHTML = `
+                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
+                <div class="pos-footer-actions">
+                    <span class="pos-all-loaded-pill">Inventario completo cargado</span>
+                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
+                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
+                    </button>
+                </div>`;
+        }
+    }
 }
 
 function viewCustomerPurchasesReport(clientRifOrName) {
@@ -6579,10 +7012,12 @@ function viewCustomerPurchasesReport(clientRifOrName) {
 }
 
 function confirmDeleteCustomer(customerId) {
-    if (!customerId || customerId === 'CLI-001') {
+    if (!customerId || customerId === 'CLI-001' || customerId === 'CLI-TALLER') {
         showNovaAlert({
             title: "Acción Protegida",
-            message: "El Cliente Mostrador principal no puede ser eliminado ya que es requerido para el funcionamiento del mostrador.",
+            message: customerId === 'CLI-TALLER'
+                ? "El cliente Taller Nova está protegido del sistema y no puede ser eliminado."
+                : "El Cliente Mostrador principal no puede ser eliminado ya que es requerido para el funcionamiento del mostrador.",
             type: "warning"
         });
         return;
@@ -6730,26 +7165,316 @@ function selectCustomerFromSearch(customerId) {
 }
 
 // ==============================================================================
-// 7. MÓDULO: MARKETING Y PROMO WHATSAPP
+// 7. MÓDULO: MARKETING, ESTRATEGIA COMERCIAL Y ESTUDIO WHATSAPP
 // ==============================================================================
+let _mktLastTopProducts = [];
+let _mktLastSlowProducts = [];
+let _mktLastLoyalCustomers = [];
+
 function renderMarketingView() {
-    // Inicializar plantillas de WhatsApp
+    const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const customers = (typeof NovaDB !== 'undefined' && NovaDB.getCustomers) ? NovaDB.getCustomers() : [];
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78, tasaInterna: 1050 };
+
+    // Mapa O(1) de costos desde productos.js para evitar búsquedas lineales lentas
+    const catalogCostMap = {};
+    const prodsList = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    for (let i = 0; i < prodsList.length; i++) {
+        const p = prodsList[i];
+        if (p.id && typeof p.costoCompra === 'number') catalogCostMap[p.id] = p.costoCompra;
+        if (p.variants) {
+            for (let j = 0; j < p.variants.length; j++) {
+                const v = p.variants[j];
+                if (v && v.id && typeof v.costoCompra === 'number') catalogCostMap[v.id] = v.costoCompra;
+            }
+        }
+    }
+    const fastCost = (id, item) => (item && typeof item.costoCompra === 'number' && item.costoCompra > 0) ? item.costoCompra : (catalogCostMap[id] || 0);
+
+    const now = Date.now();
+    const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+    const recentSales = allSales.filter(s => !s.anulada && s.tipoDocumento !== 'presupuesto' && (!s.timestamp || s.timestamp >= thirtyDaysAgo));
+
+    // 1. Salidas de los últimos 30 días por SKU
+    const soldStats = {};
+    let totalUnits30d = 0;
+    for (let i = 0; i < recentSales.length; i++) {
+        const items = recentSales[i].items || [];
+        for (let j = 0; j < items.length; j++) {
+            const it = items[j];
+            if (!it || !it.id) continue;
+            const qty = parseInt(it.quantity) || 1;
+            const rev = parseFloat(it.subtotalUSD) || ((parseFloat(it.priceUSD) || 0) * qty);
+            if (!soldStats[it.id]) {
+                soldStats[it.id] = { id: it.id, name: it.name || (inv[it.id] ? inv[it.id].name : it.id), qty: 0, revUSD: 0 };
+            }
+            soldStats[it.id].qty += qty;
+            soldStats[it.id].revUSD += rev;
+            totalUnits30d += qty;
+        }
+    }
+
+    // Top productos (máx 8 filas) - cálculo de precios solo para estos 8
+    _mktLastTopProducts = Object.values(soldStats)
+        .sort((a, b) => b.qty - a.qty || b.revUSD - a.revUSD)
+        .slice(0, 8)
+        .map(p => {
+            const invItem = inv[p.id] || {};
+            const cost = fastCost(p.id, invItem);
+            const prices = calcularPreciosSegunAjustes(cost, settings, invItem.porcentajeUtilidad, invItem.iva);
+            const marginPct = cost > 0 ? (((prices.publicoUSD - cost) / cost) * 100).toFixed(0) : '0';
+            return { ...p, priceUSD: prices.publicoUSD, costUSD: cost, marginPct, stock: parseInt(invItem.stock) || 0 };
+        });
+
+    // Productos de baja rotación: calcular solo capital en una pasada O(N) y precios solo en top 8
+    const slowCandidates = [];
+    let totalSlowCapital = 0;
+    let zeroSalesCount = 0;
+    const invKeys = Object.keys(inv);
+    for (let i = 0; i < invKeys.length; i++) {
+        const item = inv[invKeys[i]];
+        const stk = parseInt(item.stock) || 0;
+        if (stk <= 0) continue;
+        const sold30 = soldStats[item.id] ? soldStats[item.id].qty : 0;
+        const cost = fastCost(item.id, item);
+        const tiedCapital = stk * cost;
+        if (sold30 === 0) {
+            totalSlowCapital += tiedCapital;
+            zeroSalesCount++;
+        }
+        slowCandidates.push({ id: item.id, name: item.name || item.id, stock: stk, sold30, cost, tiedCapital, util: item.porcentajeUtilidad, iva: item.iva });
+    }
+
+    _mktLastSlowProducts = slowCandidates
+        .sort((a, b) => a.sold30 - b.sold30 || b.tiedCapital - a.tiedCapital)
+        .slice(0, 8)
+        .map(s => {
+            const prices = calcularPreciosSegunAjustes(s.cost, settings, s.util, s.iva);
+            return { id: s.id, name: s.name, stock: s.stock, sold30: s.sold30, priceUSD: prices.publicoUSD, costUSD: s.cost };
+        });
+
+    // 3. Clientes más fieles
+    const custPhoneByRif = {};
+    customers.forEach(c => {
+        if (c.rif) custPhoneByRif[c.rif.toUpperCase()] = c.telefono || '';
+        if (c.nombre) custPhoneByRif[c.nombre.toUpperCase()] = c.telefono || '';
+    });
+
+    const loyalMap = {};
+    allSales.forEach(s => {
+        if (s.anulada || s.tipoDocumento === 'presupuesto') return;
+        const cName = (s.cliente && s.cliente.nombre) ? s.cliente.nombre.trim() : 'Cliente Mostrador';
+        const cRif = (s.cliente && s.cliente.rif) ? s.cliente.rif.trim().toUpperCase() : 'V-00000000';
+        if (cRif === 'V-00000000' || cName.toLowerCase().includes('mostrador') || cName.toLowerCase() === 'taller nova') return;
+
+        const key = cRif || cName.toUpperCase();
+        if (!loyalMap[key]) {
+            loyalMap[key] = {
+                nombre: cName,
+                rif: cRif,
+                telefono: (s.cliente && s.cliente.telefono) || custPhoneByRif[cRif] || custPhoneByRif[cName.toUpperCase()] || '',
+                count: 0,
+                totalUSD: 0
+            };
+        }
+        loyalMap[key].count += 1;
+        loyalMap[key].totalUSD += parseFloat(s.totalUSD) || 0;
+    });
+
+    _mktLastLoyalCustomers = Object.values(loyalMap)
+        .sort((a, b) => b.totalUSD - a.totalUSD || b.count - a.count)
+        .slice(0, 8);
+
+    // Actualizar KPIs
+    const kpiTopUnits = document.getElementById('mktKpiTopUnits');
+    const kpiTopSub = document.getElementById('mktKpiTopSub');
+    if (kpiTopUnits) kpiTopUnits.textContent = `${totalUnits30d} unid.`;
+    if (kpiTopSub) kpiTopSub.textContent = _mktLastTopProducts[0] ? `Líder: ${_mktLastTopProducts[0].id} (${_mktLastTopProducts[0].qty} unid.)` : 'Sin ventas en 30 días';
+
+    const kpiSlowVal = document.getElementById('mktKpiSlowValue');
+    const kpiSlowSub = document.getElementById('mktKpiSlowSub');
+    if (kpiSlowVal) kpiSlowVal.textContent = `$${totalSlowCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (kpiSlowSub) kpiSlowSub.textContent = `${zeroSalesCount} repuestos sin salida en 30d`;
+
+    const kpiLoyalCount = document.getElementById('mktKpiLoyalCount');
+    const kpiLoyalSub = document.getElementById('mktKpiLoyalSub');
+    if (kpiLoyalCount) kpiLoyalCount.textContent = `${_mktLastLoyalCustomers.length}`;
+    if (kpiLoyalSub) kpiLoyalSub.textContent = _mktLastLoyalCustomers[0] ? `Top: ${_mktLastLoyalCustomers[0].nombre}` : 'Sin clientes VIP registrados aún';
+
+    // Renderizar Tabla 1: Más Vendidos (2 colores: Navy #003366 + Slate #64748b)
+    const topBody = document.getElementById('mktTopProductsBody');
+    if (topBody) {
+        topBody.innerHTML = _mktLastTopProducts.length === 0
+            ? `<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">No hay salidas registradas en los últimos 30 días.</td></tr>`
+            : _mktLastTopProducts.map((p, idx) => `
+                <tr>
+                    <td style="overflow:hidden; text-overflow:ellipsis;">
+                        <span class="code-badge" style="font-size:10px;">#${idx + 1} ${p.id}</span>
+                        <div style="font-weight:700; color:#0f172a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.name}">${p.name}</div>
+                    </td>
+                    <td style="text-align:center;"><b style="color:#003366;">${p.qty}</b></td>
+                    <td style="text-align:right;">
+                        <b>$${p.priceUSD.toFixed(2)}</b>
+                        <div style="font-size:10px; color:#64748b;">${p.marginPct}%</div>
+                    </td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button type="button" class="ticket-btn-sm" onclick="openEditProductModal('${p.id}')" title="Ajustar precio" style="padding:3px 6px; font-size:10.5px;">Precio</button>
+                        <button type="button" class="ticket-btn-sm" onclick="promoProductOnWhatsApp('${p.id}', 'top')" title="Promocionar en WhatsApp" style="padding:3px 6px; font-size:10.5px; color:#003366; border-color:#cbd5e1; background:#f8fafc;">WA</button>
+                    </td>
+                </tr>`).join('');
+    }
+
+    // Renderizar Tabla 2: Baja Rotación
+    const slowBody = document.getElementById('mktSlowProductsBody');
+    if (slowBody) {
+        slowBody.innerHTML = _mktLastSlowProducts.length === 0
+            ? `<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">Todo el inventario ha tenido rotación reciente.</td></tr>`
+            : _mktLastSlowProducts.map(p => `
+                <tr>
+                    <td style="overflow:hidden; text-overflow:ellipsis;">
+                        <span class="code-badge" style="font-size:10px;">${p.id}</span>
+                        <div style="font-weight:700; color:#0f172a; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${p.name}">${p.name}</div>
+                    </td>
+                    <td style="text-align:center;">
+                        <b>${p.stock}</b>
+                        <div style="font-size:10px; color:#64748b;">${p.sold30} v.</div>
+                    </td>
+                    <td style="text-align:right;"><b>$${p.priceUSD.toFixed(2)}</b></td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button type="button" class="ticket-btn-sm" onclick="openEditProductModal('${p.id}')" title="Reducir precio" style="padding:3px 6px; font-size:10.5px;">Oferta</button>
+                        <button type="button" class="ticket-btn-sm" onclick="promoProductOnWhatsApp('${p.id}', 'slow')" title="Promocionar en WhatsApp" style="padding:3px 6px; font-size:10.5px; color:#003366; border-color:#cbd5e1; background:#f8fafc;">WA</button>
+                    </td>
+                </tr>`).join('');
+    }
+
+    // Renderizar Tabla 3: Clientes Fieles
+    const loyalBody = document.getElementById('mktLoyalCustomersBody');
+    if (loyalBody) {
+        loyalBody.innerHTML = _mktLastLoyalCustomers.length === 0
+            ? `<tr><td colspan="4" style="text-align:center; padding:20px; color:#64748b;">Aún no hay clientes frecuentes registrados fuera de mostrador.</td></tr>`
+            : _mktLastLoyalCustomers.map((c, idx) => `
+                <tr>
+                    <td style="overflow:hidden; text-overflow:ellipsis;">
+                        <div style="font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${c.nombre}">${idx + 1}. ${c.nombre}</div>
+                        <div style="font-size:10px; color:#64748b;">${c.rif}</div>
+                    </td>
+                    <td style="text-align:center;"><b>${c.count}</b></td>
+                    <td style="text-align:right;"><b style="color:#003366;">$${c.totalUSD.toFixed(2)}</b></td>
+                    <td style="text-align:right; white-space:nowrap;">
+                        <button type="button" class="ticket-btn-sm" onclick="promoLoyalCustomerWhatsApp('${c.nombre.replace(/'/g, "\\'")}', '${(c.telefono || '').replace(/'/g, "\\'")}', ${c.totalUSD.toFixed(2)})" style="padding:3px 7px; font-size:10.5px; color:#003366; border-color:#cbd5e1; background:#f8fafc; font-weight:700;">Oferta VIP</button>
+                    </td>
+                </tr>`).join('');
+    }
+
+    const msgEl = document.getElementById('mktWaMessage');
+    if (msgEl && !msgEl.value.trim()) {
+        loadMarketingTemplate(_mktLastTopProducts.length > 0 ? 'top30' : 'gas');
+    } else {
+        updateMktWaCharCount();
+    }
+}
+
+function loadMarketingTemplate(type) {
+    const msgEl = document.getElementById('mktWaMessage');
+    const tagEl = document.getElementById('mktWaCampaignTag');
+    if (!msgEl) return;
+
+    let msg = '';
+    let tag = 'Promoción NOVA';
+
+    if (type === 'top30') {
+        tag = 'Top Más Vendidos (30 días)';
+        const topList = _mktLastTopProducts.slice(0, 3).map(p => `- *${p.name}* (${p.id}) - *$${p.priceUSD.toFixed(2)}*`).join('\n');
+        msg = `¡Hola! En *NOVA RefriMotors* tenemos alta demanda esta semana en:\n\n${topList || '- Repuestos originales de refrigeración y lavado'}\n\nDescuento especial pagando en divisas.\nAv. Carabobo, Cabimas. ¡Escríbenos para apartar el tuyo!`;
+    } else if (type === 'slow30') {
+        tag = 'Ofertas Baja Rotación';
+        const slowList = _mktLastSlowProducts.slice(0, 3).map(p => `- *${p.name}* (${p.id}) - Precio ref. $${p.priceUSD.toFixed(2)}`).join('\n');
+        msg = `*OFERTA ESPECIAL EN NOVA REFRIMOTORS*\n\nAprovecha precios de promoción en estos repuestos con stock inmediato:\n\n${slowList || '- Repuestos seleccionados con descuento especial'}\n\nUnidades limitadas. ¡Pregunta por tu descuento de hoy!`;
+    } else if (type === 'vip') {
+        tag = 'Cupón / Crédito Cliente VIP';
+        msg = `¡Hola! De parte de *NOVA RefriMotors* agradecemos tu fidelidad con nosotros.\n\nPor ser cliente VIP cuentas con un *beneficio especial (descuento exclusivo o facilidad de crédito)* en tu próxima compra de repuestos o recargas.\n\nEscríbenos por aquí para activarlo hoy mismo.`;
+    } else if (type === 'gas') {
+        tag = 'Campaña Gases Refrigerantes';
+        msg = `¡Hola! Saludos del equipo de *NOVA RefriMotors*. Te informamos que ya tenemos disponibilidad inmediata de Recargas de Gas Refrigerante *R134a, R410a, R22 y R507* por kilo al mejor precio para técnicos. ¡Visítanos en Av. Carabobo o escríbenos para apartar el tuyo!`;
+    } else if (type === 'capacitores') {
+        tag = 'Campaña Capacitores y Relés';
+        msg = `¡Estimado técnico! En *NOVA RefriMotors* tenemos stock completo en capacitores de marcha y arranque Maxwell y Gold (20uF hasta 80uF) con precios especiales de descuento NovaCliente.`;
+    }
+
+    msgEl.value = msg;
+    if (tagEl) tagEl.value = tag;
+    updateMktWaCharCount();
+}
+
+function promoProductOnWhatsApp(sku, mode) {
+    const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
+    const item = inv[sku] || {};
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 917.78, tasaInterna: 1050 };
+    const prodsList = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const cost = getProductCost(sku, prodsList, item);
+    const prices = calcularPreciosSegunAjustes(cost, settings, item.porcentajeUtilidad, item.iva);
+
+    const msgEl = document.getElementById('mktWaMessage');
+    const tagEl = document.getElementById('mktWaCampaignTag');
+    const phoneEl = document.getElementById('mktWaPhone');
+    if (phoneEl) phoneEl.value = '';
+
+    if (mode === 'slow') {
+        if (tagEl) tagEl.value = `Oferta Especial: ${sku}`;
+        if (msgEl) msgEl.value = `*PROMOCIÓN ESPECIAL EN NOVA REFRIMOTORS*\n\nLleva *${item.name || sku}* (Código: *${sku}*) a precio especial de oferta.\nPrecio actual: *$${prices.publicoUSD.toFixed(2)}* (consulta descuento por pago en divisas o combo).\n\nDisponible para entrega inmediata en Cabimas.`;
+    } else {
+        if (tagEl) tagEl.value = `Impulso Top Ventas: ${sku}`;
+        if (msgEl) msgEl.value = `*REPUESTO MÁS BUSCADO EN NOVA REFRIMOTORS*\n\nTenemos disponibilidad inmediata de *${item.name || sku}* (*${sku}*).\nPrecio: *$${prices.publicoUSD.toFixed(2)}*\n\nCalidad garantizada. Escríbenos para reservar el tuyo hoy.`;
+    }
+    updateMktWaCharCount();
+    document.getElementById('mktWaStudioCard')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function promoLoyalCustomerWhatsApp(nombre, telefono, totalUSD) {
+    const msgEl = document.getElementById('mktWaMessage');
+    const tagEl = document.getElementById('mktWaCampaignTag');
+    const phoneEl = document.getElementById('mktWaPhone');
+
+    const cleanPhone = String(telefono || '').replace(/\D/g, '');
+    if (phoneEl) {
+        phoneEl.value = cleanPhone.startsWith('0') ? ('58' + cleanPhone.slice(1)) : cleanPhone;
+    }
+    if (tagEl) tagEl.value = `Oferta VIP: ${nombre}`;
+    if (msgEl) {
+        msgEl.value = `¡Hola *${nombre}*! De parte del equipo de *NOVA RefriMotors* te agradecemos por tu confianza y preferencia.\n\nPor ser uno de nuestros clientes más fieles, te ofrecemos un *descuento VIP especial o facilidad de crédito* en tu próximo pedido de repuestos o gases.\n\n¡Escríbenos qué necesitas y con gusto te atendemos!`;
+    }
+    updateMktWaCharCount();
+    document.getElementById('mktWaStudioCard')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateMktWaCharCount() {
+    const msgEl = document.getElementById('mktWaMessage');
+    const countEl = document.getElementById('mktWaCharCount');
+    if (msgEl && countEl) {
+        countEl.textContent = `${msgEl.value.length} caracteres`;
+    }
+}
+
+function copyMarketingWhatsApp() {
+    const msgEl = document.getElementById('mktWaMessage');
+    if (!msgEl || !msgEl.value.trim()) return;
+    navigator.clipboard?.writeText(msgEl.value);
+    showNovaAlert({ title: "Mensaje Copiado", message: "La plantilla de WhatsApp se copió al portapapeles.", type: "success" });
+}
+
+function launchMarketingWhatsApp() {
+    const msgEl = document.getElementById('mktWaMessage');
+    const phoneEl = document.getElementById('mktWaPhone');
+    const msg = (msgEl ? msgEl.value.trim() : '') || '¡Hola! Aprovecha las promociones de *NOVA RefriMotors*.';
+    const rawPhone = phoneEl ? phoneEl.value.replace(/\D/g, '') : '';
+    const url = rawPhone ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
 }
 
 function sendMarketingWhatsApp(tipo) {
-    const phone = "584246192394";
-    let msg = "";
-
-    if (tipo === 'gas') {
-        msg = `¡Hola! Saludos del equipo de *NOVA RefriMotors*. Te informamos que ya tenemos disponibilidad inmediata de Recargas de Gas Refrigerante *R134a, R410a, R22 y R507* por kilo al mejor precio para técnicos. ¡Visítanos en Av. Carabobo o escríbenos para apartar el tuyo!`;
-    } else if (tipo === 'capacitores') {
-        msg = `¡Estimado técnico! En *NOVA RefriMotors* tenemos stock completo en capacitores de marcha y arranque Maxwell y Gold (20uF hasta 80uF) con precios especiales de descuento NovaCliente.`;
-    } else {
-        msg = `¡Hola! Aprovecha las promociones de la semana en *NOVA RefriMotors* en repuestos de refrigeración, motores y herramientas con delivery disponible en Cabimas.`;
-    }
-
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
+    loadMarketingTemplate(tipo);
+    launchMarketingWhatsApp();
 }
 
 // ==============================================================================

@@ -1363,11 +1363,32 @@ const NovaSupabase = (function () {
                 const prevInvJson = JSON.stringify(prevInv);
                 const freshInv = Object.assign({}, prevInv);
                 const rowsById = {};
+                const invalidRemoteIds = [];
+                const stdSkuRegex = /^[A-Z]{3}\d{3}$/;
 
                 prodRes.data.forEach(r => {
+                    const sku = String(r.id || '').trim().toUpperCase();
+                    if (!stdSkuRegex.test(sku)) {
+                        invalidRemoteIds.push(r.id);
+                        delete freshInv[r.id];
+                        return;
+                    }
                     rowsById[r.id] = r;
                     freshInv[r.id] = _mapRemoteProductToInv(r, prevInv[r.id]);
                 });
+
+                Object.keys(freshInv).forEach(k => {
+                    if (!stdSkuRegex.test(String(k || '').trim().toUpperCase())) {
+                        delete freshInv[k];
+                    }
+                });
+
+                if (invalidRemoteIds.length > 0) {
+                    console.log(`[NovaSupabase] Eliminando ${invalidRemoteIds.length} SKUs no estándar de Supabase:`, invalidRemoteIds);
+                    _client.from('productos').delete().in('id', invalidRemoteIds).then(({ error }) => {
+                        if (error) console.warn('[NovaSupabase] No se pudieron eliminar SKUs no estándar en nube:', error.message);
+                    });
+                }
 
                 const newInvJson = JSON.stringify(freshInv);
                 localStorage.setItem('nova_erp_cloud_synced', '1');
@@ -1395,11 +1416,20 @@ const NovaSupabase = (function () {
                     tipo: 'cliente',
                     notas: rc.notas || ''
                 }));
-                if (mappedCust.length === 0) {
-                    mappedCust = [{ id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" }];
+                if (!mappedCust.some(c => c.id === 'CLI-001')) {
+                    mappedCust.unshift({ id: "CLI-001", nombre: "Cliente Mostrador (Contado)", rif: "V-00000000", telefono: "0424-0000000", direccion: "Cabimas, Edo. Zulia", tipo: "cliente", notas: "Cliente general" });
                 }
-                // Garantizar que CLI-001 quede primero si existe
-                mappedCust.sort((a, b) => (a.id === 'CLI-001' ? -1 : b.id === 'CLI-001' ? 1 : a.id.localeCompare(b.id)));
+                if (!mappedCust.some(c => c.id === 'CLI-TALLER')) {
+                    mappedCust.push({ id: "CLI-TALLER", nombre: "Taller Nova", rif: "J-504401994", telefono: "+58 424-6192394", direccion: "Galpón NOVA RefriMotors, Av. Carabobo, Cabimas, Edo. Zulia", tipo: "taller", notas: "Taller interno NOVA (Protegido)" });
+                }
+                // Garantizar que CLI-001 y CLI-TALLER queden primero
+                mappedCust.sort((a, b) => {
+                    if (a.id === 'CLI-001') return -1;
+                    if (b.id === 'CLI-001') return 1;
+                    if (a.id === 'CLI-TALLER') return -1;
+                    if (b.id === 'CLI-TALLER') return 1;
+                    return a.id.localeCompare(b.id);
+                });
                 const newCustJson = JSON.stringify(mappedCust);
                 if (newCustJson !== localStorage.getItem('nova_erp_customers')) {
                     localStorage.setItem('nova_erp_customers', newCustJson);

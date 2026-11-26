@@ -121,6 +121,16 @@ const NovaUsers = (function () {
         }
 
         if (!verifyPassword(stationId, enteredPassword)) {
+            if (typeof NovaDB !== 'undefined' && NovaDB.logSecurityEvent) {
+                NovaDB.logSecurityEvent({
+                    usuario: stationId,
+                    modulo: 'Control de Acceso',
+                    accion: 'Intento Fallido de Acceso',
+                    documento: stationId,
+                    detalles: 'Ingreso denegado: contraseña incorrecta introducida',
+                    nivel: 'advertencia'
+                });
+            }
             return {
                 success: false,
                 message: stationId === 'MASTER'
@@ -135,6 +145,17 @@ const NovaUsers = (function () {
             loginTime: Date.now()
         }));
         localStorage.setItem(STORAGE_KEY_USER, stationId);
+
+        if (typeof NovaDB !== 'undefined' && NovaDB.logSecurityEvent) {
+            NovaDB.logSecurityEvent({
+                usuario: stationId,
+                modulo: 'Control de Acceso',
+                accion: 'Inicio de Sesión Exitoso',
+                documento: USERS[stationId].title,
+                detalles: `Terminal autenticada para ${USERS[stationId].name}`,
+                nivel: 'info'
+            });
+        }
 
         hideLoginGate();
         applyPermissions();
