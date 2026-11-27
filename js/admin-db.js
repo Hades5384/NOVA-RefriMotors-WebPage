@@ -1316,6 +1316,9 @@ const NovaDB = (function () {
 
             if (inv[key]) {
                 const prevCost = typeof inv[key].costoCompra === 'number' ? inv[key].costoCompra : 0;
+                item.costoAnterior = +prevCost.toFixed(2);
+                item.diferenciaCosto = (newCost > 0 && prevCost > 0) ? +(newCost - prevCost).toFixed(2) : 0;
+                item.impactoTotal = +(item.diferenciaCosto * qty).toFixed(2);
                 if (newCost > 0) {
                     if (prevCost > 0 && Math.abs(prevCost - newCost) > 0.001) {
                         inv[key].costoAnterior = prevCost;
@@ -1330,6 +1333,10 @@ const NovaDB = (function () {
                 inv[key].ultimoProveedorNombre = record.proveedorNombre;
                 inv[key].ultimaCompraId = record.id;
                 invChanged = true;
+            } else {
+                item.costoAnterior = 0;
+                item.diferenciaCosto = 0;
+                item.impactoTotal = 0;
             }
 
             if (newCost > 0) {

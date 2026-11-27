@@ -3864,6 +3864,13 @@ function confirmDeleteProduct(itemId) {
     }
 }
 
+let _creatingProductFromPurchase = false;
+
+function openAddNewProductFromPurchase() {
+    _creatingProductFromPurchase = true;
+    openAddNewProductModal();
+}
+
 function openAddNewProductModal() {
     const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : {};
     const defaultUtil = settings.porcentajeUtilidad
@@ -3897,7 +3904,7 @@ function calculateNewProductPrice() {
 }
 
 function submitNewProduct() {
-    const id = document.getElementById('newProdId').value.trim();
+    const id = document.getElementById('newProdId').value.trim().toUpperCase();
     const name = document.getElementById('newProdName').value.trim();
     const descripcionDetallada = (document.getElementById('newProdDetailedDesc')?.value || '').trim();
     const category = document.getElementById('newProdCategory').value;
@@ -3943,6 +3950,27 @@ function submitNewProduct() {
 
     renderInventoryView();
     renderPOSCatalog();
+
+    if (_creatingProductFromPurchase) {
+        _creatingProductFromPurchase = false;
+        const purSelId = document.getElementById('purSelectedProductId');
+        const purCode = document.getElementById('purCodeInput');
+        const purDesc = document.getElementById('purDescInput');
+        const purCost = document.getElementById('purCostInput');
+        const purQty = document.getElementById('purQtyInput');
+        if (purSelId) purSelId.value = id;
+        if (purCode) purCode.value = id;
+        if (purDesc) purDesc.value = name;
+        if (purCost) purCost.value = costoCompra > 0 ? costoCompra.toFixed(2) : '';
+        if (purQty) {
+            purQty.value = 1;
+            setTimeout(() => {
+                if (costoCompra > 0) purQty.focus();
+                else if (purCost) purCost.focus();
+            }, 80);
+        }
+    }
+
     showNovaAlert({
         title: "Producto Guardado",
         message: `El repuesto <b>[${id}] ${name}</b> fue registrado con éxito.<br>Precio final de venta: <b>$${precioFinalUSD.toFixed(2)} USD</b>.`,
@@ -7584,6 +7612,31 @@ function submitNewPurchase() {
 
 let currentViewingPurchaseId = null;
 
+function _getPurchaseItemCostChange(it) {
+    const qty = parseInt(it.cantidad) || 0;
+    const newCost = parseFloat(it.costoCompra) || 0;
+    const prevCost = (typeof it.costoAnterior === 'number') ? it.costoAnterior : 0;
+    if (prevCost <= 0) {
+        return { prevCost: 0, diffUnit: 0, totalImpact: 0, html: '<span style="color:#64748b; font-size:11px;">Artículo nuevo / Sin base</span>', prevLabel: '—' };
+    }
+    const diffUnit = (typeof it.diferenciaCosto === 'number') ? it.diferenciaCosto : +(newCost - prevCost).toFixed(2);
+    const totalImpact = (typeof it.impactoTotal === 'number') ? it.impactoTotal : +(diffUnit * qty).toFixed(2);
+
+    if (Math.abs(diffUnit) < 0.005) {
+        return { prevCost, diffUnit: 0, totalImpact: 0, html: '<span style="color:#64748b; font-size:11px; font-weight:600;">Sin cambio ($0.00)</span>', prevLabel: `$${prevCost.toFixed(2)}` };
+    }
+    const sign = diffUnit > 0 ? '+' : '-';
+    const color = diffUnit > 0 ? '#dc2626' : '#16a34a';
+    const bg = diffUnit > 0 ? '#fef2f2' : '#f0fdf4';
+    return {
+        prevCost,
+        diffUnit,
+        totalImpact,
+        prevLabel: `$${prevCost.toFixed(2)}`,
+        html: `<span style="display:inline-block; background:${bg}; color:${color}; padding:2px 7px; border-radius:6px; font-weight:700; font-size:11px;">${sign}$${Math.abs(diffUnit).toFixed(2)}/u · ${sign}$${Math.abs(totalImpact).toFixed(2)}</span>`
+    };
+}
+
 function viewPurchaseDetails(purchaseId) {
     if (!purchaseId) return;
     const purchases = NovaDB.getPurchases();
@@ -7621,6 +7674,7 @@ function viewPurchaseDetails(purchaseId) {
     // Populate items table
     const tbody = document.getElementById('purDetailTableBody');
     let totalUnits = 0;
+    let totalCostImpactUSD = 0;
     let html = '';
     const items = Array.isArray(p.items) ? p.items : [];
 
@@ -7631,19 +7685,23 @@ function viewPurchaseDetails(purchaseId) {
         totalUnits += qty;
         const itemCode = it.id || 'N/A';
         const itemName = it.nombre || it.name || it.id || 'Repuesto sin descripción';
+        const changeInfo = _getPurchaseItemCostChange(it);
+        totalCostImpactUSD += changeInfo.totalImpact;
 
         html += `
             <tr>
                 <td><span class="code-badge" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:800;">${itemCode}</span></td>
                 <td><div style="font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${itemName}">${itemName}</div></td>
-                <td style="text-align:right; font-weight:700; color:#334155;">$${cost.toFixed(2)}</td>
-                <td style="text-align:center;"><span style="display:inline-block; font-weight:800; background:#f1f5f9; padding:2px 8px; border-radius:12px; font-size:11.5px; color:#1e293b;">${qty} unids.</span></td>
+                <td style="text-align:right; font-weight:600; color:#64748b;">${changeInfo.prevLabel}</td>
+                <td style="text-align:right; font-weight:700; color:#0f172a;">$${cost.toFixed(2)}</td>
+                <td style="text-align:right;">${changeInfo.html}</td>
+                <td style="text-align:center;"><span style="display:inline-block; font-weight:800; background:#f1f5f9; padding:2px 8px; border-radius:12px; font-size:11.5px; color:#1e293b;">${qty}</span></td>
                 <td style="text-align:right; font-weight:800; color:var(--primary);">$${subtotal.toFixed(2)}</td>
             </tr>`;
     });
 
     if (items.length === 0) {
-        html = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No se registraron detalles de ítems para esta compra.</td></tr>`;
+        html = `<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">No se registraron detalles de ítems para esta compra.</td></tr>`;
     }
 
     if (tbody) tbody.innerHTML = html;
@@ -7665,6 +7723,20 @@ function viewPurchaseDetails(purchaseId) {
     const bsEl = document.getElementById('purDetailTotalBs');
     if (bsEl) {
         bsEl.innerText = `Equivalente BCV: Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa: Bs. ${bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    }
+
+    const impactEl = document.getElementById('purDetailCostImpactSummary');
+    if (impactEl) {
+        if (Math.abs(totalCostImpactUSD) >= 0.01) {
+            const sign = totalCostImpactUSD > 0 ? '+' : '-';
+            const col = totalCostImpactUSD > 0 ? '#b91c1c' : '#15803d';
+            const label = totalCostImpactUSD > 0 ? 'Incremento neto respecto a costos anteriores:' : 'Ahorro neto respecto a costos anteriores:';
+            impactEl.style.color = col;
+            impactEl.innerText = `${label} ${sign}$${Math.abs(totalCostImpactUSD).toFixed(2)} USD`;
+        } else {
+            impactEl.style.color = '#475569';
+            impactEl.innerText = 'Sin variación neta de costos respecto a cargas anteriores ($0.00 USD)';
+        }
     }
 
     const notesEl = document.getElementById('purDetailNotes');
@@ -7700,16 +7772,21 @@ function printPurchaseVoucher(purchaseId) {
 
     let rowsHtml = '';
     let totalUnits = 0;
+    let totalCostImpactUSD = 0;
     (p.items || []).forEach(it => {
         const qty = parseInt(it.cantidad) || 0;
         const cost = parseFloat(it.costoCompra) || 0;
         const sub = qty * cost;
         totalUnits += qty;
+        const ch = _getPurchaseItemCostChange(it);
+        totalCostImpactUSD += ch.totalImpact;
         rowsHtml += `
             <tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 10px; font-family:monospace; font-weight:700;">${it.id}</td>
                 <td style="padding:8px 10px;">${it.nombre || it.name || it.id}</td>
-                <td style="padding:8px 10px; text-align:right;">$${cost.toFixed(2)}</td>
+                <td style="padding:8px 10px; text-align:right; color:#64748b;">${ch.prevLabel}</td>
+                <td style="padding:8px 10px; text-align:right; font-weight:700;">$${cost.toFixed(2)}</td>
+                <td style="padding:8px 10px; text-align:right;">${ch.html}</td>
                 <td style="padding:8px 10px; text-align:center; font-weight:700;">${qty}</td>
                 <td style="padding:8px 10px; text-align:right; font-weight:700;">$${sub.toFixed(2)}</td>
             </tr>`;
@@ -7767,11 +7844,13 @@ function printPurchaseVoucher(purchaseId) {
     <table>
         <thead>
             <tr>
-                <th style="width:110px;">Código</th>
+                <th style="width:90px;">Código</th>
                 <th>Descripción del Repuesto</th>
-                <th style="width:100px; text-align:right;">Costo Unit. ($)</th>
-                <th style="width:80px; text-align:center;">Cant.</th>
-                <th style="width:110px; text-align:right;">Subtotal ($)</th>
+                <th style="width:90px; text-align:right;">Costo Ant. ($)</th>
+                <th style="width:90px; text-align:right;">Costo Nuevo ($)</th>
+                <th style="width:130px; text-align:right;">Cambio / Impacto</th>
+                <th style="width:65px; text-align:center;">Cant.</th>
+                <th style="width:95px; text-align:right;">Subtotal ($)</th>
             </tr>
         </thead>
         <tbody>
@@ -7784,6 +7863,9 @@ function printPurchaseVoucher(purchaseId) {
             <div style="font-size:11px; font-weight:700; color:#166534; text-transform:uppercase;">Monto Total Facturado:</div>
             <div style="font-size:12px; color:#15803d; font-weight:700; margin-top:2px;">
                 Bs. ${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa BCV: Bs. ${bcvRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+            </div>
+            <div style="font-size:11px; font-weight:700; margin-top:4px; color:#334155;">
+                ${Math.abs(totalCostImpactUSD) >= 0.01 ? `${totalCostImpactUSD > 0 ? 'Incremento neto por variación de costo' : 'Ahorro neto por variación de costo'}: ${totalCostImpactUSD > 0 ? '+' : '-'}$${Math.abs(totalCostImpactUSD).toFixed(2)} USD` : 'Sin variación neta respecto a costos anteriores ($0.00 USD)'}
             </div>
         </div>
         <div style="font-size:22px; font-weight:900; color:#15803d;">
