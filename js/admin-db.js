@@ -574,6 +574,7 @@ const NovaDB = (function () {
         if (updates.porcentajeUtilidad !== undefined) target.porcentajeUtilidad = parseFloat(updates.porcentajeUtilidad) || 0;
         if (updates.iva !== undefined) target.iva = parseFloat(updates.iva) || 0;
         if (updates.precioFinalUSD !== undefined) target.precioFinalUSD = parseFloat(updates.precioFinalUSD) || 0;
+        if (updates.oferta !== undefined) target.oferta = updates.oferta;
 
         _write('inventory', inv);
 
@@ -828,9 +829,14 @@ const NovaDB = (function () {
         const sales = getSales();
         const idx = sales.findIndex(s => s && s.id === saleId);
         if (idx === -1) return false;
+        const fechaPago = new Date().toLocaleDateString('es-VE');
         sales[idx].pagadoCredito = true;
         sales[idx].estadoPago = 'pagado';
-        sales[idx].fechaPagoCredito = new Date().toLocaleDateString('es-VE');
+        sales[idx].fechaPagoCredito = fechaPago;
+        if (Array.isArray(sales[idx].metodosPago) && sales[idx].metodosPago.length > 0 && typeof sales[idx].metodosPago[0] === 'object') {
+            sales[idx].metodosPago[0].pagadoCredito = true;
+            sales[idx].metodosPago[0].fechaPago = fechaPago;
+        }
         _write('sales', sales);
         return true;
     }
@@ -1253,6 +1259,17 @@ const NovaDB = (function () {
         return _read('purchases', []);
     }
 
+    function markPurchaseCreditPaid(purchaseId) {
+        if (!purchaseId) return false;
+        const list = getPurchases();
+        const idx = list.findIndex(p => p && p.id === purchaseId);
+        if (idx === -1) return false;
+        list[idx].pagadoCredito = true;
+        list[idx].fechaPagoCredito = new Date().toLocaleDateString('es-VE');
+        _write('purchases', list);
+        return true;
+    }
+
     function registerPurchase(purchaseData) {
         const purchases = getPurchases();
         const purId = 'COM-' + (purchases.length + 1).toString().padStart(4, '0');
@@ -1269,7 +1286,12 @@ const NovaDB = (function () {
             facturaNumero: purchaseData.facturaNumero || 'N/A',
             items: purchaseData.items || [],
             totalUSD: purchaseData.totalUSD || 0,
-            notas: purchaseData.notas || ''
+            notas: purchaseData.notas || '',
+            condicionPago: purchaseData.condicionPago || 'contado',
+            esCredito: !!purchaseData.esCredito,
+            pagadoCredito: !!purchaseData.pagadoCredito,
+            terminoComercial: purchaseData.terminoComercial || (purchaseData.esCredito ? '30 Días (Crédito)' : 'Contado'),
+            fechaVencimiento: purchaseData.fechaVencimiento || ''
         };
 
         const inv = getInventory();
@@ -1481,6 +1503,7 @@ const NovaDB = (function () {
         saveSupplier,
         getPurchases,
         registerPurchase,
+        markPurchaseCreditPaid,
         getProductPurchaseHistory,
         addNewProduct,
         updateProduct,

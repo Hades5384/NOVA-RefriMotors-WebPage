@@ -14,7 +14,7 @@
  * ==============================================================================
  */
 
-let currentView = 'pos';
+let currentView = 'dashboard';
 let posCart = [];
 let posSelectedCustomer = null;
 let posPriceTier = 'publico'; // 'publico' | 'novacliente'
@@ -33,6 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof NovaReports !== 'undefined') NovaReports.init();
     setupKeyboardShortcuts();
     setupBroadcastSync();
+
+    if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller && NovaUsers.isSeller()) {
+        navigateTo('pos');
+    } else {
+        document.body.classList.add('dashboard-hide-header');
+        updateHeaderTitles('dashboard');
+        renderDashboardView();
+    }
+    initSidebarPinState();
 });
 
 function setupBroadcastSync() {
@@ -48,6 +57,9 @@ function setupBroadcastSync() {
                     }
                 } else if (ev.data && ev.data.type === 'BCV_RATE_UPDATED') {
                     updateBCVDisplay();
+                    if (currentView === 'dashboard') {
+                        renderDashboardView();
+                    }
                     if (currentView === 'pos') {
                         renderPOSCart();
                         renderPOSCatalog();
@@ -78,6 +90,7 @@ function navigateTo(viewName) {
     }
 
     currentView = viewName;
+    document.body.classList.toggle('dashboard-hide-header', viewName === 'dashboard');
 
     // Actualizar sidebar activo
     document.querySelectorAll('.nav-item').forEach(el => {
@@ -102,7 +115,8 @@ function navigateTo(viewName) {
     updateHeaderTitles(viewName);
 
     // Cargar datos específicos del módulo
-    if (viewName === 'pos') renderPOSCatalog();
+    if (viewName === 'dashboard') renderDashboardView();
+    else if (viewName === 'pos') renderPOSCatalog();
     else if (viewName === 'inventory') renderInventoryView();
     else if (viewName === 'purchases') renderPurchasesView();
     else if (viewName === 'cash') renderCashView();
@@ -116,7 +130,8 @@ function navigateTo(viewName) {
     // Sincronización en segundo plano al cambiar de módulo para garantizar datos frescos entre estaciones
     if (typeof window.NovaSupabase !== 'undefined' && window.NovaSupabase.isOnline && window.NovaSupabase.isOnline()) {
         window.NovaSupabase.pullCloudUpdates().then(() => {
-            if (currentView === 'cash' && typeof renderCashView === 'function') renderCashView();
+            if (currentView === 'dashboard' && typeof renderDashboardView === 'function') renderDashboardView();
+            else if (currentView === 'cash' && typeof renderCashView === 'function') renderCashView();
             else if (currentView === 'pos' && typeof renderPOSCatalog === 'function') renderPOSCatalog();
             else if (currentView === 'inventory' && typeof renderInventoryView === 'function') renderInventoryView();
             else if (currentView === 'customers' && typeof renderCustomersView === 'function') renderCustomersView();
@@ -127,6 +142,7 @@ function navigateTo(viewName) {
 
 function updateHeaderTitles(viewName) {
     const titles = {
+        dashboard: { title: "Panel Principal", subtitle: "Resumen ejecutivo del día, métricas clave y control rápido de tasas" },
         pos: { title: "Punto de Venta y Facturación", subtitle: "Mostrador rápido multimoneda, emisión de tickets y presupuestos" },
         inventory: { title: "Gestión de Inventario y Almacén", subtitle: "Control de existencias, stock mínimo, alertas y valorización" },
         purchases: { title: "Compras y Proveedores", subtitle: "Recepción de mercancía, órdenes de compra y costos" },
@@ -144,9 +160,23 @@ function updateHeaderTitles(viewName) {
     if (p) p.innerText = info.subtitle;
 }
 
+function initSidebarPinState() {
+    const sidebar = document.getElementById('erpSidebar');
+    const pinBtn = document.getElementById('sidebarPinBtn');
+    if (!sidebar || window.innerWidth <= 1024) return;
+    const isPinned = localStorage.getItem('nova_sidebar_pinned') === '1';
+    sidebar.classList.toggle('pinned', isPinned);
+    sidebar.classList.toggle('collapsed', !isPinned);
+    if (pinBtn) {
+        pinBtn.classList.toggle('is-pinned', isPinned);
+        pinBtn.title = isPinned ? 'Desfijar barra lateral (auto-ocultar)' : 'Fijar barra lateral abierta';
+    }
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('erpSidebar');
     const backdrop = document.getElementById('sidebarBackdrop');
+    const pinBtn = document.getElementById('sidebarPinBtn');
     if (!sidebar) return;
 
     if (window.innerWidth <= 1024) {
@@ -159,7 +189,14 @@ function toggleSidebar() {
             }
         }
     } else {
-        sidebar.classList.toggle('collapsed');
+        const willPin = !sidebar.classList.contains('pinned');
+        sidebar.classList.toggle('pinned', willPin);
+        sidebar.classList.toggle('collapsed', !willPin);
+        localStorage.setItem('nova_sidebar_pinned', willPin ? '1' : '0');
+        if (pinBtn) {
+            pinBtn.classList.toggle('is-pinned', willPin);
+            pinBtn.title = willPin ? 'Desfijar barra lateral (auto-ocultar)' : 'Fijar barra lateral abierta';
+        }
     }
 }
 
@@ -226,18 +263,15 @@ function openRateSettingsModal() {
     }, 150);
 }
 
-function saveRatesFromModal() {
+function applySystemRates(bcvInput, intInput, options = {}) {
     if (typeof NovaUsers !== 'undefined' && NovaUsers.isSeller && NovaUsers.isSeller()) {
         showNovaAlert({
             title: "Acceso Restringido",
             message: "Solo el usuario MASTER puede modificar las tasas de cambio del sistema.",
             type: "warning"
         });
-        return;
+        return false;
     }
-
-    const bcvInput = document.getElementById('rateModalBcvInput');
-    const intInput = document.getElementById('rateModalInternalInput');
 
     const newBCV = parseFloat(bcvInput ? bcvInput.value.replace(',', '.') : '');
     const newInt = parseFloat(intInput ? intInput.value.replace(',', '.') : '');
@@ -249,7 +283,7 @@ function saveRatesFromModal() {
             type: "warning"
         });
         if (bcvInput) bcvInput.focus();
-        return;
+        return false;
     }
 
     if (isNaN(newInt) || newInt <= 0) {
@@ -259,16 +293,15 @@ function saveRatesFromModal() {
             type: "warning"
         });
         if (intInput) intInput.focus();
-        return;
+        return false;
     }
 
-    // Guardar en almacenamiento y disparar hooks de sincronización inmediata con Supabase
     NovaDB.setTasaBCV(newBCV);
     NovaDB.setTasaInterna(newInt);
     updateBCVDisplay();
 
-    // Actualizar vistas si están en pantalla
     if (typeof currentView !== 'undefined') {
+        if (currentView === 'dashboard') renderDashboardView();
         if (currentView === 'pos') {
             if (typeof renderPOSCart === 'function') renderPOSCart();
             if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
@@ -285,13 +318,204 @@ function saveRatesFromModal() {
         }
     } catch (e) { }
 
-    closeModal('rateSettingsModal');
+    if (options.closeRateModal) {
+        closeModal('rateSettingsModal');
+    }
 
     showNovaAlert({
         title: "Tasas Actualizadas",
         message: `Las tasas han sido guardadas y sincronizadas con la base de datos central en la nube:<br>• <b>Tasa Oficial BCV:</b> Bs. ${newBCV.toFixed(2)}<br>• <b>Tasa Interna Reposición:</b> Bs. ${newInt.toFixed(2)}`,
         type: "success"
     });
+    return true;
+}
+
+function saveRatesFromModal() {
+    const bcvInput = document.getElementById('rateModalBcvInput');
+    const intInput = document.getElementById('rateModalInternalInput');
+    applySystemRates(bcvInput, intInput, { closeRateModal: true });
+}
+
+function saveRatesFromDashboard() {
+    const bcvInput = document.getElementById('dashBcvInput');
+    const intInput = document.getElementById('dashInternalInput');
+    applySystemRates(bcvInput, intInput, { closeRateModal: false });
+}
+
+function renderDashboardView() {
+    if (typeof NovaDB === 'undefined') return;
+
+    const settings = NovaDB.getSettings ? NovaDB.getSettings() : { tasaBCV: 917.78, tasaInterna: 1050 };
+    const tasa = parseFloat(settings.tasaBCV) || 917.78;
+    const tasaInt = parseFloat(settings.tasaInterna) || 1050;
+
+    // Fecha y saludo limpio
+    const todayDate = new Date();
+    const todayStr = todayDate.toLocaleDateString('es-VE');
+    const dateLabel = document.getElementById('dashTodayLabel');
+    if (dateLabel) {
+        const rawDate = todayDate.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        dateLabel.innerText = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
+    }
+
+    const hour = todayDate.getHours();
+    const greeting = hour < 12 ? 'Buenos días' : (hour < 19 ? 'Buenas tardes' : 'Buenas noches');
+    const greetEl = document.getElementById('dashGreetingTitle');
+    if (greetEl) greetEl.innerText = `${greeting} · Panel de Control NOVA`;
+
+    // 1. Ventas de hoy (excluye presupuestos y anuladas)
+    const sales = (NovaDB.getSales ? NovaDB.getSales() : []).filter(s => s && !s.anulada && s.tipoDocumento !== 'presupuesto');
+    const salesToday = sales.filter(s => {
+        if (s.fechaStr === todayStr) return true;
+        if (s.timestamp) return new Date(s.timestamp).toLocaleDateString('es-VE') === todayStr;
+        return false;
+    });
+    const todayUSD = salesToday.reduce((acc, s) => acc + (parseFloat(s.totalUSD) || 0), 0);
+    const todayBs = salesToday.reduce((acc, s) => acc + (parseFloat(s.totalBs) || ((parseFloat(s.totalUSD) || 0) * tasa)), 0);
+
+    const elSalesUSD = document.getElementById('dashSalesTodayUSD');
+    const elSalesMeta = document.getElementById('dashSalesTodayMeta');
+    if (elSalesUSD) elSalesUSD.innerText = `$${todayUSD.toFixed(2)}`;
+    if (elSalesMeta) elSalesMeta.innerText = `Bs. ${todayBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${salesToday.length} ${salesToday.length === 1 ? 'operación hoy' : 'operaciones hoy'}`;
+
+    // 2. Cuentas por Cobrar (Clientes)
+    const pendingReceivables = sales.filter(s => typeof _isSalePendingCredit === 'function' ? _isSalePendingCredit(s) : (s.esCredito && !s.pagadoCredito));
+    const recUSD = pendingReceivables.reduce((acc, s) => acc + (parseFloat(s.totalUSD) || 0), 0);
+    const elRecUSD = document.getElementById('dashReceivablesUSD');
+    const elRecMeta = document.getElementById('dashReceivablesMeta');
+    if (elRecUSD) elRecUSD.innerText = `$${recUSD.toFixed(2)}`;
+    if (elRecMeta) elRecMeta.innerText = `${pendingReceivables.length} ${pendingReceivables.length === 1 ? 'factura pendiente' : 'facturas pendientes'} por cobrar`;
+
+    // 3. Cuentas por Pagar (Proveedores)
+    const purchases = NovaDB.getPurchases ? NovaDB.getPurchases() : [];
+    const pendingPayables = purchases.filter(p => p && p.esCredito && !p.pagadoCredito);
+    const payUSD = pendingPayables.reduce((acc, p) => acc + (parseFloat(p.totalUSD) || 0), 0);
+    const elPayUSD = document.getElementById('dashPayablesUSD');
+    const elPayMeta = document.getElementById('dashPayablesMeta');
+    if (elPayUSD) elPayUSD.innerText = `$${payUSD.toFixed(2)}`;
+    if (elPayMeta) elPayMeta.innerText = `${pendingPayables.length} ${pendingPayables.length === 1 ? 'compromiso pendiente' : 'compromisos pendientes'} con proveedores`;
+
+    // 4. Estado del Inventario
+    const inv = NovaDB.getInventory ? NovaDB.getInventory() : {};
+    const items = Object.values(inv);
+    const outOfStock = items.filter(it => (parseInt(it.stock) || 0) <= 0);
+    const lowStock = items.filter(it => {
+        const st = parseInt(it.stock) || 0;
+        const min = parseInt(it.stockMinimo) || 3;
+        return st > 0 && st <= min;
+    });
+    const activeOffers = items.filter(it => typeof isProductOfferActive === 'function' && isProductOfferActive(it));
+
+    const elInvCount = document.getElementById('dashInventoryTotalCount');
+    const elInvMeta = document.getElementById('dashInventoryMeta');
+    if (elInvCount) elInvCount.innerText = `${items.length.toLocaleString('es-VE')} SKUs`;
+    if (elInvMeta) elInvMeta.innerText = `${outOfStock.length} agotados · ${lowStock.length} stock bajo · ${activeOffers.length} en oferta`;
+
+    // Línea breve de lectura ejecutiva
+    const heldOrders = NovaDB.getHeldSales ? NovaDB.getHeldSales() : [];
+    const insightEl = document.getElementById('dashQuickInsightLine');
+    if (insightEl) {
+        const restockCount = outOfStock.length + lowStock.length;
+        const parts = [
+            `Tasa BCV activa en Bs. ${tasa.toFixed(2)} (Interna Bs. ${tasaInt.toFixed(2)})`,
+            heldOrders.length > 0 ? `${heldOrders.length} ${heldOrders.length === 1 ? 'pedido' : 'pedidos'} en espera en mostrador` : 'Sin pedidos en espera',
+            restockCount > 0 ? `${restockCount} ${restockCount === 1 ? 'repuesto requiere' : 'repuestos requieren'} reposición` : 'Inventario en niveles óptimos'
+        ];
+        insightEl.innerText = parts.join(' · ');
+    }
+
+    // Mini Panel de Control de Tasas
+    const bcvInp = document.getElementById('dashBcvInput');
+    const intInp = document.getElementById('dashInternalInput');
+    if (bcvInp && document.activeElement !== bcvInp) bcvInp.value = tasa.toFixed(2);
+    if (intInp && document.activeElement !== intInp) intInp.value = tasaInt.toFixed(2);
+
+    // Lista: Últimas 5 Operaciones
+    const recentList = document.getElementById('dashRecentSalesList');
+    if (recentList) {
+        const recent = sales.slice(0, 5);
+        if (recent.length === 0) {
+            recentList.innerHTML = `<div class="dash-empty-note">Aún no se han registrado ventas. Abre el <b>POS [F2]</b> para emitir el primer comprobante.</div>`;
+        } else {
+            recentList.innerHTML = recent.map(s => {
+                const cName = (s.cliente && s.cliente.nombre) ? s.cliente.nombre : 'Cliente Mostrador';
+                const mpName = (Array.isArray(s.metodosPago) && s.metodosPago[0] && s.metodosPago[0].metodo) ? s.metodosPago[0].metodo : (s.metodoPago || 'Contado');
+                const isPendingCred = (typeof _isSalePendingCredit === 'function') ? _isSalePendingCredit(s) : (s.esCredito && !s.pagadoCredito);
+                const badgeClass = isPendingCred ? 'dash-tag-warn' : 'dash-tag-ok';
+                const badgeLabel = isPendingCred ? 'Crédito Pendiente' : mpName;
+                return `
+                    <div class="dash-list-row">
+                        <div class="dash-list-main">
+                            <span class="dash-list-title">${s.id || 'Ticket'} · ${cName}</span>
+                            <span class="dash-list-sub">${s.fechaStr || 'Hoy'} ${s.horaStr || ''} · ${(s.items || []).length} ítems</span>
+                        </div>
+                        <div class="dash-list-right">
+                            <div class="dash-list-amount">$${(parseFloat(s.totalUSD) || 0).toFixed(2)}</div>
+                            <span class="dash-tag ${badgeClass}">${badgeLabel}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    // Lista: Lectura Rápida y Alertas
+    const alertsList = document.getElementById('dashInventoryAlertsList');
+    if (alertsList) {
+        const alertRows = [];
+
+        if (heldOrders.length > 0) {
+            alertRows.push(`
+                <div class="dash-list-row">
+                    <div class="dash-list-main">
+                        <span class="dash-list-title">${heldOrders.length} pedido(s) de mostrador en espera</span>
+                        <span class="dash-list-sub">Enviados por vendedores listos para facturar en Caja</span>
+                    </div>
+                    <div class="dash-list-right">
+                        <span class="dash-tag dash-tag-info">Mostrador</span>
+                    </div>
+                </div>
+            `);
+        }
+
+        if (activeOffers.length > 0) {
+            alertRows.push(`
+                <div class="dash-list-row">
+                    <div class="dash-list-main">
+                        <span class="dash-list-title">${activeOffers.length} producto(s) con oferta temporal activa</span>
+                        <span class="dash-list-sub">Utilidad promocional aplicándose automáticamente en POS</span>
+                    </div>
+                    <div class="dash-list-right">
+                        <span class="dash-tag dash-tag-ok">Promoción</span>
+                    </div>
+                </div>
+            `);
+        }
+
+        const criticalItems = [...outOfStock, ...lowStock].slice(0, 4);
+        criticalItems.forEach(it => {
+            const st = parseInt(it.stock) || 0;
+            const isOut = st <= 0;
+            alertRows.push(`
+                <div class="dash-list-row">
+                    <div class="dash-list-main">
+                        <span class="dash-list-title">${it.id} · ${it.name || 'Repuesto'}</span>
+                        <span class="dash-list-sub">${it.category || 'General'} · Mínimo: ${it.stockMinimo || 3} und.</span>
+                    </div>
+                    <div class="dash-list-right">
+                        <div class="dash-list-amount">${st} und.</div>
+                        <span class="dash-tag ${isOut ? 'dash-tag-danger' : 'dash-tag-warn'}">${isOut ? 'Agotado' : 'Stock Bajo'}</span>
+                    </div>
+                </div>
+            `);
+        });
+
+        if (alertRows.length === 0) {
+            alertsList.innerHTML = `<div class="dash-empty-note">Todo en orden: sin pedidos pendientes ni alertas críticas de stock en este momento.</div>`;
+        } else {
+            alertsList.innerHTML = alertRows.join('');
+        }
+    }
 }
 
 function promptEditBCV() {
@@ -491,7 +715,8 @@ function renderPOSCatalog() {
                 name: name,
                 category: cat,
                 costoCompra: cost,
-                porcentajeUtilidad: invItem.porcentajeUtilidad,
+                porcentajeUtilidad: getEffectiveProductUtility(invItem),
+                ofertaActiva: isProductOfferActive(invItem),
                 iva: invItem.iva,
                 images: meta.images || [],
                 stock: typeof invItem.stock === 'number' ? invItem.stock : 0
@@ -545,7 +770,7 @@ function renderPOSCatalog() {
         html += `
             <div class="pos-item-card${cardExtraClass}" onclick="addToPOSCart('${item.id}')" title="${item.stock === 0 ? 'Producto agotado sin existencias' : item.name}">
                 <img src="${imgUrl}" alt="${item.name}" class="pos-card-thumb" onerror="this.src='productos/NO_PHOTO.webp'" loading="lazy" decoding="async">
-                <span class="pos-card-code">${item.id}</span>
+                <span class="pos-card-code">${item.id}${item.ofertaActiva ? ' <span style="background:#003366; color:#fff; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:4px; font-weight:800;">OFERTA</span>' : ''}</span>
                 <h4 class="pos-card-name" title="${item.name}">${item.name}</h4>
                 <div class="pos-card-footer">
                     <div class="pos-card-price-box">
@@ -634,14 +859,15 @@ function addToPOSCart(itemId) {
         found = {
             id: invItem.id,
             name: invItem.name || invItem.id,
+            category: invItem.category || meta.category || 'General',
             costoCompra: (typeof invItem.costoCompra === 'number' && invItem.costoCompra > 0) ? invItem.costoCompra : (meta.costoCompra || 0),
-            porcentajeUtilidad: invItem.porcentajeUtilidad,
+            porcentajeUtilidad: getEffectiveProductUtility(invItem),
             iva: invItem.iva,
             images: meta.images || []
         };
     } else if (meta.costoCompra !== undefined) {
         const p = prods.find(x => x.id === itemId);
-        found = { id: itemId, name: p ? p.name : itemId, costoCompra: meta.costoCompra, images: meta.images || [] };
+        found = { id: itemId, name: p ? p.name : itemId, category: (p && p.category) || meta.category || 'General', costoCompra: meta.costoCompra, images: meta.images || [] };
     }
 
     if (!found) return;
@@ -673,6 +899,7 @@ function addToPOSCart(itemId) {
         posCart.push({
             id: found.id,
             name: found.name,
+            category: found.category || 'General',
             costoCompra: found.costoCompra,
             porcentajeUtilidad: found.porcentajeUtilidad,
             iva: found.iva,
@@ -681,6 +908,151 @@ function addToPOSCart(itemId) {
         });
     }
 
+    renderPOSCart();
+}
+
+const WHOLESALE_MIN_USD = 500;
+const WHOLESALE_MIN_QTY = 10;
+const WHOLESALE_UTILITY_PCT = 5;
+let posWholesaleOptOut = false;
+
+function isCategoryExcludedFromWholesale(category) {
+    const cat = String(category || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    return (
+        cat.includes('aire acondicionado') ||
+        cat.includes('aires acondicionados') ||
+        cat.includes('nevera') ||
+        cat.includes('cava') ||
+        cat.includes('lavadora') ||
+        cat.includes('electrodom')
+    );
+}
+
+function getPOSItemCategory(item) {
+    if (item && item.category) return item.category;
+    if (item && item.id && typeof NovaDB !== 'undefined' && NovaDB.getInventory) {
+        const inv = NovaDB.getInventory();
+        if (inv[item.id] && inv[item.id].category) return inv[item.id].category;
+    }
+    return 'General';
+}
+
+function isItemEligibleForWholesale(item) {
+    return !isCategoryExcludedFromWholesale(getPOSItemCategory(item));
+}
+
+function evaluatePOSWholesaleState(cart = posCart, settings = null) {
+    const s = settings || (typeof NovaDB !== 'undefined' && NovaDB.getSettings ? NovaDB.getSettings() : {});
+    let eligibleBaseUSD = 0;
+    let eligibleQty = 0;
+    let hasExcludedItems = false;
+
+    (cart || []).forEach(item => {
+        const qty = parseInt(item.quantity) || 0;
+        if (qty <= 0) return;
+        if (isItemEligibleForWholesale(item)) {
+            const p = calcularPreciosSegunAjustes(item.costoCompra, s, item.porcentajeUtilidad, item.iva);
+            eligibleBaseUSD += p.publicoUSD * qty;
+            eligibleQty += qty;
+        } else {
+            hasExcludedItems = true;
+        }
+    });
+
+    const qualified = eligibleBaseUSD > WHOLESALE_MIN_USD && eligibleQty >= WHOLESALE_MIN_QTY;
+    if (!qualified) posWholesaleOptOut = false;
+
+    return {
+        qualified,
+        active: qualified && !posWholesaleOptOut,
+        eligibleBaseUSD,
+        eligibleQty,
+        hasExcludedItems,
+        missingUSD: Math.max(0, WHOLESALE_MIN_USD - eligibleBaseUSD),
+        missingQty: Math.max(0, WHOLESALE_MIN_QTY - eligibleQty)
+    };
+}
+
+function getPOSItemEffectiveUtility(item, wholesaleActive) {
+    if (wholesaleActive && isItemEligibleForWholesale(item)) {
+        return WHOLESALE_UTILITY_PCT;
+    }
+    return item ? item.porcentajeUtilidad : undefined;
+}
+
+function togglePOSWholesaleMode() {
+    const state = evaluatePOSWholesaleState();
+    if (!state.qualified) return;
+    posWholesaleOptOut = !posWholesaleOptOut;
+    renderPOSCart();
+}
+
+function renderPOSWholesaleBanner(state) {
+    const banner = document.getElementById('posWholesaleBanner');
+    if (!banner) return;
+
+    if (!posCart || posCart.length === 0) {
+        banner.style.display = 'none';
+        banner.className = 'pos-wholesale-banner';
+        return;
+    }
+
+    banner.style.display = 'flex';
+    if (state.active) {
+        banner.className = 'pos-wholesale-banner is-active';
+        banner.innerHTML = `
+            <div class="pos-wholesale-info">
+                <span class="pos-wholesale-title">Modo Ventas al Mayor (5% utilidad) ACTIVO</span>
+                <span class="pos-wholesale-sub">${state.eligibleQty} und. elegibles · ${state.hasExcludedItems ? 'No aplica en aires/electrodomésticos' : 'Aplicado a insumos y repuestos'}</span>
+            </div>
+            <button type="button" class="pos-wholesale-toggle-btn" onclick="togglePOSWholesaleMode()">Desactivar</button>
+        `;
+    } else if (state.qualified) {
+        banner.className = 'pos-wholesale-banner is-qualified-off';
+        banner.innerHTML = `
+            <div class="pos-wholesale-info">
+                <span class="pos-wholesale-title">Califica para Modo Mayor (5% utilidad)</span>
+                <span class="pos-wholesale-sub">$${state.eligibleBaseUSD.toFixed(2)} en ${state.eligibleQty} und. elegibles</span>
+            </div>
+            <button type="button" class="pos-wholesale-toggle-btn" onclick="togglePOSWholesaleMode()">Activar 5%</button>
+        `;
+    } else {
+        banner.className = 'pos-wholesale-banner';
+        const hints = [];
+        if (state.missingUSD > 0 || state.eligibleBaseUSD <= WHOLESALE_MIN_USD) hints.push(`Superar $${WHOLESALE_MIN_USD} ($${state.eligibleBaseUSD.toFixed(2)})`);
+        if (state.missingQty > 0) hints.push(`Mín. ${WHOLESALE_MIN_QTY} und. (${state.eligibleQty})`);
+        banner.innerHTML = `
+            <div class="pos-wholesale-info">
+                <span class="pos-wholesale-title">Modo Mayor (5% utilidad)</span>
+                <span class="pos-wholesale-sub">${hints.join(' · ')} en insumos${state.hasExcludedItems ? ' (excluye aires/electrodomésticos)' : ''}</span>
+            </div>
+        `;
+    }
+}
+
+function setPOSQty(index, rawVal) {
+    if (!posCart[index]) return;
+    const it = posCart[index];
+    const parsed = parseInt(rawVal);
+    if (isNaN(parsed) || parsed <= 0) {
+        posCart.splice(index, 1);
+        renderPOSCart();
+        return;
+    }
+    const currentStock = NovaDB.getStock(it.id);
+    if (parsed > currentStock) {
+        showNovaAlert({
+            title: "Stock Insuficiente",
+            message: `Solo hay <b>${currentStock}</b> unidad(es) disponibles de "<b>${it.name}</b>".`,
+            type: "warning"
+        });
+        renderPOSCart();
+        return;
+    }
+    it.quantity = parsed;
     renderPOSCart();
 }
 
@@ -714,6 +1086,7 @@ function removePOSItem(index) {
 function clearPOSCart() {
     if (posCart.length === 0) return;
     posCart = [];
+    posWholesaleOptOut = false;
     renderPOSCart();
 }
 
@@ -734,24 +1107,28 @@ function renderPOSCart() {
                 <p>El ticket de venta está vacío.</p>
                 <p style="font-size: 11px; margin-top: 4px;">Selecciona repuestos del catálogo o usa la tecla <b>F2</b> para buscar.</p>
             </div>`;
+        renderPOSWholesaleBanner({ qualified: false, active: false });
         updatePOSTotals(0, 0, 0);
         return;
     }
 
     const settings = NovaDB.getSettings();
+    const wholesaleState = evaluatePOSWholesaleState(posCart, settings);
     let totalUSD = 0;
     let html = '';
 
     posCart.forEach((item, idx) => {
-        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+        const effectiveUtil = getPOSItemEffectiveUtility(item, wholesaleState.active);
+        const precios = calcularPreciosSegunAjustes(item.costoCompra, settings, effectiveUtil, item.iva);
         const unitPrice = precios.publicoUSD;
         const lineTotal = unitPrice * item.quantity;
         totalUSD += lineTotal;
+        const isWhItem = wholesaleState.active && isItemEligibleForWholesale(item);
 
         html += `
             <div class="ticket-row">
                 <div class="ticket-row-top">
-                    <span class="ticket-item-name">[${item.id}] ${item.name}</span>
+                    <span class="ticket-item-name">[${item.id}] ${item.name}${isWhItem ? '<span class="ticket-wholesale-tag">Mayor 5%</span>' : ''}</span>
                     <button class="ticket-item-del" onclick="removePOSItem(${idx})" title="Quitar ítem">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
@@ -759,7 +1136,7 @@ function renderPOSCart() {
                 <div class="ticket-row-bottom">
                     <div class="ticket-qty-control">
                         <button class="qty-btn" onclick="changePOSQty(${idx}, -1)">-</button>
-                        <span class="qty-val">${item.quantity}</span>
+                        <input type="number" class="ticket-qty-input" value="${item.quantity}" min="1" onchange="setPOSQty(${idx}, this.value)">
                         <button class="qty-btn" onclick="changePOSQty(${idx}, 1)">+</button>
                     </div>
                     <span class="ticket-item-total">$${lineTotal.toFixed(2)}</span>
@@ -768,6 +1145,7 @@ function renderPOSCart() {
     });
 
     container.innerHTML = html;
+    renderPOSWholesaleBanner(wholesaleState);
     const totalBs = totalUSD * settings.tasaBCV;
     updatePOSTotals(totalUSD, totalBs, posCart.length);
 }
@@ -801,6 +1179,21 @@ function updatePOSTotals(totalUSD, totalBs, itemCount) {
     if (floatWrap) {
         floatWrap.style.display = (itemCount > 0) ? 'flex' : 'none';
     }
+}
+
+function isProductOfferActive(item) {
+    if (!item || !item.oferta || !item.oferta.activa) return false;
+    const now = Date.now();
+    if (item.oferta.fechaInicio && now < item.oferta.fechaInicio) return false;
+    if (item.oferta.fechaFin && now > item.oferta.fechaFin) return false;
+    return true;
+}
+
+function getEffectiveProductUtility(item) {
+    if (isProductOfferActive(item)) {
+        return parseFloat(item.oferta.utilidadOferta);
+    }
+    return item ? item.porcentajeUtilidad : undefined;
 }
 
 function calcularPreciosSegunAjustes(costoCompra, settings, customUtil, customIva) {
@@ -880,11 +1273,14 @@ function sendOrderToMaster() {
 
     const currentUser = (typeof NovaUsers !== 'undefined') ? NovaUsers.getCurrentUser() : { id: 'VENTAS01', name: 'VENTAS 01' };
     const settings = NovaDB.getSettings();
+    const wholesaleState = evaluatePOSWholesaleState(posCart, settings);
 
     let totalUSD = 0;
-    posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+    const orderItems = posCart.map(item => {
+        const effectiveUtil = getPOSItemEffectiveUtility(item, wholesaleState.active);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, effectiveUtil, item.iva);
         totalUSD += p.publicoUSD * item.quantity;
+        return Object.assign({}, item, { porcentajeUtilidad: effectiveUtil });
     });
     const totalBs = totalUSD * settings.tasaBCV;
 
@@ -897,11 +1293,12 @@ function sendOrderToMaster() {
 
     const orderId = 'PED-' + currentUser.id.replace('VENTAS', 'V') + '-' + Math.floor(1000 + Math.random() * 9000);
 
-    NovaDB.holdCurrentSale(posCart, cust, `${cust.nombre} [${currentUser.name}]`, {
+    NovaDB.holdCurrentSale(orderItems, cust, `${cust.nombre} [${currentUser.name}]`, {
         id: orderId,
         estacion: currentUser.id,
         vendedor: currentUser.name,
         tipoPrecio: 'publico',
+        modoMayor: wholesaleState.active,
         totalUSD,
         totalBs
     });
@@ -928,10 +1325,13 @@ async function emitPresupuestoFromCart() {
     }
 
     const settings = NovaDB.getSettings();
+    const wholesaleState = evaluatePOSWholesaleState(posCart, settings);
     let totalUSD = 0;
-    posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+    const quoteItems = posCart.map(item => {
+        const effectiveUtil = getPOSItemEffectiveUtility(item, wholesaleState.active);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, effectiveUtil, item.iva);
         totalUSD += p.publicoUSD * item.quantity;
+        return Object.assign({}, item, { porcentajeUtilidad: effectiveUtil });
     });
     const totalBs = totalUSD * settings.tasaBCV;
 
@@ -949,8 +1349,9 @@ async function emitPresupuestoFromCart() {
         fechaStr: new Date().toLocaleDateString('es-VE'),
         horaStr: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true }),
         cliente: cust,
-        items: JSON.parse(JSON.stringify(posCart)),
+        items: quoteItems,
         tipoPrecio: 'publico',
+        modoMayor: wholesaleState.active,
         tipoDocumento: 'presupuesto',
         tasaBCV: settings.tasaBCV,
         totalUSD,
@@ -1395,6 +1796,7 @@ function updateCheckoutTotals() {
     if (posCart.length === 0) return;
 
     const settings = NovaDB.getSettings();
+    const wholesaleState = evaluatePOSWholesaleState(posCart, settings);
     const docType = document.getElementById('coDocType') ? document.getElementById('coDocType').value : 'factura';
     const isQuote = (docType === 'presupuesto');
     const payMethod = document.getElementById('coPaymentMethod') ? document.getElementById('coPaymentMethod').value : 'Efectivo USD';
@@ -1404,7 +1806,8 @@ function updateCheckoutTotals() {
     let totalBs = 0;
 
     posCart.forEach(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+        const effectiveUtil = getPOSItemEffectiveUtility(item, wholesaleState.active);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, effectiveUtil, item.iva);
         if (isUSD) {
             // Descuento automático al pagar en divisas (efectivo $, zelle, binance)
             totalUSD += p.novaClientesUSD * item.quantity;
@@ -1422,12 +1825,16 @@ function updateCheckoutTotals() {
     const usdEl = document.getElementById('checkoutTotalUSD');
     const bsEl = document.getElementById('checkoutTotalBs');
     const badgeEl = document.getElementById('checkoutDiscountBadge');
+    const whBadgeEl = document.getElementById('checkoutWholesaleBadge');
 
     if (usdEl) usdEl.innerText = `$${totalUSD.toFixed(2)}`;
     if (bsEl) bsEl.innerText = `Bs. ${totalBs.toFixed(2)}`;
 
     if (badgeEl) {
         badgeEl.style.display = isUSD ? 'inline-block' : 'none';
+    }
+    if (whBadgeEl) {
+        whBadgeEl.style.display = wholesaleState.active ? 'inline-block' : 'none';
     }
 
     const inputUSD = document.getElementById('payAmountUSD');
@@ -1578,8 +1985,10 @@ async function finalizeSale() {
 
     // Congelar instantánea histórica liviana (~600 bytes por factura) para reconstruir
     // la imagen exacta de la factura en el futuro sin guardar imágenes pesadas en la BD
+    const wholesaleState = evaluatePOSWholesaleState(posCart, settings);
     const frozenItems = posCart.map(item => {
-        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, item.porcentajeUtilidad, item.iva);
+        const effectiveUtil = getPOSItemEffectiveUtility(item, wholesaleState.active);
+        const p = calcularPreciosSegunAjustes(item.costoCompra, settings, effectiveUtil, item.iva);
         const qty = parseInt(item.quantity) || 1;
         const unitUSD = isUSD ? p.novaClientesUSD : p.publicoUSD;
         const unitBs = isUSD ? (p.novaClientesUSD * settings.tasaBCV) : p.publicoBs;
@@ -1595,7 +2004,7 @@ async function finalizeSale() {
             name: item.name,
             quantity: qty,
             costoCompra: Number(item.costoCompra) || 0,
-            porcentajeUtilidad: item.porcentajeUtilidad,
+            porcentajeUtilidad: effectiveUtil,
             iva: itemIva,
             priceUSD: +unitUSD.toFixed(2),
             priceBs: +unitBs.toFixed(2),
@@ -1616,6 +2025,7 @@ async function finalizeSale() {
         items: frozenItems,
         tipoPrecio: isUSD ? 'divisas' : 'publico',
         descuentoDivisas: isUSD,
+        modoMayor: wholesaleState.active,
         tipoDocumento: docType,
         tasaBCV: settings.tasaBCV,
         totalUSD,
@@ -1640,6 +2050,10 @@ async function finalizeSale() {
 
     const saved = NovaDB.registerSale(saleRecord);
     closeModal('checkoutModal');
+
+    if (typeof renderCreditReceivablesTable === 'function') {
+        renderCreditReceivablesTable();
+    }
 
     // Limpiar carrito de mostrador y sincronizar vistas de catálogo e inventario
     posCart = [];
@@ -2654,7 +3068,9 @@ function renderInventoryTable() {
     let html = '';
     toShow.forEach(item => {
         const cost = (typeof item.costoCompra === 'number' && item.costoCompra > 0) ? item.costoCompra : (catalogCostMap[item.id] || 0);
-        const precios = calcularPreciosSegunAjustes(cost, settings, item.porcentajeUtilidad, item.iva);
+        const effUtil = getEffectiveProductUtility(item);
+        const offerActive = isProductOfferActive(item);
+        const precios = calcularPreciosSegunAjustes(cost, settings, effUtil, item.iva);
 
         let statusBadge = '<span class="status-badge status-optimal">● Óptimo</span>';
         if (item.stock === 0) statusBadge = '<span class="status-badge status-out">● Agotado</span>';
@@ -2677,7 +3093,7 @@ function renderInventoryTable() {
                         </button>
                     </div>
                 </td>
-                <td><b style="color:var(--accent-red);">$${precios.publicoUSD.toFixed(2)}</b></td>
+                <td><b style="color:var(--accent-red);">$${precios.publicoUSD.toFixed(2)}</b>${offerActive ? ' <span style="display:inline-block; background:#003366; color:#fff; font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; vertical-align:middle;">OFERTA</span>' : ''}</td>
                 <td><b style="color:var(--primary);">$${precios.novaClientesUSD.toFixed(2)}</b></td>
                 <td style="text-align:center;">
                     <span style="font-weight:800; font-size:13.5px; color:var(--text-main);">${item.stock}</span>
@@ -2811,6 +3227,20 @@ function openEditProductModal(productId) {
 
     const inpResp = document.getElementById('editProdResponsable');
     if (inpResp) inpResp.value = '';
+
+    // Poblar campos de Oferta Temporal Individual
+    const offerChk = document.getElementById('editProdOfferActive');
+    const offerUtilInp = document.getElementById('editProdOfferUtil');
+    const offerEndInp = document.getElementById('editProdOfferEnd');
+    const offerActive = isProductOfferActive(item);
+    if (offerChk) offerChk.checked = offerActive;
+    if (offerUtilInp) offerUtilInp.value = offerActive ? item.oferta.utilidadOferta : Math.max(-99.9, currentUtil - 10);
+    if (offerEndInp) {
+        const endTs = (offerActive && item.oferta.fechaFin) ? item.oferta.fechaFin : (Date.now() + 7 * 24 * 60 * 60 * 1000);
+        offerEndInp.value = _toDateTimeLocalStr(endTs);
+    }
+    toggleEditProdOfferFields();
+    calculateEditProductOfferPreview();
 
     // Poblar historial de última carga y registro de subida de costo
     const history = (typeof NovaDB !== 'undefined' && NovaDB.getProductPurchaseHistory) ? NovaDB.getProductPurchaseHistory(productId) : [];
@@ -2965,6 +3395,26 @@ function saveEditedProduct() {
     const calc = calculateEditProductPrice();
     const precioFinalUSD = calc.precioFinalUSD;
 
+    // Construir objeto de oferta temporal si está activada
+    const offerActive = !!document.getElementById('editProdOfferActive')?.checked;
+    let ofertaObj = null;
+    if (offerActive) {
+        const offerUtil = Math.max(-99.9, parseFloat(document.getElementById('editProdOfferUtil')?.value) || 0);
+        const endStr = document.getElementById('editProdOfferEnd')?.value;
+        const endTs = endStr ? new Date(endStr).getTime() : (Date.now() + 7 * 24 * 60 * 60 * 1000);
+        if (isNaN(endTs) || endTs <= Date.now()) {
+            showNovaAlert({ title: "Fecha de Oferta Inválida", message: "La fecha límite de la oferta debe ser posterior a la fecha y hora actual.", type: "warning" });
+            return;
+        }
+        ofertaObj = {
+            activa: true,
+            utilidadOferta: offerUtil,
+            fechaInicio: Date.now(),
+            fechaFin: endTs,
+            responsable
+        };
+    }
+
     NovaDB.updateProduct(id, {
         name,
         category,
@@ -2973,8 +3423,9 @@ function saveEditedProduct() {
         porcentajeUtilidad: utilidad,
         iva: iva,
         precioFinalUSD: precioFinalUSD,
+        oferta: ofertaObj,
         usuario: responsable,
-        motivo: 'Ajuste de producto en Almacén'
+        motivo: ofertaObj ? `Ajuste + Oferta Temporal (${ofertaObj.utilidadOferta}%)` : 'Ajuste de producto en Almacén'
     }, responsable);
 
     closeModal('editProductModal');
@@ -3037,32 +3488,191 @@ function openBulkCategoryModal(tab = 'prices') {
     if (sel) {
         sel.innerHTML = cats.map(c => `<option value="${c}">${c} (${counts[c] || 0} productos)</option>`).join('');
     }
+    const selOffer = document.getElementById('bulkOfferCategory');
+    if (selOffer) {
+        selOffer.innerHTML = cats.map(c => `<option value="${c}">${c} (${counts[c] || 0} productos)</option>`).join('');
+    }
+    const offerEnd = document.getElementById('bulkOfferEnd');
+    if (offerEnd && !offerEnd.value) {
+        offerEnd.value = _toDateTimeLocalStr(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
     const resp = document.getElementById('bulkPriceResponsible');
     if (resp) resp.value = '';
+    const offerResp = document.getElementById('bulkOfferResponsible');
+    if (offerResp) offerResp.value = '';
 
     switchBulkCategoryTab(tab);
     updateBulkPricePreview();
+    updateBulkOfferPreview();
     renderBulkCategoriesTable();
     openModal('bulkCategoryModal');
 }
 
 function switchBulkCategoryTab(tab) {
     const pDiv = document.getElementById('bulkTabPrices');
+    const oDiv = document.getElementById('bulkTabOffer');
     const cDiv = document.getElementById('bulkTabCats');
     const pBtn = document.getElementById('bulkTabBtnPrices');
+    const oBtn = document.getElementById('bulkTabBtnOffer');
     const cBtn = document.getElementById('bulkTabBtnCats');
+
+    [pDiv, oDiv, cDiv].forEach(d => { if (d) d.style.display = 'none'; });
+    [pBtn, oBtn, cBtn].forEach(b => {
+        if (b) { b.classList.remove('btn-primary-action'); b.classList.add('btn-secondary-action'); }
+    });
+
     if (tab === 'cats') {
-        if (pDiv) pDiv.style.display = 'none';
         if (cDiv) cDiv.style.display = 'block';
-        if (pBtn) { pBtn.classList.remove('btn-primary-action'); pBtn.classList.add('btn-secondary-action'); }
         if (cBtn) { cBtn.classList.remove('btn-secondary-action'); cBtn.classList.add('btn-primary-action'); }
         renderBulkCategoriesTable();
+    } else if (tab === 'offer') {
+        if (oDiv) oDiv.style.display = 'block';
+        if (oBtn) { oBtn.classList.remove('btn-secondary-action'); oBtn.classList.add('btn-primary-action'); }
+        updateBulkOfferPreview();
     } else {
         if (pDiv) pDiv.style.display = 'block';
-        if (cDiv) cDiv.style.display = 'none';
         if (pBtn) { pBtn.classList.remove('btn-secondary-action'); pBtn.classList.add('btn-primary-action'); }
-        if (cBtn) { cBtn.classList.remove('btn-primary-action'); cBtn.classList.add('btn-secondary-action'); }
     }
+}
+
+function _toDateTimeLocalStr(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function setOfferDurationPreset(inputId, days) {
+    const inp = document.getElementById(inputId);
+    if (inp) {
+        inp.value = _toDateTimeLocalStr(Date.now() + days * 24 * 60 * 60 * 1000);
+    }
+}
+
+function toggleEditProdOfferFields() {
+    const chk = document.getElementById('editProdOfferActive');
+    const fields = document.getElementById('editProdOfferFields');
+    const badge = document.getElementById('editProdOfferStatusBadge');
+    const active = !!chk?.checked;
+    if (fields) fields.style.display = active ? 'block' : 'none';
+    if (badge) {
+        badge.textContent = active ? 'Activa' : 'Inactiva';
+        badge.style.background = active ? '#003366' : '#e2e8f0';
+        badge.style.color = active ? '#ffffff' : '#64748b';
+    }
+    if (active) calculateEditProductOfferPreview();
+}
+
+function calculateEditProductOfferPreview() {
+    const costo = Math.max(0, parseFloat(document.getElementById('editProdCosto')?.value || 0) || 0);
+    const offerUtil = Math.max(-99.9, parseFloat(document.getElementById('editProdOfferUtil')?.value || 0) || 0);
+    const iva = Math.max(0, parseFloat(document.getElementById('editProdIva')?.value || 0) || 0);
+    const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02, tasaInterna: 1150 };
+    const p = calcularPreciosSegunAjustes(costo, settings, offerUtil, iva);
+
+    const elUsd = document.getElementById('editOfferPrecioUSD');
+    const elPub = document.getElementById('editOfferPrecioPublicoUSD');
+    if (elUsd) elUsd.textContent = `$${p.novaClientesUSD.toFixed(2)} USD Sistema`;
+    if (elPub) elPub.textContent = `$${p.publicoUSD.toFixed(2)} BCV`;
+}
+
+function updateBulkOfferPreview() {
+    const cat = document.getElementById('bulkOfferCategory')?.value;
+    const offerUtil = Math.max(-99.9, parseFloat(document.getElementById('bulkOfferUtil')?.value || 0) || 0);
+    const endStr = document.getElementById('bulkOfferEnd')?.value;
+    const box = document.getElementById('bulkOfferPreviewBox');
+    if (!box || !cat) return;
+
+    const inv = NovaDB.getInventory();
+    const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const settings = NovaDB.getSettings();
+    const items = Object.values(inv).filter(it => (it.category || 'General') === cat);
+    if (items.length === 0) {
+        box.innerHTML = `No hay productos en la categoría <b>${cat}</b>.`;
+        return;
+    }
+
+    const sample = items[0];
+    const cost = getProductCost(sample.id, prods, sample);
+    const baseUtil = (typeof sample.porcentajeUtilidad === 'number') ? sample.porcentajeUtilidad : 30;
+    const iva = (typeof sample.iva === 'number') ? sample.iva : 16;
+    const normalPrice = calcularPreciosSegunAjustes(cost, settings, baseUtil, iva).novaClientesUSD;
+    const offerPrice = calcularPreciosSegunAjustes(cost, settings, offerUtil, iva).novaClientesUSD;
+    const endLabel = endStr ? new Date(endStr).toLocaleString('es-VE') : 'Sin fecha definida';
+
+    box.innerHTML = `
+        <div>Se activará oferta temporal en <b>${items.length} producto(s)</b> de <b>${cat}</b> hasta <b>${endLabel}</b>.</div>
+        <div style="margin-top:6px; font-size:11.5px; color:#475569;">
+            Ejemplo (<b>${sample.id} - ${sample.name}</b>):<br>
+            Normal (${baseUtil}%): <b>$${normalPrice.toFixed(2)} USD</b> → Oferta (${offerUtil}%): <b style="color:#003366;">$${offerPrice.toFixed(2)} USD</b> (la utilidad base se conserva intacta al vencer).
+        </div>
+    `;
+}
+
+function applyBulkCategoryOffer() {
+    const cat = document.getElementById('bulkOfferCategory')?.value;
+    const offerUtil = parseFloat(document.getElementById('bulkOfferUtil')?.value);
+    const endStr = document.getElementById('bulkOfferEnd')?.value;
+    const resp = (document.getElementById('bulkOfferResponsible')?.value || '').trim();
+
+    if (!cat || isNaN(offerUtil) || offerUtil < -99.9) {
+        showNovaAlert({ title: "Porcentaje Inválido", message: "Indica un porcentaje de utilidad válido (desde -99.9%).", type: "warning" });
+        return;
+    }
+    const endTs = endStr ? new Date(endStr).getTime() : 0;
+    if (!endTs || isNaN(endTs) || endTs <= Date.now()) {
+        showNovaAlert({ title: "Fecha Inválida", message: "La fecha de finalización de la oferta debe ser futura.", type: "warning" });
+        return;
+    }
+    if (!resp) {
+        showNovaAlert({ title: "Responsable Requerido", message: "Indica la persona que autoriza la oferta de categoría.", type: "warning" });
+        document.getElementById('bulkOfferResponsible')?.focus();
+        return;
+    }
+
+    const inv = NovaDB.getInventory();
+    const items = Object.values(inv).filter(it => (it.category || 'General') === cat);
+    let count = 0;
+    items.forEach(item => {
+        NovaDB.updateProduct(item.id, {
+            oferta: {
+                activa: true,
+                utilidadOferta: Math.round(offerUtil * 100) / 100,
+                fechaInicio: Date.now(),
+                fechaFin: endTs,
+                responsable: resp
+            },
+            usuario: resp,
+            motivo: `Oferta Temporal Categoría ${cat} (${offerUtil}%)`
+        }, resp);
+        count++;
+    });
+
+    closeModal('bulkCategoryModal');
+    renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+    showNovaAlert({
+        title: "Oferta Activada por Categoría",
+        message: `Se activó la oferta temporal (${offerUtil}% utilidad) en <b>${count} producto(s)</b> de <b>${cat}</b> hasta <b>${new Date(endTs).toLocaleString('es-VE')}</b>.`,
+        type: "success"
+    });
+}
+
+function clearBulkCategoryOffer() {
+    const cat = document.getElementById('bulkOfferCategory')?.value;
+    if (!cat) return;
+    const inv = NovaDB.getInventory();
+    const items = Object.values(inv).filter(it => (it.category || 'General') === cat && it.oferta);
+    items.forEach(item => {
+        NovaDB.updateProduct(item.id, { oferta: null, motivo: `Fin manual de oferta en ${cat}` });
+    });
+    updateBulkOfferPreview();
+    renderInventoryView();
+    if (typeof renderPOSCatalog === 'function') renderPOSCatalog();
+    showNovaAlert({
+        title: "Ofertas Removidas",
+        message: `Se retiraron las ofertas activas de <b>${items.length} producto(s)</b> en <b>${cat}</b>, restaurando su utilidad original.`,
+        type: "info"
+    });
 }
 
 function updateBulkPricePreview() {
@@ -3213,11 +3823,10 @@ function renameCategoryGlobal(oldName) {
     let movedCount = 0;
     Object.keys(inv).forEach(id => {
         if ((inv[id].category || 'General') === oldName) {
-            inv[id].category = trimmed;
+            NovaDB.updateProduct(id, { category: trimmed, motivo: `Renombramiento categoría ${oldName} -> ${trimmed}` });
             movedCount++;
         }
     });
-    localStorage.setItem('nova_erp_inventory', JSON.stringify(inv));
 
     if (typeof window.products !== 'undefined' && Array.isArray(window.products)) {
         window.products.forEach(p => {
@@ -3351,12 +3960,15 @@ let stockInCurrentMatches = [];
 function getAllCatalogProducts() {
     const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
     const prods = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
+    const stdSkuRegex = /^[A-Z]{3}\d{3}$/;
 
     const map = new Map();
     for (const key in inv) {
+        const up = key.trim().toUpperCase();
+        if (!stdSkuRegex.test(up)) continue;
         const item = inv[key];
         const cost = getProductCost(key, prods, item);
-        map.set(key.toUpperCase(), {
+        map.set(up, {
             id: key,
             name: item.name || 'Sin descripción',
             stock: parseInt(item.stock) || 0,
@@ -3365,8 +3977,21 @@ function getAllCatalogProducts() {
         });
     }
     for (const p of prods) {
-        const up = p.id.toUpperCase();
-        if (!map.has(up)) {
+        if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            for (const v of p.variants) {
+                const up = String(v.id || '').trim().toUpperCase();
+                if (!stdSkuRegex.test(up) || map.has(up)) continue;
+                map.set(up, {
+                    id: v.id,
+                    name: v.name || p.name || 'Sin descripción',
+                    stock: 0,
+                    cost: typeof v.costoCompra === 'number' ? v.costoCompra : 0,
+                    category: p.category || ''
+                });
+            }
+        } else {
+            const up = String(p.id || '').trim().toUpperCase();
+            if (!stdSkuRegex.test(up) || map.has(up)) continue;
             const cost = getProductCost(p.id, prods, null);
             map.set(up, {
                 id: p.id,
@@ -4956,7 +5581,7 @@ function onExchangeReturnedProductSearch(query, showSuggestionsOnFocus = false) 
     let html = '';
     matches.slice(0, 12).forEach(p => {
         const stock = parseInt(p.stock) || 0;
-        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, p.porcentajeUtilidad, p.iva);
+        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, getEffectiveProductUtility(p), p.iva);
         const priceUSD = prices.publicoUSD;
         html += `
             <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
@@ -5039,7 +5664,7 @@ function onExchangeNewProductSearch(query) {
     let html = '';
     matches.slice(0, 10).forEach(p => {
         const stock = parseInt(p.stock) || 0;
-        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, p.porcentajeUtilidad, p.iva);
+        const prices = calcularPreciosSegunAjustes(p.costoCompra, settings, getEffectiveProductUtility(p), p.iva);
         const priceUSD = prices.publicoUSD;
         html += `
             <div style="padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"
@@ -6164,6 +6789,7 @@ let purDropdownActiveIndex = -1;
 let purCurrentMatches = [];
 
 function renderPurchasesView() {
+    if (typeof renderSupplierPayablesTable === 'function') renderSupplierPayablesTable();
     const purchases = NovaDB.getPurchases();
     const tbody = document.getElementById('purchasesTableBody');
     if (!tbody) return;
@@ -6209,45 +6835,6 @@ function renderPurchasesView() {
             </tr>`;
     });
     tbody.innerHTML = html;
-
-    if (footerEl) {
-        if (total <= INV_DEFAULT_PAGE_SIZE) {
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
-                <div class="pos-footer-actions">
-                    <span class="pos-all-loaded-pill">Inventario completo visible</span>
-                </div>`;
-        } else if (showing < total) {
-            const remaining = total - showing;
-            const nextBatch = Math.min(INV_DEFAULT_PAGE_SIZE, remaining);
-            let buttonsHtml = `
-                <button type="button" class="pos-load-btn btn-load-more" onclick="loadMoreInventory(${INV_DEFAULT_PAGE_SIZE})">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Cargar ${nextBatch} más
-                </button>
-                <button type="button" class="pos-load-btn" onclick="loadAllInventory()">
-                    Ver todos (${total})
-                </button>`;
-            if (invVisibleLimit > INV_DEFAULT_PAGE_SIZE) {
-                buttonsHtml += `
-                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
-                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
-                    </button>`;
-            }
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${showing}</b> de <b>${total}</b> repuestos</span>
-                <div class="pos-footer-actions">${buttonsHtml}</div>`;
-        } else {
-            footerEl.innerHTML = `
-                <span class="pos-footer-info">Mostrando <b>${total}</b> de <b>${total}</b> repuestos (Todos cargados)</span>
-                <div class="pos-footer-actions">
-                    <span class="pos-all-loaded-pill">Inventario completo cargado</span>
-                    <button type="button" class="pos-load-btn" onclick="resetInventoryLimit()" title="Reducir a ${INV_DEFAULT_PAGE_SIZE} para mayor fluidez">
-                        Reducir a ${INV_DEFAULT_PAGE_SIZE}
-                    </button>
-                </div>`;
-        }
-    }
 }
 
 function openAddPurchaseModal() {
@@ -6260,6 +6847,9 @@ function openAddPurchaseModal() {
     // Reset inputs
     const invNum = document.getElementById('purInvoiceNumber');
     if (invNum) invNum.value = '';
+    const payCond = document.getElementById('purPaymentCondition');
+    if (payCond) payCond.value = 'contado';
+    onPurPaymentConditionChange();
     const codeInp = document.getElementById('purCodeInput');
     if (codeInp) codeInp.value = '';
     const descInp = document.getElementById('purDescInput');
@@ -6851,6 +7441,82 @@ function clearPurchaseList() {
     renderPurchaseItemsTable();
 }
 
+function onPurPaymentConditionChange() {
+    const cond = document.getElementById('purPaymentCondition')?.value || 'contado';
+    const isCredit = (cond === 'credito');
+    const daysGrp = document.getElementById('purCreditDaysGroup');
+    const dueGrp = document.getElementById('purDueDateGroup');
+    if (daysGrp) {
+        daysGrp.style.opacity = isCredit ? '1' : '0.5';
+        daysGrp.style.pointerEvents = isCredit ? 'auto' : 'none';
+    }
+    if (dueGrp) {
+        dueGrp.style.opacity = isCredit ? '1' : '0.5';
+        dueGrp.style.pointerEvents = isCredit ? 'auto' : 'none';
+    }
+    if (isCredit) updatePurDueDateFromDays();
+}
+
+function updatePurDueDateFromDays() {
+    const days = parseInt(document.getElementById('purCreditDays')?.value) || 30;
+    const dueInp = document.getElementById('purDueDate');
+    if (dueInp) {
+        const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+        dueInp.value = d.toISOString().slice(0, 10);
+    }
+}
+
+function renderSupplierPayablesTable() {
+    const tbody = document.getElementById('supplierPayablesTableBody');
+    const badge = document.getElementById('supplierPayablesCountBadge');
+    if (!tbody) return;
+
+    const purchases = (typeof NovaDB !== 'undefined' && NovaDB.getPurchases) ? NovaDB.getPurchases() : [];
+    const pending = purchases.filter(p => p && p.esCredito && !p.pagadoCredito);
+
+    if (badge) {
+        const totalUSD = pending.reduce((acc, p) => acc + (parseFloat(p.totalUSD) || 0), 0);
+        badge.textContent = pending.length > 0 ? `${pending.length} pendiente(s) · $${totalUSD.toFixed(2)}` : '0 pendientes';
+    }
+
+    if (pending.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por pagar pendientes.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = pending.map(p => {
+        const safeId = String(p.id || '').replace(/'/g, "\\'");
+        const dueLabel = p.fechaVencimiento || (p.terminoComercial || '30 Días');
+        return `
+            <tr>
+                <td><b>${p.proveedorNombre || 'Proveedor'}</b></td>
+                <td>
+                    <button type="button" class="report-doc-link-btn" onclick="viewPurchaseDetails('${safeId}')" title="Ver detalle de factura de compra">
+                        ${p.id}${p.facturaNumero && p.facturaNumero !== 'N/A' ? ` (${p.facturaNumero})` : ''}
+                    </button>
+                </td>
+                <td>${dueLabel}</td>
+                <td style="text-align:right;"><b style="color:#003366;">$${(parseFloat(p.totalUSD) || 0).toFixed(2)}</b></td>
+                <td style="text-align:center;">
+                    <input type="checkbox" style="width:17px; height:17px; cursor:pointer; accent-color:#003366;" onchange="markSupplierPayableAsPaid('${safeId}')" title="Marcar cuenta como pagada al proveedor">
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function markSupplierPayableAsPaid(purchaseId) {
+    if (!purchaseId) return;
+    if (typeof NovaDB !== 'undefined' && NovaDB.markPurchaseCreditPaid) {
+        NovaDB.markPurchaseCreditPaid(purchaseId);
+    }
+    renderSupplierPayablesTable();
+    showNovaAlert({
+        title: "Cuenta por Pagar Liquidada",
+        message: `La obligación <b>${purchaseId}</b> fue marcada como pagada al proveedor.`,
+        type: "success"
+    });
+}
+
 function submitNewPurchase() {
     const provSelect = document.getElementById('purSupplierSelect');
     const provId = provSelect ? provSelect.value : '';
@@ -6877,6 +7543,10 @@ function submitNewPurchase() {
     }
 
     const invoiceNum = (document.getElementById('purInvoiceNumber')?.value || '').trim();
+    const cond = document.getElementById('purPaymentCondition')?.value || 'contado';
+    const isCredit = (cond === 'credito');
+    const creditDays = document.getElementById('purCreditDays')?.value || '30';
+    const dueDate = document.getElementById('purDueDate')?.value || '';
     const totalUSD = purchaseBatchItems.reduce((acc, it) => acc + (it.costoCompra * it.cantidad), 0);
     const totalUnits = purchaseBatchItems.reduce((acc, it) => acc + it.cantidad, 0);
 
@@ -6890,7 +7560,12 @@ function submitNewPurchase() {
             cantidad: it.cantidad,
             costoCompra: it.costoCompra
         })),
-        totalUSD: totalUSD
+        totalUSD: totalUSD,
+        condicionPago: cond,
+        esCredito: isCredit,
+        pagadoCredito: false,
+        terminoComercial: isCredit ? `${creditDays} Días (Crédito)` : 'Contado',
+        fechaVencimiento: isCredit ? dueDate : ''
     });
 
     closeModal('addPurchaseModal');
@@ -7190,7 +7865,13 @@ function renderCreditReceivablesTable() {
     if (!tbody) return;
 
     const sales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
-    const pending = sales.filter(s => !s.anulada && s.esCredito && !s.pagadoCredito);
+    const pending = sales.filter(s => {
+        if (!s || s.anulada || s.tipoDocumento === 'presupuesto') return false;
+        const byFlag = !!s.esCredito;
+        const byMethod = Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && /cr[eé]dito/i.test(String(m.metodo || m || '')));
+        const isPaid = !!s.pagadoCredito || (Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && m.pagadoCredito === true));
+        return (byFlag || byMethod) && !isPaid;
+    });
 
     if (badge) {
         const totalUSD = pending.reduce((acc, s) => acc + (parseFloat(s.totalUSD) || 0), 0);

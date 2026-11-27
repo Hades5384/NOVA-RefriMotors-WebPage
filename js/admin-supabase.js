@@ -251,7 +251,7 @@ const NovaSupabase = (function () {
             }).catch(e => {
                 console.warn('[NovaSupabase] Error sincronizando turno activo:', e);
             });
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function _hookNovaDB() {
@@ -311,6 +311,24 @@ const NovaSupabase = (function () {
             }
             return res;
         };
+
+        // Hook de Liquidación de Crédito (Cuentas por Cobrar)
+        const origMarkCreditPaid = window.NovaDB.markSaleCreditPaid;
+        if (origMarkCreditPaid) {
+            window.NovaDB.markSaleCreditPaid = function (saleId) {
+                const res = origMarkCreditPaid.apply(this, arguments);
+                if (res && _client) {
+                    const sales = window.NovaDB.getSales();
+                    const s = sales.find(x => x && x.id === saleId);
+                    if (s) {
+                        _client.from('ventas').update({ metodos_pago: s.metodosPago }).eq('id', saleId).then(({ error }) => {
+                            if (error) console.warn('[NovaSupabase] Error actualizando pago crédito en nube:', error.message);
+                        });
+                    }
+                }
+                return res;
+            };
+        }
 
         // Hook de Deducción Directa de Stock
         const origDeductStock = window.NovaDB.deductStock;
@@ -433,6 +451,37 @@ const NovaSupabase = (function () {
             return res;
         };
 
+        function _packPurchaseNotas(record) {
+            const cleanNotes = String(record.notas || '').replace(/\s*\[\[CXP:.*?\]\]/, '').trim();
+            if (!record.esCredito && !record.pagadoCredito) return cleanNotes;
+            const meta = JSON.stringify({
+                c: !!record.esCredito,
+                p: !!record.pagadoCredito,
+                t: record.terminoComercial || '30 Días (Crédito)',
+                v: record.fechaVencimiento || ''
+            });
+            return cleanNotes ? `${cleanNotes} [[CXP:${meta}]]` : `[[CXP:${meta}]]`;
+        }
+
+        function _unpackPurchaseNotas(rawNotas) {
+            const str = String(rawNotas || '');
+            const m = str.match(/\[\[CXP:(.*?)\]\]/);
+            const clean = str.replace(/\s*\[\[CXP:.*?\]\]/, '').trim();
+            if (!m) return { notas: clean, esCredito: false, pagadoCredito: false, terminoComercial: 'Contado', fechaVencimiento: '' };
+            try {
+                const parsed = JSON.parse(m[1]);
+                return {
+                    notas: clean,
+                    esCredito: !!parsed.c,
+                    pagadoCredito: !!parsed.p,
+                    terminoComercial: parsed.t || '30 Días (Crédito)',
+                    fechaVencimiento: parsed.v || ''
+                };
+            } catch (e) {
+                return { notas: clean, esCredito: false, pagadoCredito: false, terminoComercial: 'Contado', fechaVencimiento: '' };
+            }
+        }
+
         // Hook de Compras
         const origRegisterPurchase = window.NovaDB.registerPurchase;
         window.NovaDB.registerPurchase = function (purchaseData) {
@@ -447,7 +496,7 @@ const NovaSupabase = (function () {
                     factura_numero: record.facturaNumero,
                     items: record.items,
                     total_usd: record.totalUSD,
-                    notas: record.notas
+                    notas: _packPurchaseNotas(record)
                 });
 
                 // Sincronizar nuevo stock de ítems comprados
@@ -465,6 +514,24 @@ const NovaSupabase = (function () {
             }
             return record;
         };
+
+        // Hook de Liquidación de Cuentas por Pagar (Proveedores)
+        const origMarkPurchaseCreditPaid = window.NovaDB.markPurchaseCreditPaid;
+        if (origMarkPurchaseCreditPaid) {
+            window.NovaDB.markPurchaseCreditPaid = function (purchaseId) {
+                const res = origMarkPurchaseCreditPaid.apply(this, arguments);
+                if (res && _client) {
+                    const list = window.NovaDB.getPurchases();
+                    const p = list.find(x => x && x.id === purchaseId);
+                    if (p) {
+                        _client.from('compras').update({ notas: _packPurchaseNotas(p) }).eq('id', purchaseId).then(({ error }) => {
+                            if (error) console.warn('[NovaSupabase] Error actualizando pago a proveedor en nube:', error.message);
+                        });
+                    }
+                }
+                return res;
+            };
+        }
 
         // Hook de Cierre de Caja
         const origCloseShift = window.NovaDB.closeActiveShift;
@@ -509,7 +576,8 @@ const NovaSupabase = (function () {
                         precio_novacliente: +finalPrice.toFixed(2),
                         specs: {
                             porcentaje_utilidad: util,
-                            iva: ivaVal
+                            iva: ivaVal,
+                            oferta: res.oferta || null
                         },
                         stock: parseInt(res.stock) || 0,
                         stock_minimo: parseInt(res.stockMinimo) || 3,
@@ -547,7 +615,8 @@ const NovaSupabase = (function () {
                             precio_novacliente: +finalPrice.toFixed(2),
                             specs: {
                                 porcentaje_utilidad: util,
-                                iva: ivaVal
+                                iva: ivaVal,
+                                oferta: item.oferta || null
                             },
                             stock: parseInt(item.stock) || 0,
                             stock_minimo: parseInt(item.stockMinimo) || 3,
@@ -726,7 +795,7 @@ const NovaSupabase = (function () {
                 } else if (item.action === 'update_stock') {
                     const updatePayload = { stock: item.data.stock, updated_at: new Date().toISOString() };
                     if (item.data.costo_compra) updatePayload.costo_compra = item.data.costo_compra;
-                    
+
                     const { error } = await _client.from('productos').update(updatePayload).eq('id', item.data.id);
                     err = error;
 
@@ -837,7 +906,7 @@ const NovaSupabase = (function () {
                     });
 
                     let deletedIds = [];
-                    try { deletedIds = JSON.parse(localStorage.getItem('nova_erp_deleted_products') || '[]'); } catch (e) {}
+                    try { deletedIds = JSON.parse(localStorage.getItem('nova_erp_deleted_products') || '[]'); } catch (e) { }
                     const deletedSet = new Set(deletedIds);
 
                     if (count < catalogIds.size - deletedSet.size) {
@@ -1168,6 +1237,7 @@ const NovaSupabase = (function () {
             costoCompra: cost,
             porcentajeUtilidad: util,
             iva: ivaVal,
+            oferta: specs.oferta || (prevItem ? prevItem.oferta : null),
             precioFinalUSD: precioFinal,
             stock: parseInt(r.stock) || 0,
             stockMinimo: parseInt(r.stock_minimo) || (prevItem ? prevItem.stockMinimo : 3),
@@ -1441,26 +1511,34 @@ const NovaSupabase = (function () {
             // 3. VENTAS Y FACTURACIÓN
             const salesRes = await _fetchAllPaginated('ventas', '*', 'timestamp');
             if (!salesRes.error && Array.isArray(salesRes.data)) {
-                const mappedSales = salesRes.data.map(s => ({
-                    id: s.id,
-                    timestamp: Number(s.timestamp) || (s.created_at ? new Date(s.created_at).getTime() : Date.now()),
-                    fechaStr: s.fecha_str || '',
-                    horaStr: s.hora_str || '',
-                    cliente: s.cliente || { nombre: 'Cliente Mostrador', rif: 'V-00000000' },
-                    items: Array.isArray(s.items) ? s.items : [],
-                    tipoPrecio: s.tipo_precio || 'publico',
-                    tipoDocumento: s.tipo_documento || 'factura',
-                    tasaBCV: parseFloat(s.tasa_bcv) || 0,
-                    totalUSD: parseFloat(s.total_usd) || 0,
-                    totalBs: parseFloat(s.total_bs) || 0,
-                    metodosPago: Array.isArray(s.metodos_pago) ? s.metodos_pago : [],
-                    montoPagadoUSD: parseFloat(s.monto_pagado_usd) || 0,
-                    montoPagadoBs: parseFloat(s.monto_pagado_bs) || 0,
-                    vueltoUSD: parseFloat(s.vuelto_usd) || 0,
-                    vueltoBs: parseFloat(s.vuelto_bs) || 0,
-                    vendedor: s.vendedor || 'Caja Principal',
-                    cajero: s.cajero || 'MASTER'
-                }));
+                const mappedSales = salesRes.data.map(s => {
+                    const mp = Array.isArray(s.metodos_pago) ? s.metodos_pago : [];
+                    const isCredit = mp.some(m => m && /cr[eé]dito/i.test(String(m.metodo || '')));
+                    const isPaidCredit = mp.some(m => m && m.pagadoCredito === true);
+                    return {
+                        id: s.id,
+                        timestamp: Number(s.timestamp) || (s.created_at ? new Date(s.created_at).getTime() : Date.now()),
+                        fechaStr: s.fecha_str || '',
+                        horaStr: s.hora_str || '',
+                        cliente: s.cliente || { nombre: 'Cliente Mostrador', rif: 'V-00000000' },
+                        items: Array.isArray(s.items) ? s.items : [],
+                        tipoPrecio: s.tipo_precio || 'publico',
+                        tipoDocumento: s.tipo_documento || 'factura',
+                        tasaBCV: parseFloat(s.tasa_bcv) || 0,
+                        totalUSD: parseFloat(s.total_usd) || 0,
+                        totalBs: parseFloat(s.total_bs) || 0,
+                        metodosPago: mp,
+                        esCredito: isCredit,
+                        pagadoCredito: isPaidCredit,
+                        estadoPago: isCredit ? (isPaidCredit ? 'pagado' : 'pendiente') : 'pagado',
+                        montoPagadoUSD: parseFloat(s.monto_pagado_usd) || 0,
+                        montoPagadoBs: parseFloat(s.monto_pagado_bs) || 0,
+                        vueltoUSD: parseFloat(s.vuelto_usd) || 0,
+                        vueltoBs: parseFloat(s.vuelto_bs) || 0,
+                        vendedor: s.vendedor || 'Caja Principal',
+                        cajero: s.cajero || 'MASTER'
+                    };
+                });
                 const newSalesJson = JSON.stringify(mappedSales);
                 if (newSalesJson !== localStorage.getItem('nova_erp_sales')) {
                     localStorage.setItem('nova_erp_sales', newSalesJson);
@@ -1527,17 +1605,31 @@ const NovaSupabase = (function () {
                 .order('timestamp', { ascending: false });
 
             if (!purchErr && Array.isArray(remotePurch)) {
-                const mappedPurch = remotePurch.map(c => ({
-                    id: c.id,
-                    timestamp: Number(c.timestamp) || (c.created_at ? new Date(c.created_at).getTime() : Date.now()),
-                    fechaStr: c.fecha_str || '',
-                    proveedorId: c.proveedor_id || '',
-                    proveedorNombre: c.proveedor_nombre || '',
-                    facturaNumero: c.factura_numero || '',
-                    items: Array.isArray(c.items) ? c.items : [],
-                    totalUSD: parseFloat(c.total_usd) || 0,
-                    notas: c.notas || ''
-                }));
+                const mappedPurch = remotePurch.map(c => {
+                    const str = String(c.notas || '');
+                    const m = str.match(/\[\[CXP:(.*?)\]\]/);
+                    const cleanNotas = str.replace(/\s*\[\[CXP:.*?\]\]/, '').trim();
+                    let cxp = { c: false, p: false, t: 'Contado', v: '' };
+                    if (m) {
+                        try { cxp = Object.assign(cxp, JSON.parse(m[1])); } catch (e) { }
+                    }
+                    return {
+                        id: c.id,
+                        timestamp: Number(c.timestamp) || (c.created_at ? new Date(c.created_at).getTime() : Date.now()),
+                        fechaStr: c.fecha_str || '',
+                        proveedorId: c.proveedor_id || '',
+                        proveedorNombre: c.proveedor_nombre || '',
+                        facturaNumero: c.factura_numero || '',
+                        items: Array.isArray(c.items) ? c.items : [],
+                        totalUSD: parseFloat(c.total_usd) || 0,
+                        notas: cleanNotas,
+                        esCredito: !!cxp.c,
+                        pagadoCredito: !!cxp.p,
+                        condicionPago: cxp.c ? 'credito' : 'contado',
+                        terminoComercial: cxp.t || (cxp.c ? '30 Días (Crédito)' : 'Contado'),
+                        fechaVencimiento: cxp.v || ''
+                    };
+                });
                 const newPurchJson = JSON.stringify(mappedPurch);
                 if (newPurchJson !== localStorage.getItem('nova_erp_purchases')) {
                     localStorage.setItem('nova_erp_purchases', newPurchJson);

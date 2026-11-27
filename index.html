@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NOVA Admin ERP | Sistema de Gestión y Facturación</title>
-    <!-- Fuente moderna: Inter -->
+    <!-- Fuentes modernas: Plus Jakarta Sans + Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
         rel="stylesheet">
     <!-- Estilos del Sistema Administrativo ERP -->
     <link rel="stylesheet" href="css/admin-theme.css">
@@ -158,17 +158,16 @@
             <!-- ==========================================================
              SIDEBAR DE NAVEGACIÓN CORPORATIVO
              ========================================================== -->
-            <aside class="erp-sidebar" id="erpSidebar">
+            <aside class="erp-sidebar collapsed" id="erpSidebar">
                 <div class="sidebar-header">
                     <a href="index.html" class="sidebar-brand" title="NOVA RefriMotors">
                         <img src="assets/nova-logo-color.png" alt="Logo NOVA RefriMotors" class="sidebar-brand-logo">
                     </a>
-                    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar / Expandir menú">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                    <button class="sidebar-toggle-btn" id="sidebarPinBtn" onclick="toggleSidebar()" title="Fijar / Desfijar barra lateral">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                            stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 17v5"></path>
+                            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path>
                         </svg>
                     </button>
                 </div>
@@ -176,7 +175,20 @@
                 <nav class="sidebar-nav">
                     <div class="nav-section-title">Operaciones Diarias</div>
 
-                    <div class="nav-item active" data-view="pos" onclick="navigateTo('pos')">
+                    <div class="nav-item active" data-view="dashboard" onclick="navigateTo('dashboard')">
+                        <div class="nav-item-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="9" rx="1.5"></rect>
+                                <rect x="14" y="3" width="7" height="5" rx="1.5"></rect>
+                                <rect x="14" y="12" width="7" height="9" rx="1.5"></rect>
+                                <rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+                            </svg>
+                        </div>
+                        <span class="nav-item-text">Inicio / Dashboard</span>
+                    </div>
+
+                    <div class="nav-item" data-view="pos" onclick="navigateTo('pos')">
                         <div class="nav-item-icon">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
                                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -308,9 +320,8 @@
                             </svg>
                         </button>
                         <div class="header-title-box">
-                            <h1 id="viewHeaderTitle">Punto de Venta y Facturación</h1>
-                            <p id="viewHeaderSubtitle">Mostrador rápido multimoneda, emisión de tickets y presupuestos
-                            </p>
+                            <h1 id="viewHeaderTitle">Panel Principal</h1>
+                            <p id="viewHeaderSubtitle">Resumen ejecutivo del día, métricas clave y control rápido de tasas</p>
                         </div>
                     </div>
 
@@ -378,9 +389,169 @@
                 <div class="erp-content">
 
                     <!-- ==========================================================
+                     VISTA 0: DASHBOARD PRINCIPAL (PANTALLA DE INICIO)
+                     ========================================================== -->
+                    <section class="erp-view active" id="view-dashboard">
+                        <div class="dash-shell">
+                            <!-- Barra de bienvenida y accesos rápidos -->
+                            <div class="dash-welcome-bar">
+                                <div class="dash-welcome-copy">
+                                    <div class="dash-eyebrow-row">
+                                        <span class="dash-date-label" id="dashTodayLabel">Hoy</span>
+                                    </div>
+                                    <h2 class="dash-welcome-title" id="dashGreetingTitle">Resumen Operativo NOVA RefriMotors</h2>
+                                    <p class="dash-welcome-sub" id="dashQuickInsightLine">Cargando lectura rápida del sistema...</p>
+                                </div>
+                                <div class="dash-quick-actions">
+                                    <button type="button" class="dash-action-btn dash-action-primary" onclick="navigateTo('pos')">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+                                            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                                        </svg>
+                                        Abrir POS [F2]
+                                    </button>
+                                    <button type="button" class="dash-action-btn" onclick="navigateTo('cash')">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                                            <line x1="6" y1="12" x2="18" y2="12"></line>
+                                        </svg>
+                                        Caja y Arqueo
+                                    </button>
+                                    <button type="button" class="dash-action-btn" onclick="navigateTo('reports')">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                                        </svg>
+                                        Reportes
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Fila superior: 4 KPIs esenciales + Mini Panel de Control de Tasas -->
+                            <div class="dash-top-grid">
+                                <div class="dash-kpi-grid">
+                                    <div class="dash-kpi-card" onclick="navigateTo('cash')" title="Ir a Caja y Ventas">
+                                        <div class="dash-kpi-head">
+                                            <span class="dash-kpi-label">Ventas de Hoy</span>
+                                            <span class="dash-kpi-icon dash-icon-blue">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                                            </span>
+                                        </div>
+                                        <div class="dash-kpi-value" id="dashSalesTodayUSD">$0.00</div>
+                                        <div class="dash-kpi-meta" id="dashSalesTodayMeta">Bs. 0,00 · 0 tickets hoy</div>
+                                    </div>
+
+                                    <div class="dash-kpi-card" onclick="navigateTo('customers')" title="Ver Cuentas por Cobrar">
+                                        <div class="dash-kpi-head">
+                                            <span class="dash-kpi-label">Por Cobrar (Clientes)</span>
+                                            <span class="dash-kpi-icon dash-icon-amber">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                            </span>
+                                        </div>
+                                        <div class="dash-kpi-value" id="dashReceivablesUSD">$0.00</div>
+                                        <div class="dash-kpi-meta" id="dashReceivablesMeta">0 facturas a crédito pendientes</div>
+                                    </div>
+
+                                    <div class="dash-kpi-card" onclick="navigateTo('purchases')" title="Ver Cuentas por Pagar">
+                                        <div class="dash-kpi-head">
+                                            <span class="dash-kpi-label">Por Pagar (Proveedores)</span>
+                                            <span class="dash-kpi-icon dash-icon-slate">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                                            </span>
+                                        </div>
+                                        <div class="dash-kpi-value" id="dashPayablesUSD">$0.00</div>
+                                        <div class="dash-kpi-meta" id="dashPayablesMeta">0 facturas de proveedor pendientes</div>
+                                    </div>
+
+                                    <div class="dash-kpi-card" onclick="navigateTo('inventory')" title="Ir a Inventario">
+                                        <div class="dash-kpi-head">
+                                            <span class="dash-kpi-label">Estado de Inventario</span>
+                                            <span class="dash-kpi-icon dash-icon-green">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                                            </span>
+                                        </div>
+                                        <div class="dash-kpi-value" id="dashInventoryTotalCount">0 SKUs</div>
+                                        <div class="dash-kpi-meta" id="dashInventoryMeta">0 alertas de stock · 0 ofertas activas</div>
+                                    </div>
+                                </div>
+
+                                <!-- Mini Panel de Control de Tasas -->
+                                <div class="dash-rates-card">
+                                    <div class="dash-rates-header">
+                                        <div>
+                                            <h3 class="dash-rates-title">Control Rápido de Tasas</h3>
+                                            <p class="dash-rates-sub">Actualiza BCV o Dólar Interno al instante</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="dash-rates-inputs">
+                                        <div class="dash-rate-field">
+                                            <label for="dashBcvInput">
+                                                <span class="dash-rate-dot dot-bcv"></span>
+                                                Tasa Oficial BCV (Bs/$)
+                                            </label>
+                                            <div class="dash-rate-input-wrap">
+                                                <span class="dash-rate-prefix">Bs.</span>
+                                                <input type="number" id="dashBcvInput" step="0.01" min="1" placeholder="917.78"
+                                                    onkeydown="if(event.key==='Enter') saveRatesFromDashboard()">
+                                            </div>
+                                        </div>
+
+                                        <div class="dash-rate-field">
+                                            <label for="dashInternalInput">
+                                                <span class="dash-rate-dot dot-internal"></span>
+                                                Tasa Interna Sistema (Bs/$)
+                                            </label>
+                                            <div class="dash-rate-input-wrap">
+                                                <span class="dash-rate-prefix">Bs.</span>
+                                                <input type="number" id="dashInternalInput" step="0.01" min="1" placeholder="1050.00"
+                                                    onkeydown="if(event.key==='Enter') saveRatesFromDashboard()">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="dash-rates-footer">
+                                        <span class="dash-rates-hint" id="dashRatesSyncHint">Sincronizado con POS y Nube</span>
+                                        <button type="button" class="dash-rates-save-btn" id="btnDashSaveRates" onclick="saveRatesFromDashboard()">
+                                            Aplicar Tasas
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fila inferior: Lectura breve de últimas operaciones y alertas -->
+                            <div class="dash-bottom-grid">
+                                <div class="dash-panel-card">
+                                    <div class="dash-panel-header">
+                                        <div>
+                                            <h3 class="dash-panel-title">Últimas Operaciones</h3>
+                                            <p class="dash-panel-sub">Lectura rápida de los comprobantes más recientes</p>
+                                        </div>
+                                        <button type="button" class="dash-link-btn" onclick="navigateTo('cash')">Ver historial →</button>
+                                    </div>
+                                    <div class="dash-list" id="dashRecentSalesList"></div>
+                                </div>
+
+                                <div class="dash-panel-card">
+                                    <div class="dash-panel-header">
+                                        <div>
+                                            <h3 class="dash-panel-title">Lectura Rápida y Alertas</h3>
+                                            <p class="dash-panel-sub">Existencias críticas, pedidos en espera y ofertas vigentes</p>
+                                        </div>
+                                        <button type="button" class="dash-link-btn" onclick="navigateTo('inventory')">Ir al almacén →</button>
+                                    </div>
+                                    <div class="dash-list" id="dashInventoryAlertsList"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ==========================================================
                      VISTA 1: PUNTO DE VENTA (POS / MOSTRADOR)
                      ========================================================== -->
-                    <section class="erp-view active" id="view-pos">
+                    <section class="erp-view" id="view-pos">
                         <!-- NAVEGACIÓN RÁPIDA POS PARA MÓVILES (CATÁLOGO / TICKET) -->
                         <div class="pos-mobile-nav" id="posMobileNav">
                             <button type="button" class="pos-mobile-tab-btn active" id="tabMobileCatalogBtn"
@@ -506,6 +677,8 @@
                                 <div class="ticket-items-list" id="posTicketItems">
                                     <!-- Ítems del carrito -->
                                 </div>
+
+                                <div id="posWholesaleBanner" class="pos-wholesale-banner" style="display:none;"></div>
 
                                 <div class="ticket-summary">
                                     <div class="summary-line">
@@ -937,30 +1110,30 @@
                             </button>
                         </div>
 
-                        <div class="table-card" id="creditReceivablesCard" style="margin-top: 16px; padding: 16px;">
+                        <div class="table-card" id="supplierPayablesCard" style="margin-top: 16px; padding: 16px;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:10px; flex-wrap:wrap;">
                                 <div>
                                     <h4 style="font-size:14.5px; font-weight:800; color:#003366; margin:0; display:flex; align-items:center; gap:6px;">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#003366" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                        Cuentas por Cobrar (Facturas a Crédito Pendientes)
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#003366" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                        Cuentas por Pagar a Proveedores (Obligaciones Pendientes)
                                     </h4>
-                                    <span style="font-size:11.5px; color:#64748b;">Haz clic en el N° de factura para ver qué compró y marca el check cuando ya haya pagado.</span>
+                                    <span style="font-size:11.5px; color:#64748b;">Registra compras a crédito y marca el check cuando hayas pagado al proveedor.</span>
                                 </div>
-                                <span id="creditReceivablesCountBadge" style="font-size:11.5px; font-weight:800; background:#f1f5f9; color:#003366; padding:3px 10px; border-radius:10px;">0 pendientes</span>
+                                <span id="supplierPayablesCountBadge" style="font-size:11.5px; font-weight:800; background:#f1f5f9; color:#003366; padding:3px 10px; border-radius:10px;">0 pendientes</span>
                             </div>
-                            <div class="table-responsive" style="max-height:240px; overflow-y:auto;">
+                            <div class="table-responsive" style="max-height:220px; overflow-y:auto;">
                                 <table class="data-table" style="font-size:12px; margin-bottom:0;">
                                     <thead>
                                         <tr>
-                                            <th>Cliente</th>
-                                            <th>N° Factura</th>
-                                            <th>Fecha</th>
+                                            <th>Proveedor</th>
+                                            <th>N° Compra / Factura</th>
+                                            <th>Vencimiento</th>
                                             <th style="text-align:right;">Monto ($)</th>
-                                            <th style="text-align:center;">Ya Pagó</th>
+                                            <th style="text-align:center;">Ya Pagamos</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="creditReceivablesTableBody">
-                                        <tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por cobrar pendientes.</td></tr>
+                                    <tbody id="supplierPayablesTableBody">
+                                        <tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">No hay cuentas por pagar pendientes.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1558,6 +1731,10 @@
                                 <span id="checkoutDiscountBadge"
                                     style="display:none; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px; background:#dcfce7; color:#15803d; border:1px solid #86efac;">
                                     Descuento Divisas Activo
+                                </span>
+                                <span id="checkoutWholesaleBadge"
+                                    style="display:none; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px; background:#eff6ff; color:#00458a; border:1px solid #93c5fd;">
+                                    Modo Mayor 5% Utilidad
                                 </span>
                             </div>
                             <div style="font-size:26px; font-weight:900; color:var(--primary);" id="checkoutTotalUSD">
@@ -2213,6 +2390,30 @@
                                 / Nota Entrega:</label>
                             <input type="text" id="purInvoiceNumber" class="form-input" placeholder="Ej: FAC-10492"
                                 style="font-weight:600;">
+                        </div>
+                    </div>
+
+                    <!-- Condición de Pago y Vencimiento (Cuentas por Pagar) -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom: 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-weight:700; font-size:11.5px; display:block; margin-bottom:4px;">Condición de Pago:</label>
+                            <select id="purPaymentCondition" class="form-select" onchange="onPurPaymentConditionChange()" style="font-weight:700; font-size:12.5px;">
+                                <option value="contado">Contado (Pagado)</option>
+                                <option value="credito">Crédito (Cuenta por Pagar)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="purCreditDaysGroup" style="margin-bottom:0; opacity:0.5; pointer-events:none;">
+                            <label style="font-weight:700; font-size:11.5px; display:block; margin-bottom:4px;">Plazo Comercial:</label>
+                            <select id="purCreditDays" class="form-select" onchange="updatePurDueDateFromDays()" style="font-size:12.5px;">
+                                <option value="15">15 Días Crédito</option>
+                                <option value="30" selected>30 Días Crédito</option>
+                                <option value="45">45 Días Crédito</option>
+                                <option value="60">60 Días Crédito</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="purDueDateGroup" style="margin-bottom:0; opacity:0.5; pointer-events:none;">
+                            <label style="font-weight:700; font-size:11.5px; display:block; margin-bottom:4px;">Fecha de Vencimiento:</label>
+                            <input type="date" id="purDueDate" class="form-input" style="font-size:12.5px; font-weight:600;">
                         </div>
                     </div>
 
@@ -3327,6 +3528,40 @@
                         </div>
                     </div>
 
+                    <!-- OFERTA TEMPORAL INDIVIDUAL -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-top:14px;">
+                        <label style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; margin:0;">
+                            <span style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:12.5px; color:#003366;">
+                                <input type="checkbox" id="editProdOfferActive" onchange="toggleEditProdOfferFields()" style="width:16px; height:16px; accent-color:#003366;">
+                                Activar Oferta por Tiempo Limitado (Modifica % Utilidad)
+                            </span>
+                            <span id="editProdOfferStatusBadge" style="font-size:10.5px; font-weight:700; color:#64748b; background:#e2e8f0; padding:2px 8px; border-radius:10px;">Inactiva</span>
+                        </label>
+                        <div id="editProdOfferFields" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                            <div class="form-row-2" style="margin-bottom:10px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:11.5px;">% Utilidad en Oferta (admite negativos):</label>
+                                    <input type="number" step="0.1" min="-99.9" id="editProdOfferUtil" class="form-input" value="10" oninput="calculateEditProductOfferPreview()" style="font-weight:800;">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label style="font-size:11.5px;">Válida hasta (Fecha y Hora):</label>
+                                    <input type="datetime-local" id="editProdOfferEnd" class="form-input" onchange="calculateEditProductOfferPreview()">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                                <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('editProdOfferEnd', 1); calculateEditProductOfferPreview();">24 horas</button>
+                                <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('editProdOfferEnd', 3); calculateEditProductOfferPreview();">3 días</button>
+                                <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('editProdOfferEnd', 7); calculateEditProductOfferPreview();">7 días</button>
+                                <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('editProdOfferEnd', 15); calculateEditProductOfferPreview();">15 días</button>
+                                <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('editProdOfferEnd', 30); calculateEditProductOfferPreview();">30 días</button>
+                            </div>
+                            <div style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                                <span style="color:#475569;">Precio en Oferta: <b id="editOfferPrecioPublicoUSD" style="color:#003366;">$0.00 BCV</b></span>
+                                <b id="editOfferPrecioUSD" style="color:#003366; font-size:15px;">$0.00 USD Sistema</b>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Persona Responsable de la Modificación / Auditoría -->
                     <div class="form-group" style="margin-top: 14px; margin-bottom: 4px;">
                         <label style="font-weight: 700; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
@@ -3374,8 +3609,9 @@
                     <button class="erp-modal-close" onclick="closeModal('bulkCategoryModal')">✕</button>
                 </div>
                 <div class="erp-modal-body" style="padding: 18px 22px;">
-                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+                    <div style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
                         <button type="button" id="bulkTabBtnPrices" class="header-action-btn btn-primary-action" onclick="switchBulkCategoryTab('prices')" style="padding:6px 14px; font-size:12.5px;">Ajuste Global de Precios</button>
+                        <button type="button" id="bulkTabBtnOffer" class="header-action-btn btn-secondary-action" onclick="switchBulkCategoryTab('offer')" style="padding:6px 14px; font-size:12.5px;">Oferta por Categoría (Temporal)</button>
                         <button type="button" id="bulkTabBtnCats" class="header-action-btn btn-secondary-action" onclick="switchBulkCategoryTab('cats')" style="padding:6px 14px; font-size:12.5px;">Editar / Renombrar Categorías</button>
                     </div>
 
@@ -3414,6 +3650,51 @@
                         <div style="display:flex; justify-content:flex-end; gap:8px;">
                             <button type="button" class="header-action-btn btn-secondary-action" onclick="closeModal('bulkCategoryModal')">Cancelar</button>
                             <button type="button" class="header-action-btn btn-primary-action" onclick="applyBulkCategoryPriceAdjustment()">Aplicar Ajuste Global</button>
+                        </div>
+                    </div>
+
+                    <!-- TAB: OFERTA TEMPORAL POR CATEGORÍA -->
+                    <div id="bulkTabOffer" style="display:none;">
+                        <div class="form-row-2" style="margin-bottom: 12px;">
+                            <div class="form-group">
+                                <label>Categoría en Oferta:</label>
+                                <select id="bulkOfferCategory" class="form-select" onchange="updateBulkOfferPreview()"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>% Utilidad de Oferta (admite negativos):</label>
+                                <input type="number" step="0.1" min="-99.9" id="bulkOfferUtil" class="form-input" value="10" oninput="updateBulkOfferPreview()" style="font-weight:800; font-size:15px;">
+                            </div>
+                        </div>
+
+                        <div class="form-row-2" style="margin-bottom: 10px;">
+                            <div class="form-group">
+                                <label>Válida hasta (Fecha y Hora):</label>
+                                <input type="datetime-local" id="bulkOfferEnd" class="form-input" onchange="updateBulkOfferPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label>Persona Responsable: <span style="color:#dc2626;">*</span></label>
+                                <input type="text" id="bulkOfferResponsible" class="form-input" placeholder="Nombre y apellido..." style="font-weight:700;">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                            <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('bulkOfferEnd', 1); updateBulkOfferPreview();">24 horas</button>
+                            <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('bulkOfferEnd', 3); updateBulkOfferPreview();">3 días</button>
+                            <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('bulkOfferEnd', 7); updateBulkOfferPreview();">7 días</button>
+                            <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('bulkOfferEnd', 15); updateBulkOfferPreview();">15 días</button>
+                            <button type="button" class="stock-reason-chip" onclick="setOfferDurationPreset('bulkOfferEnd', 30); updateBulkOfferPreview();">30 días</button>
+                        </div>
+
+                        <div id="bulkOfferPreviewBox" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; color:#334155;">
+                            Selecciona una categoría y duración para previsualizar la oferta.
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="header-action-btn btn-secondary-action" onclick="clearBulkCategoryOffer()" style="color:#b91c1c; border-color:#fecaca;">Quitar Ofertas de Categoría</button>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="header-action-btn btn-secondary-action" onclick="closeModal('bulkCategoryModal')">Cancelar</button>
+                                <button type="button" class="header-action-btn btn-primary-action" onclick="applyBulkCategoryOffer()">Activar Oferta en Categoría</button>
+                            </div>
                         </div>
                     </div>
 

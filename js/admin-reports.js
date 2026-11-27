@@ -519,6 +519,14 @@ const NovaReports = (function () {
     let activeTopProductsSort = 'units'; // 'units' | 'revenue' | 'frequency'
     let activeTopProductsSearch = '';
 
+    function _getReportCustomParam(reportId, explicitParam) {
+        if (explicitParam !== undefined) return explicitParam;
+        if (reportId === 'compras_cliente') return activeClientReportFilter;
+        if (reportId === 'productos_mas_vendidos') return activeTopProductsSearch;
+        if (reportId === 'valoracion_inventario') return activeValoracionCategory;
+        return undefined;
+    }
+
     function openReportModal(reportId, customParam) {
         const rep = REPORT_CATALOG.find(r => r.id === reportId);
         if (!rep) return;
@@ -531,9 +539,13 @@ const NovaReports = (function () {
             if (customParam !== undefined && typeof customParam === 'string') {
                 activeTopProductsSearch = customParam;
             }
+        } else if (reportId === 'valoracion_inventario') {
+            if (customParam !== undefined && typeof customParam === 'string') {
+                activeValoracionCategory = customParam;
+            }
         }
 
-        const data = rep.generate(activeDateRange, activeClientReportFilter);
+        const data = rep.generate(activeDateRange, _getReportCustomParam(reportId));
         activeReportData = { report: rep, data: data };
 
         const modal = document.getElementById('reportViewerModal');
@@ -553,8 +565,7 @@ const NovaReports = (function () {
     function setDateRangeInModal(newRange) {
         activeDateRange = newRange;
         if (activeReportData && activeReportData.report) {
-            const param = activeReportData.report.id === 'compras_cliente' ? activeClientReportFilter : activeTopProductsSearch;
-            openReportModal(activeReportData.report.id, param);
+            openReportModal(activeReportData.report.id);
         }
     }
 
@@ -594,6 +605,21 @@ const NovaReports = (function () {
                     input.focus();
                     input.setSelectionRange(input.value.length, input.value.length);
                 }
+            }
+        }
+    }
+
+    let activeValoracionCategory = 'Todas';
+
+    function filterValoracionCategory(cat) {
+        activeValoracionCategory = cat || 'Todas';
+        if (activeReportData && activeReportData.report && activeReportData.report.id === 'valoracion_inventario') {
+            const rep = activeReportData.report;
+            const data = rep.generate(activeDateRange, activeValoracionCategory);
+            activeReportData.data = data;
+            const container = document.getElementById('reportViewerContent');
+            if (container) {
+                container.innerHTML = buildReportHTML(rep, data);
             }
         }
     }
@@ -740,7 +766,7 @@ const NovaReports = (function () {
         if (!rep) return;
         const data = (activeReportData && activeReportData.report && activeReportData.report.id === rep.id)
             ? activeReportData.data
-            : rep.generate(activeDateRange, activeClientReportFilter);
+            : rep.generate(activeDateRange, _getReportCustomParam(rep.id));
 
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
@@ -1115,7 +1141,7 @@ const NovaReports = (function () {
         if (!rep) return;
         const data = (activeReportData && activeReportData.report && activeReportData.report.id === rep.id)
             ? activeReportData.data
-            : rep.generate(activeDateRange, activeClientReportFilter);
+            : rep.generate(activeDateRange, _getReportCustomParam(rep.id));
         const html = generatePrintableHTML(rep, data);
 
         let iframe = document.getElementById('reportPrintHiddenIframe');
@@ -1647,9 +1673,9 @@ const NovaReports = (function () {
                 if (m.includes('biopago') || m.includes('patria')) bioBs += b;
                 else if (m.includes('punto')) ptBs += b;
                 else if (m.includes('móvil') || m.includes('movil')) pmBs += b;
+                else if (m.includes('zelle') || m.includes('binance') || m.includes('panam') || m.includes('banesco')) zlUsd += u;
                 else if (m.includes('efectivo') && (m.includes('bs') || !m.includes('usd'))) efBs += b;
                 else if (m.includes('usd') || m.includes('dolar')) efUsd += u;
-                else if (m.includes('zelle') || m.includes('binance') || m.includes('panam')) zlUsd += u;
                 else efUsd += u;
             });
         }
@@ -1726,7 +1752,7 @@ const NovaReports = (function () {
                     }
                     const mUSD = (mp.montoUSD !== undefined && !isNaN(mp.montoUSD)) ? parseFloat(mp.montoUSD) : (isDivisa ? (parseFloat(mp.monto) || 0) : ((parseFloat(mp.monto) || 0) / saleTasa));
                     const mBs = (mp.montoBs !== undefined && !isNaN(mp.montoBs)) ? parseFloat(mp.montoBs) : (!isDivisa ? (parseFloat(mp.monto) || 0) : ((parseFloat(mp.monto) || 0) * saleTasa));
-                    
+
                     totalsByMethod[mName].usd += mUSD;
                     totalsByMethod[mName].bs += mBs;
                     grandTotalUSD += mUSD;
@@ -2171,7 +2197,7 @@ const NovaReports = (function () {
         // 5. Filtrar por término de búsqueda (si el usuario escribió en el buscador del modal)
         const searchTerm = (customSearch !== undefined ? customSearch : activeTopProductsSearch).trim().toLowerCase();
         if (searchTerm) {
-            rankingList = rankingList.filter(r => 
+            rankingList = rankingList.filter(r =>
                 r.id.toLowerCase().includes(searchTerm) ||
                 r.name.toLowerCase().includes(searchTerm) ||
                 r.category.toLowerCase().includes(searchTerm)
@@ -2387,32 +2413,40 @@ const NovaReports = (function () {
     }
 
     // 12. Valoración de Inventario
-    function generateValoracionInventario(rangeKey) {
+    function generateValoracionInventario(rangeKey, customCat) {
+        if (customCat !== undefined) activeValoracionCategory = customCat;
+        const selectedCat = activeValoracionCategory || 'Todas';
+
         const inv = (typeof NovaDB !== 'undefined' && NovaDB.getInventory) ? NovaDB.getInventory() : {};
         const settings = (typeof NovaDB !== 'undefined' && NovaDB.getSettings) ? NovaDB.getSettings() : { tasaBCV: 914.02 };
         const tasa = settings.tasaBCV || 914.02;
 
+        const allKeys = Object.keys(inv);
+        const catCounts = {};
+        allKeys.forEach(k => {
+            const c = (inv[k] && inv[k].category) ? inv[k].category : 'General';
+            catCounts[c] = (catCounts[c] || 0) + 1;
+        });
+
+        const filteredKeys = selectedCat === 'Todas'
+            ? allKeys
+            : allKeys.filter(k => ((inv[k] && inv[k].category) ? inv[k].category : 'General') === selectedCat);
+
         let totalUnidades = 0;
         let totalCostoUSD = 0;
 
-        const allKeys = Object.keys(inv);
-        allKeys.forEach(k => {
-            const it = inv[k];
-            const stock = it.stock || 0;
-            const cost = it.costoCompra || 0;
-            totalUnidades += stock;
-            totalCostoUSD += (stock * cost);
-        });
-
-        const rows = allKeys.slice(0, 30).map(k => {
+        const rows = filteredKeys.map(k => {
             const it = inv[k];
             const stock = it.stock || 0;
             const cost = it.costoCompra || 0;
             const subtotal = stock * cost;
+            totalUnidades += stock;
+            totalCostoUSD += subtotal;
 
             return [
                 { val: k, align: 'center', bold: true },
                 { val: it.name || `Repuesto [${k}]`, align: 'left' },
+                { val: it.category || 'General', align: 'center' },
                 { val: stock.toString(), align: 'center' },
                 { val: `$${cost.toFixed(2)}`, align: 'right' },
                 { val: `Bs. ${(cost * tasa).toFixed(2)}`, align: 'right' },
@@ -2424,19 +2458,36 @@ const NovaReports = (function () {
         const valorTotalUSD = totalCostoUSD;
         const valorTotalBs = valorTotalUSD * tasa;
 
+        const catOptions = [`<option value="Todas" ${selectedCat === 'Todas' ? 'selected' : ''}>Todas las Categorías (${allKeys.length} SKUs)</option>`]
+            .concat(Object.keys(catCounts).sort().map(c => `<option value="${c}" ${selectedCat === c ? 'selected' : ''}>${c} (${catCounts[c]})</option>`))
+            .join('');
+
+        const customControlsHtml = `
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span style="font-size:12px; font-weight:800; color:#003366;">Filtrar por Categoría:</span>
+                    <select id="reportValoracionCatSelect" onchange="NovaReports.filterValoracionCategory(this.value)" style="padding:6px 12px; font-size:12.5px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a;">
+                        ${catOptions}
+                    </select>
+                </div>
+                <span style="font-size:11.5px; color:#475569; font-weight:600;">Mostrando inventario completo: <b>${filteredKeys.length}</b> repuestos</span>
+            </div>
+        `;
+
         return {
             title: "VALORACIÓN DE INVENTARIO Y PATRIMONIO DE ALMACÉN (MÉTODO PEPS Y PROMEDIO)",
-            periodStr: "Cierre Contable ISLR",
+            periodStr: selectedCat === 'Todas' ? `Cierre Contable ISLR (${allKeys.length} SKUs)` : `Categoría: ${selectedCat}`,
+            customControlsHtml,
             kpis: [
-                { label: "Repuestos en Catálogo", value: `${allKeys.length} SKUs`, sub: "Almacén Central Cabimas" },
+                { label: "Repuestos en Reporte", value: `${filteredKeys.length} SKUs`, sub: selectedCat === 'Todas' ? "Inventario completo" : `Categoría ${selectedCat}` },
                 { label: "Existencia Total Física", value: `${totalUnidades.toLocaleString('es-VE')} Unidades`, sub: "Stock auditado" },
                 { label: "Valor Patrimonial USD", value: `$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, highlight: 'text-primary' },
                 { label: "Valor Patrimonial Bs", value: `Bs. ${valorTotalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`, highlight: 'text-success' }
             ],
-            headers: ["Código SKU", "Descripción del Repuesto", "Stock en Almacén", "Costo Unit. USD", "Costo Unit. Bs", "Costo Total USD", "Costo Total Bs."],
+            headers: ["Código SKU", "Descripción del Repuesto", "Categoría", "Stock en Almacén", "Costo Unit. USD", "Costo Unit. Bs", "Costo Total USD", "Costo Total Bs."],
             rows: rows,
             totals: [
-                { val: "<b>VALOR PATRIMONIAL TOTAL DE INVENTARIO</b>", colspan: 5, align: 'left' },
+                { val: "<b>VALOR PATRIMONIAL TOTAL DE INVENTARIO</b>", colspan: 6, align: 'left' },
                 { val: `<b>$${valorTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`, align: 'right' },
                 { val: `<b>Bs. ${valorTotalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</b>`, align: 'right' }
             ]
@@ -2818,27 +2869,41 @@ const NovaReports = (function () {
         });
         const totalInvBs = totalInvUSD * tasa;
 
-        // 2. Ventas y recaudación real en caja / bancos
+        // 2. Ventas y recaudación real en caja / bancos / cuentas por cobrar
         const sales = _getFilteredSales(rangeKey, false);
         let cashUSD = 0;
         let cashBs = 0;
         let bankBs = 0;
+        let cuentasCobrarUSD = 0;
         let totalVentasUSD = 0;
         let totalCostoVentasUSD = 0;
+
+        const _isSalePendingCredit = (s) => {
+            const byFlag = !!s.esCredito;
+            const byMethod = Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && /cr[eé]dito/i.test(String(m.metodo || m || '')));
+            const isPaid = !!s.pagadoCredito || (Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && m.pagadoCredito === true));
+            return (byFlag || byMethod) && !isPaid;
+        };
 
         sales.forEach(s => {
             totalVentasUSD += (s.totalUSD || 0);
             (s.items || []).forEach(it => {
                 const q = parseInt(it.quantity) || 1;
-                const c = parseFloat(it.costoCompra) || 0;
+                const invFallback = (inv[it.id] && inv[it.id].costoCompra) ? parseFloat(inv[it.id].costoCompra) : 0;
+                const c = parseFloat(it.costoCompra) || invFallback;
                 totalCostoVentasUSD += (c * q);
             });
 
-            // Medios de pago
+            if (_isSalePendingCredit(s)) {
+                cuentasCobrarUSD += (parseFloat(s.totalUSD) || 0);
+                return;
+            }
+
+            // Medios de pago cobrados
             if (Array.isArray(s.metodosPago) && s.metodosPago.length > 0) {
                 s.metodosPago.forEach(mp => {
                     const m = String(mp.metodo || '').toLowerCase();
-                    if (m.includes('efectivo usd') || m.includes('dolar') || m.includes('dólar')) {
+                    if (m.includes('efectivo usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance') || m.includes('panam')) {
                         cashUSD += (parseFloat(mp.montoUSD || mp.monto) || 0);
                     } else if (m.includes('efectivo bs')) {
                         cashBs += (parseFloat(mp.montoBs || mp.monto) || 0);
@@ -2848,7 +2913,7 @@ const NovaReports = (function () {
                 });
             } else {
                 const m = String(s.metodoPago || '').toLowerCase();
-                if (m.includes('efectivo usd') || m.includes('dolar') || m.includes('dólar')) {
+                if (m.includes('efectivo usd') || m.includes('dolar') || m.includes('dólar') || m.includes('zelle') || m.includes('binance') || m.includes('panam')) {
                     cashUSD += (s.totalUSD || 0);
                 } else if (m.includes('efectivo bs')) {
                     cashBs += (s.totalBs || 0);
@@ -2868,17 +2933,19 @@ const NovaReports = (function () {
             totalGastosUSD += (parseFloat(e.montoUSD || e.monto) || 0);
         });
 
-        // 4. Compras y Pasivos a proveedores
+        // 4. Pasivos reales: Compras a crédito pendientes de pago a proveedores
         const purchases = (typeof NovaDB !== 'undefined' && NovaDB.getPurchases) ? NovaDB.getPurchases() : [];
-        let totalComprasUSD = 0;
+        let totalPasivosComprasUSD = 0;
         purchases.forEach(p => {
-            totalComprasUSD += (parseFloat(p.totalUSD) || 0);
+            if (p && p.esCredito && !p.pagadoCredito) {
+                totalPasivosComprasUSD += (parseFloat(p.totalUSD) || 0);
+            }
         });
 
-        const activosTotalesUSD = totalCajaUSD + bankUSD + totalInvUSD;
+        const activosTotalesUSD = totalCajaUSD + bankUSD + totalInvUSD + cuentasCobrarUSD;
         const activosTotalesBs = activosTotalesUSD * tasa;
 
-        const pasivosTotalesUSD = totalComprasUSD;
+        const pasivosTotalesUSD = totalPasivosComprasUSD;
         const pasivosTotalesBs = pasivosTotalesUSD * tasa;
 
         const patrimonioNetoUSD = Math.max(0, activosTotalesUSD - pasivosTotalesUSD);
@@ -2889,17 +2956,17 @@ const NovaReports = (function () {
 
         const rows = [
             // ACTIVO CIRCULANTE
-            [{ val: "1.1.01", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Caja Principal y Efectivo (USD / Bs)", align: 'left' }, { val: `$${totalCajaUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${(totalCajaUSD * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: activosTotalesUSD > 0 ? `${((totalCajaUSD / activosTotalesUSD) * 100).toFixed(1)}%` : '0%', align: 'center' }],
+            [{ val: "1.1.01", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Caja Principal, Efectivo y Divisas (USD / Bs)", align: 'left' }, { val: `$${totalCajaUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${(totalCajaUSD * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: activosTotalesUSD > 0 ? `${((totalCajaUSD / activosTotalesUSD) * 100).toFixed(1)}%` : '0%', align: 'center' }],
             [{ val: "1.1.02", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Bancos Nacionales (Banesco / BDV / Pago Móvil / Punto)", align: 'left' }, { val: `$${bankUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${bankBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: activosTotalesUSD > 0 ? `${((bankUSD / activosTotalesUSD) * 100).toFixed(1)}%` : '0%', align: 'center' }],
             [{ val: "1.1.03", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Inventario de Repuestos en Almacén (Costo Reposición)", align: 'left' }, { val: `$${totalInvUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: activosTotalesUSD > 0 ? `${((totalInvUSD / activosTotalesUSD) * 100).toFixed(1)}%` : '100%', align: 'center' }],
-            [{ val: "1.1.04", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Cuentas por Cobrar Clientes (Ventas Mostrador al Contado)", align: 'left' }, { val: "$0.00", align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: "0.0%", align: 'center' }],
-            
+            [{ val: "1.1.04", align: 'center', bold: true }, { val: "<b>ACTIVO:</b> Cuentas por Cobrar Clientes (Facturas a Crédito Pendientes)", align: 'left' }, { val: `$${cuentasCobrarUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${(cuentasCobrarUSD * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: activosTotalesUSD > 0 ? `${((cuentasCobrarUSD / activosTotalesUSD) * 100).toFixed(1)}%` : '0.0%', align: 'center' }],
+
             // PASIVO CIRCULANTE
             [{ val: "2.1.01", align: 'center', bold: true }, { val: "<b>PASIVO:</b> Cuentas por Pagar Proveedores Distribuidores", align: 'left' }, { val: `$${pasivosTotalesUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${pasivosTotalesBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: pasivosTotalesUSD > 0 ? '100%' : '0%', align: 'center' }],
-            
+
             // PATRIMONIO
             [{ val: "3.1.01", align: 'center', bold: true }, { val: "<b>PATRIMONIO:</b> Capital Social y Patrimonio Neto Acumulado", align: 'left' }, { val: `$${patrimonioNetoUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: `Bs. ${patrimonioNetoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "100.0%", align: 'center' }],
-            
+
             // ESTADO DE RESULTADOS (P&G)
             [{ val: "4.1.01", align: 'center', bold: true }, { val: "<b>P&amp;G INGRESOS:</b> Ventas Totales Facturadas en Mostrador", align: 'left' }, { val: `<span style="color:#16a34a; font-weight:700;">$${totalVentasUSD.toFixed(2)}</span>`, align: 'right' }, { val: `Bs. ${(totalVentasUSD * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "100.0%", align: 'center' }],
             [{ val: "5.1.01", align: 'center', bold: true }, { val: "<b>P&amp;G COSTOS:</b> Costo de Repuestos Vendidos (Costo de Venta)", align: 'left' }, { val: `<span style="color:#dc2626;">-$${totalCostoVentasUSD.toFixed(2)}</span>`, align: 'right' }, { val: `-Bs. ${(totalCostoVentasUSD * tasa).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: totalVentasUSD > 0 ? `${((totalCostoVentasUSD / totalVentasUSD) * 100).toFixed(1)}%` : '0%', align: 'center' }],
@@ -2944,34 +3011,47 @@ const NovaReports = (function () {
         let totalVentasBs = 0;
         let totalCostoVentasBs = 0;
         let totalCajaBancosBs = 0;
+        let totalCuentasCobrarBs = 0;
 
         sales.forEach(s => {
-            const vBs = (s.totalBs || 0);
+            const vBs = (s.totalBs || ((s.totalUSD || 0) * tasa));
             totalVentasBs += vBs;
-            totalCajaBancosBs += vBs;
+            const byFlag = !!s.esCredito;
+            const byMethod = Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && /cr[eé]dito/i.test(String(m.metodo || m || '')));
+            const isPaid = !!s.pagadoCredito || (Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && m.pagadoCredito === true));
+            if ((byFlag || byMethod) && !isPaid) {
+                totalCuentasCobrarBs += vBs;
+            } else {
+                totalCajaBancosBs += vBs;
+            }
             (s.items || []).forEach(it => {
                 const q = parseInt(it.quantity) || 1;
-                const c = parseFloat(it.costoCompra) || 0;
+                const invFallback = (inv[it.id] && inv[it.id].costoCompra) ? parseFloat(inv[it.id].costoCompra) : 0;
+                const c = parseFloat(it.costoCompra) || invFallback;
                 totalCostoVentasBs += (c * q * tasa);
             });
         });
 
         const purchases = (typeof NovaDB !== 'undefined' && NovaDB.getPurchases) ? NovaDB.getPurchases() : [];
-        let totalComprasBs = 0;
+        let totalComprasPendientesBs = 0;
         purchases.forEach(p => {
-            totalComprasBs += ((parseFloat(p.totalUSD) || 0) * tasa);
+            if (p && p.esCredito && !p.pagadoCredito) {
+                totalComprasPendientesBs += ((parseFloat(p.totalUSD) || 0) * tasa);
+            }
         });
 
-        const totalDebe = totalCajaBancosBs + totalInvBs + totalCostoVentasBs;
-        const totalHaber = totalVentasBs + totalComprasBs + (totalDebe - (totalVentasBs + totalComprasBs));
+        const totalDebe = totalCajaBancosBs + totalCuentasCobrarBs + totalInvBs + totalCostoVentasBs;
+        const capitalCuadre = totalDebe - (totalVentasBs + totalComprasPendientesBs);
+        const totalHaber = totalVentasBs + totalComprasPendientesBs + capitalCuadre;
 
         const rows = [
             [{ val: "1.1.01", align: 'center' }, { val: "Caja y Bancos (Disponibilidad)", align: 'left' }, { val: `Bs. ${totalCajaBancosBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalCajaBancosBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }, { val: "-", align: 'center' }],
             [{ val: "1.1.03", align: 'center' }, { val: "Inventario de Mercancía en Almacén", align: 'left' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalInvBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }, { val: "-", align: 'center' }],
-            [{ val: "2.1.01", align: 'center' }, { val: "Cuentas por Pagar Proveedores", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalComprasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${totalComprasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }],
+            [{ val: "1.1.04", align: 'center' }, { val: "Cuentas por Cobrar Clientes (Crédito)", align: 'left' }, { val: `Bs. ${totalCuentasCobrarBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalCuentasCobrarBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }, { val: "-", align: 'center' }],
+            [{ val: "2.1.01", align: 'center' }, { val: "Cuentas por Pagar Proveedores", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalComprasPendientesBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${totalComprasPendientesBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }],
             [{ val: "4.1.01", align: 'center' }, { val: "Ingresos por Ventas de Repuestos", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalVentasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${totalVentasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }],
             [{ val: "5.1.01", align: 'center' }, { val: "Costo de Mercancía Vendida", align: 'left' }, { val: `Bs. ${totalCostoVentasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${totalCostoVentasBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }, { val: "-", align: 'center' }],
-            [{ val: "3.1.01", align: 'center' }, { val: "Capital Social y Patrimonio Cuadrado", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${(totalDebe - (totalVentasBs + totalComprasBs)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${(totalDebe - (totalVentasBs + totalComprasBs)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }]
+            [{ val: "3.1.01", align: 'center' }, { val: "Capital Social y Patrimonio Cuadrado", align: 'left' }, { val: "Bs. 0,00", align: 'right' }, { val: `Bs. ${capitalCuadre.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right' }, { val: "-", align: 'center' }, { val: `Bs. ${capitalCuadre.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, align: 'right', bold: true }]
         ];
 
         return {
@@ -3046,7 +3126,13 @@ const NovaReports = (function () {
     // 21. Cuentas por Cobrar
     function generateCuentasCobrarReport(rangeKey) {
         const allSales = (typeof NovaDB !== 'undefined' && NovaDB.getSales) ? NovaDB.getSales() : [];
-        const creditSales = allSales.filter(s => !s.anulada && s.esCredito && !s.pagadoCredito);
+        const creditSales = allSales.filter(s => {
+            if (!s || s.anulada || s.tipoDocumento === 'presupuesto') return false;
+            const byFlag = !!s.esCredito;
+            const byMethod = Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && /cr[eé]dito/i.test(String(m.metodo || m || '')));
+            const isPaid = !!s.pagadoCredito || (Array.isArray(s.metodosPago) && s.metodosPago.some(m => m && m.pagadoCredito === true));
+            return (byFlag || byMethod) && !isPaid;
+        });
         const held = (typeof NovaDB !== 'undefined' && NovaDB.getHeldSales) ? NovaDB.getHeldSales() : [];
         const rows = [];
         let totalCobrarUSD = 0;
@@ -3114,20 +3200,42 @@ const NovaReports = (function () {
     function generateCuentasPagarReport(rangeKey) {
         const purchases = (typeof NovaDB !== 'undefined' && NovaDB.getPurchases) ? NovaDB.getPurchases() : [];
         const rows = [];
-        let totalPagarUSD = 0;
+        let totalFacturadoUSD = 0;
+        let totalPagadoUSD = 0;
+        let totalPendienteUSD = 0;
+        let overdueCount = 0;
+        const todayStr = new Date().toISOString().slice(0, 10);
 
         purchases.forEach(p => {
             const tot = parseFloat(p.totalUSD) || 0;
-            totalPagarUSD += tot;
+            const isPending = !!p.esCredito && !p.pagadoCredito;
+            const paid = isPending ? 0 : tot;
+            const pending = isPending ? tot : 0;
+
+            totalFacturadoUSD += tot;
+            totalPagadoUSD += paid;
+            totalPendienteUSD += pending;
+
+            let statusHtml = "<span style='color:#16a34a; font-weight:700;'>Al Día (Pagado)</span>";
+            if (isPending) {
+                const isOverdue = p.fechaVencimiento && p.fechaVencimiento < todayStr;
+                if (isOverdue) {
+                    overdueCount++;
+                    statusHtml = `<span style='color:#dc2626; font-weight:800;'>Vencida (${p.fechaVencimiento})</span>`;
+                } else {
+                    statusHtml = `<span style='color:#b45309; font-weight:700;'>Por Pagar${p.fechaVencimiento ? ' (' + p.fechaVencimiento + ')' : ''}</span>`;
+                }
+            }
+
             rows.push([
                 { val: `<b>${p.proveedorNombre || 'Proveedor'}</b>`, align: 'left' },
-                { val: p.facturaNumero || p.id || 'N/A', align: 'center' },
+                { val: p.facturaNumero && p.facturaNumero !== 'N/A' ? `${p.id} (${p.facturaNumero})` : (p.id || 'N/A'), align: 'center' },
                 { val: p.fechaStr || (p.timestamp ? new Date(p.timestamp).toLocaleDateString('es-VE') : 'Hoy'), align: 'center' },
-                { val: '30 Días (Crédito)', align: 'center' },
+                { val: p.terminoComercial || (p.esCredito ? '30 Días (Crédito)' : 'Contado'), align: 'center' },
                 { val: `$${tot.toFixed(2)}`, align: 'right' },
-                { val: `$${tot.toFixed(2)}`, align: 'right' },
-                { val: "<b>$0.00</b>", align: 'right' },
-                { val: "<span style='color:#16a34a; font-weight:700;'>Al Día (Pagado)</span>", align: 'center' }
+                { val: `$${paid.toFixed(2)}`, align: 'right' },
+                { val: `<b>$${pending.toFixed(2)}</b>`, align: 'right' },
+                { val: statusHtml, align: 'center' }
             ]);
         });
 
@@ -3141,18 +3249,18 @@ const NovaReports = (function () {
             title: "CUENTAS POR PAGAR A PROVEEDORES Y CALENDARIO DE VENCIMIENTOS",
             periodStr: "Obligaciones Comerciales",
             kpis: [
-                { label: "Compras Registradas", value: `$${totalPagarUSD.toFixed(2)} USD`, sub: `${purchases.length} Facturas de repuestos` },
-                { label: "Saldo Vencido", value: "$0.00", highlight: 'text-success', sub: "Sin mora comercial" },
-                { label: "Compromisos al Día", value: "100%", highlight: 'text-success' }
+                { label: "Total Facturado Proveedores", value: `$${totalFacturadoUSD.toFixed(2)} USD`, sub: `${purchases.length} Facturas registradas` },
+                { label: "Saldo Pendiente por Pagar", value: `$${totalPendienteUSD.toFixed(2)} USD`, highlight: totalPendienteUSD > 0 ? 'text-warning' : 'text-success', sub: overdueCount > 0 ? `${overdueCount} vencida(s)` : "Sin mora comercial" },
+                { label: "Total Pagado / Abonado", value: `$${totalPagadoUSD.toFixed(2)} USD`, highlight: 'text-success' }
             ],
             headers: ["Proveedor / RIF", "Factura Proveedor", "Fecha Recepción", "Término Comercial", "Total Facturado", "Abonado / Pagado", "Saldo Pendiente", "Estatus"],
             rows: rows,
             totals: [
                 { val: "<b>TOTAL OBLIGACIONES CON PROVEEDORES</b>", colspan: 4, align: 'left' },
-                { val: `<b>$${totalPagarUSD.toFixed(2)}</b>`, align: 'right' },
-                { val: `<b>$${totalPagarUSD.toFixed(2)}</b>`, align: 'right' },
-                { val: "<b>$0.00 USD</b>", align: 'right' },
-                { val: "Al Día", align: 'center' }
+                { val: `<b>$${totalFacturadoUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>$${totalPagadoUSD.toFixed(2)}</b>`, align: 'right' },
+                { val: `<b>$${totalPendienteUSD.toFixed(2)} USD</b>`, align: 'right' },
+                { val: totalPendienteUSD > 0 ? "Pendiente" : "Al Día", align: 'center' }
             ]
         };
     }
@@ -3179,9 +3287,10 @@ const NovaReports = (function () {
             itemsToProcess.forEach(mp => {
                 const mLower = String(mp.metodo || '').toLowerCase();
                 const isBank = mLower.includes('pago móvil') || mLower.includes('pago movil') ||
-                               mLower.includes('punto') || mLower.includes('transferencia') ||
-                               mLower.includes('biopago') || mLower.includes('patria') ||
-                               mLower.includes('zelle') || mLower.includes('banco');
+                    mLower.includes('punto') || mLower.includes('transferencia') ||
+                    mLower.includes('biopago') || mLower.includes('patria') ||
+                    mLower.includes('zelle') || mLower.includes('banco') ||
+                    mLower.includes('banesco') || mLower.includes('panam');
 
                 if (isBank) {
                     const banco = mp.banco || s.banco || 'Banesco';
@@ -3350,7 +3459,7 @@ const NovaReports = (function () {
     function generateLogPreciosReport(rangeKey) {
         const { startTimestamp } = _getDateRangeLimit(rangeKey);
         const priceLogs = (typeof NovaDB !== 'undefined' && NovaDB.getPriceChangeLogs) ? NovaDB.getPriceChangeLogs() : [];
-        
+
         const filtered = priceLogs.filter(pr => {
             const ts = pr.timestamp || (pr.fechaStr ? new Date(pr.fechaStr).getTime() : 0);
             return !startTimestamp || ts >= startTimestamp || !pr.timestamp;
@@ -3499,6 +3608,7 @@ const NovaReports = (function () {
         setTopProductsSort,
         filterTopProducts,
         filterClientPurchases,
+        filterValoracionCategory,
         exportReportExcel,
         exportCurrentModalExcel,
         exportCurrentModalCSV: exportCurrentModalExcel,

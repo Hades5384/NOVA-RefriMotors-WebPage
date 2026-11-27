@@ -313,6 +313,7 @@ const NovaUsers = (function () {
 
         // 2. Control de Menús en el Sidebar (Ocultar módulos restringidos para vendedores)
         const restrictedNavItems = {
+            'dashboard': user.role === 'admin',
             'cash': user.permissions.canManageCash,
             'inventory': user.permissions.canManageInventory,
             'purchases': user.permissions.canManagePurchases,
